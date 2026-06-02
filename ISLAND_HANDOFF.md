@@ -154,11 +154,23 @@ droit `notifRight`, avant le badge +N et le ✕. Source : `latestPopup.actions`
   lecture impérative de cette property dans le même tick que `onLatestPopupChanged`.
 - Test : `gdbus call ... Notify "Messages" 0 "" "Léa" "Coucou" "['reply','Répondre','archive','Archiver']" "{}" 6000`
 
-## Super+I (toggle clavier)
+## Raccourcis clavier (IPC `island`)
 
-`dms ipc call island toggle` marche. Pour le raccourci, ajouter à `~/.config/hypr/hyprland.conf` :
+IPC dispo (`IslandHub.qml`, target `island`) :
+- `dms ipc call island toggle` — expand/collapse du control center
+- `dms ipc call island expand` — ouvre (idempotent)
+- `dms ipc call island open <view>` — ouvre direct sur une drill view (re-presser = referme).
+  views : `controls | wifi | bluetooth | audio | notifications | calendar | apps | clipboard`.
+  Handler contrôleur `onOpenViewRequested` (gated `isFocusedScreen`) → `openPanel(view)`.
+  Pour `apps`/`clipboard` le grab clavier Exclusive s'engage SANS clic (vérifié : ouverture par IPC
+  puis `wtype "fire"` filtre sur Firefox).
+
+Binds Hyprland (à mettre où vivent les binds — le `~/.config/hypr/hyprland.conf` ici ne fait que
+`source = ./dms/outputs.conf`, les binds sont probablement ailleurs / gérés par DMS) :
 ```
-bind = SUPER, I, exec, dms ipc call island toggle
+bind = SUPER, I,     exec, dms ipc call island toggle
+bind = SUPER, Space, exec, dms ipc call island open apps        # Spotlight
+bind = SUPER, V,     exec, dms ipc call island open clipboard
 ```
 
 ## Réglages de positionnement actuels (DynamicIsland.qml)

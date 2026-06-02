@@ -335,6 +335,18 @@ PanelWindow {
             root.pinned = true
             root.mode = "expanded"
         }
+        // open straight to a drill view (e.g. Super+Space -> Spotlight); pressing
+        // the same bind again while it's showing toggles the island shut
+        function onOpenViewRequested(view) {
+            if (!root.isFocusedScreen)
+                return
+            if (root.mode === "expanded" && root.panelView === view && root.pinned) {
+                root.pinned = false
+                root.settle()
+            } else {
+                root.openPanel(view)
+            }
+        }
     }
 
     // open the real DMS menus, anchored under the island.
