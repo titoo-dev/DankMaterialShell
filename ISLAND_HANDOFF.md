@@ -1,11 +1,49 @@
 # Liquid Island — Handoff
 
 Reprise du projet : transformer **DankMaterialShell (DMS)** pour que la barre soit
-remplacée par une **Dynamic Island** (style Apple) — mêmes menus DMS, mais
-disposition / animations / interactivité = île. Fork de DMS, l'île est un "style"
-activable.
+remplacée par une **Dynamic Island** (style Apple/macOS) — mêmes services DMS, mais
+surface/animations/interactivité = île. Fork de DMS, l'île est un "style" activable.
 
-## État : fonctionnel, en prod sur la machine (Hyprland, 2 écrans eDP-1 + HDMI-A-1)
+## État : fonctionnel, en prod (Hyprland, 2 écrans eDP-1 + HDMI-A-1). Branche `feat/dynamic-island` (fork `titoo-dev/DankMaterialShell`), dernier commit `7c4c6bbb`.
+
+---
+
+## ▶▶ REPRENDRE ICI (prochaine session) — finir la modularisation
+
+Contexte : on a commencé à découper le monolithe (voir « Où se trouve le code »). 1ère passe
+faite & commitée : `DynamicIsland.qml` (contrôleur) + `ControlCenterPanel.qml` + `NotificationBanners.qml`.
+
+**Tâche : sortir les 4 vues drill-down de `ControlCenterPanel.qml` dans `panels/`** (puis les panes
+au repos dans `panes/`). But : ajouter un futur panneau = créer 1 fichier.
+
+Recette (testée cette session, voir GOTCHAs d'extraction plus bas) :
+1. Dans `ControlCenterPanel.qml`, les 4 vues sont des `Column` délimitées par des commentaires :
+   `// ---- WI-FI detail view`, `NOTIFICATIONS detail view`, `BLUETOOTH detail view`,
+   `AUDIO OUTPUT detail view` (ids `wifiCol`/`notifCol`/`btCol`/`audioCol`). Le hub = `ccColumn`.
+2. Pour chaque vue → `panels/WifiPanel.qml` etc. : `Column { id: <wifiCol…>; property var island: null; … }`,
+   remplacer `island.` reste, garder les ids internes. Réécrire les réfs externes via `island.`
+   (elles le sont déjà — la vue référence `island.panelView`, `NetworkService`, `Theme`…).
+   **Ré-importer** : `QtQuick`, `qs.Common`, `qs.Services`, `qs.Widgets` (+ `QtQuick.Controls` si `ToolTip`).
+3. Dans `ControlCenterPanel.qml` : remplacer chaque `Column {…}` par `WifiPanel { id: wifiCol; island: ccPanel.island }`
+   (garder le MÊME id pour que `viewHeight` continue de lire `wifiCol.implicitHeight`). `viewHeight`
+   (ligne ~15) reste inchangé.
+4. `systemctl --user restart dms.service` + vérifier (voir GOTCHAs workflow), capturer (`dms screenshot full`).
+
+Ensuite (plus délicat) : panes au repos (`compact/chip/idle/media/presenter`) dans `panes/` —
+ATTENTION `pillW`/`pillH` (DynamicIsland.qml ~ligne 290-370) lisent `compactRow.implicitWidth`,
+`mTitle/mArtist/mEyebrow.implicitWidth`, `wsRow/rightCluster.implicitWidth` → les panes devront
+exposer ces tailles en `readonly property` et le contrôleur les lire via l'id de l'instance.
+
+## GOTCHAs d'extraction (composant → fichier)
+- Composant = `Item/Column { property var island: null; … }` ; `root.` → `island.` (sed
+  `s/root\\./island./g` sur le bloc) ; exposer en `readonly property` ce que la géométrie lit.
+- **RÉ-IMPORTER** ce que le bloc utilise — sinon « Type X unavailable / Non-existent attached
+  object » : `QtQuick.Controls` (ToolTip), `QtQuick.Shapes` (PathAngleArc), `Quickshell.Services.Notifications`
+  (NotificationUrgency), etc.
+- ⚠️ **Numéros de ligne dérivent** entre edits — toujours re-`grep`/`awk` les bornes AVANT un
+  `sed -i 'a,bd'`. (J'ai eu 2 décalages off-by-2 cette session.) Garder un backup (`cp` vers /tmp).
+- Pas de bloc JS multi-instruction dans un binding `text:` (`{ var…; if…; return }`) → « Unexpected
+  token ; ». Utiliser une expression unique.
 
 ---
 
