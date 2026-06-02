@@ -407,13 +407,21 @@ Expérience moderne : recherche, onglets de catégories, grille **couleur** (Not
        ÉCHOUE → bonne forme : `hyprctl dispatch 'hl.dsp.focus({ window = "address:0x..." })'`.
      - L'île est un layer-shell persistant → relâcher le grab Exclusive ne rend pas le focus tout seul ;
        on re-focalise explicitement la fenêtre active (qui reste l'« activewindow » même pendant le grab).
-  - **Solution finale = HYBRIDE selon la fenêtre focus** (`insertText()`) : ferme l'île → re-focalise
-     → si la fenêtre est **XWayland** (`hyprctl activewindow | grep 'xwayland: 1'`) : `wl-copy` l'emoji +
-     `DISPLAY=:0 xdotool key --clearmodifiers ctrl+v` + **restaure** le presse-papier précédent (0.7 s
-     après, le temps que Discord lise) → pas de pollution ; sinon (**natif Wayland**) : `wtype "<emoji>"`
-     direct, sans presse-papier. Outils dans le nix-config (`~/personal`) : `xdotool` (systemPackages) +
-     `programs.ydotool.enable` (résiduel, inoffensif). Nécessite un `nixos-rebuild` (xdotool = juste un
-     package, pas de relogin : `/run/current-system/sw/bin` est dans le PATH du service DMS).
+  - **Tentative xdotool (échec)** : `xdotool key ctrl+v` colle bien dans Discord en test MANUEL (focus X
+     stable), mais dans le flux du picker — juste après le relâchement du grab clavier de l'île — le
+     **modificateur Ctrl du Ctrl+V synthétique ne s'enregistre pas** (les touches simples passent : un
+     `xdotool type 'Q'` apparaît, mais le combo Ctrl+V no-op). Curiosité : la séquence `type 'Q'` +
+     keydown/keyup ctrl+v + `type 'R'` collait (`Q🚀R`), mais impossible à reproduire proprement (un
+     warmup `key shift` ne suffit pas, un `type` de caractère oui mais laisse une trace). Bridge clipboard
+     XWayland lent aussi (restaurer < 2 s écrase avant lecture). Abandonné comme non fiable.
+  - **Solution finale RETENUE (fiable)** — `insertText()` : ferme l'île → re-focalise (`hl.dsp.focus`) →
+     si la fenêtre est **native Wayland** (`! grep 'xwayland: 1'`) : `wtype "<emoji>"` (vrai auto-insert,
+     sans presse-papier) ; si **XWayland** (Discord, ...) : `wl-copy` l'emoji → **l'utilisateur fait
+     Ctrl+V** (son collage manuel marche à 100 %). Pas d'auto-paste forcé dans XWayland (non atteignable
+     de façon fiable avec wtype/ydotool/xdotool ici). `xdotool` + `programs.ydotool.enable` restent dans
+     le nix-config mais ne sont **plus utilisés** par le code (inoffensifs ; à retirer si on veut).
+  - TODO éventuel : reprendre l'auto-paste XWayland (la séquence `type` + ctrl+v marche par moments) —
+     ou tester un `ydotool`/`wtype` sur compositeur sans XWayland.
   - ⚠️ Test headless impossible dans cette session : le focus clavier seat reste sur le terminal
     Claude Code (multi-écran), donc les `wtype` de test fuient dans l'input Claude au lieu de la
     cible. À VÉRIFIER côté user : `mainMod + semicolon` dans un vrai champ.

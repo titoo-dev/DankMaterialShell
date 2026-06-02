@@ -231,14 +231,13 @@ PanelWindow {
     onPlayingChanged: if (!hovered && !pinned && mode !== "notif" && mode !== "presenter") mode = restMode()
 
     // ---------- insert the emoji into the focused app (emoji picker) ----------
-    // Hard reality of this Wayland+XWayland setup:
-    //   - wtype types emoji into NATIVE Wayland apps, but can't reach XWayland at all.
-    //   - ydotool reaches XWayland but only for plain keys (no emoji, no Ctrl+V).
-    //   - xdotool speaks X11 natively, so it CAN send a real Ctrl+V to XWayland apps.
-    // So we branch on the focused window: native Wayland → wtype the emoji directly
-    // (no clipboard); XWayland (Discord, ...) → copy it + xdotool Ctrl+V, then restore
-    // the previous clipboard so it isn't left polluted. Close island first, then
-    // re-focus the active window (Lua-config dispatch: hl.dsp.focus).
+    // Wayland vs XWayland reality on this setup:
+    //   - native Wayland apps: wtype types the emoji directly → true auto-insert.
+    //   - XWayland apps (Discord, ...): wtype can't reach them, ydotool can't type
+    //     emoji or send a working modifier combo, and a synthetic Ctrl+V right after
+    //     the island's keyboard grab is unreliable. So we just put the emoji on the
+    //     clipboard and the user presses Ctrl+V (their manual paste always works).
+    // Close the island first, then re-focus the previously active window (Lua: hl.dsp.focus).
     property string _typePending: ""
     function insertText(text) {
         if (!text || text.length === 0) return
@@ -257,11 +256,7 @@ PanelWindow {
                 "info=$(hyprctl activewindow); a=$(echo \"$info\" | awk 'NR==1{print $2}'); "
                 + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
                 + "sleep 0.12; "
-                + "if echo \"$info\" | grep -q 'xwayland: 1'; then "
-                +   "old=$(wl-paste -n 2>/dev/null); printf %s \"$1\" | wl-copy; sleep 0.1; "
-                +   "DISPLAY=${DISPLAY:-:0} xdotool key --clearmodifiers ctrl+v; "
-                +   "sleep 0.7; printf %s \"$old\" | wl-copy; "
-                + "elif command -v wtype >/dev/null 2>&1; then wtype \"$1\"; "
+                + "if ! echo \"$info\" | grep -q 'xwayland: 1' && command -v wtype >/dev/null 2>&1; then wtype \"$1\"; "
                 + "else printf %s \"$1\" | wl-copy; fi",
                 "island-emoji", e])
         }
