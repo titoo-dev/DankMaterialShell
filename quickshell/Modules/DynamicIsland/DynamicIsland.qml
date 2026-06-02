@@ -196,7 +196,7 @@ PanelWindow {
     property bool pinned: false
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "notifications" | "calendar"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "notifications" | "calendar" | "apps" | "clipboard"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
@@ -407,7 +407,16 @@ PanelWindow {
     WlrLayershell.namespace: "dms:dynamic-island"
     WlrLayershell.layer: WlrLayershell.Overlay
     WlrLayershell.exclusiveZone: -1
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // keyboard focus only for the search-driven drill views (Spotlight / clipboard) so
+    // their text fields can type; everything else stays focus-free (click-through).
+    // Exclusive (modal) grab: reliable and engages immediately on open, whereas
+    // Hyprland's OnDemand focus-grab only kicks in on a pointer click. Released the
+    // instant panelView leaves apps/clipboard; Esc / click-outside scrim / back all exit.
+    WlrLayershell.keyboardFocus: {
+        if (mode !== "expanded" || (panelView !== "apps" && panelView !== "clipboard"))
+            return WlrKeyboardFocus.None
+        return WlrKeyboardFocus.Exclusive
+    }
     color: "transparent"
 
     // full-screen overlay: input is masked to just the pill (everything else is

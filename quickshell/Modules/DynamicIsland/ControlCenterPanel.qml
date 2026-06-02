@@ -12,7 +12,7 @@ import "panels"
                 id: ccPanel
                 property var island: null
                 // active view height (drives the pill height in the controller)
-                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : ccColumn.implicitHeight)
+                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : ccColumn.implicitHeight)
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 opacity: island.mode === "expanded" ? 1 : 0
@@ -177,9 +177,11 @@ import "panels"
                                     MouseArea {
                                         id: ftArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            // notifications & calendar have island-native views; others still open DMS popouts
+                                            // most surfaces are island-native now; only "control" (full settings) opens a DMS popout
                                             if (modelData.which === "notifications") island.panelView = "notifications"
                                             else if (modelData.which === "calendar") island.panelView = "calendar"
+                                            else if (modelData.which === "apps") island.panelView = "apps"
+                                            else if (modelData.which === "clipboard") island.panelView = "clipboard"
                                             else { island.openMenu(modelData.which); island.pinned = false; island.settle() }
                                         }
                                     }
@@ -195,4 +197,6 @@ import "panels"
                 BluetoothPanel     { id: btCol;    island: ccPanel.island }
                 AudioPanel         { id: audioCol; island: ccPanel.island }
                 CalendarPanel      { id: calCol;   island: ccPanel.island }
+                SpotlightPanel     { id: appCol;   island: ccPanel.island }
+                ClipboardPanel     { id: clipCol;  island: ccPanel.island }
             }

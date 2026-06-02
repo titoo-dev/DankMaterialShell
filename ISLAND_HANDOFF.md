@@ -325,9 +325,32 @@ les mêmes services. Navigation **drill-down macOS**.
   invoque l'action par défaut si présente. Entrées : footer hub (icône notifs) + clic-corps d'une
   notif active (`openPanel("notifications")`). Vérifié par capture (3 notifs listées). Remplace le
   centre de notif DMS dans le flux île.
-- Drill-views île-natives COMPLÈTES : **Wi-Fi, Bluetooth, Audio, Notifications**. Le footer du hub
-  n'ouvre plus de popouts DMS que pour apps (spotlight), presse-papier et « réglages complets »
-  (surfaces app/launcher, pas des panneaux de connectivité — hors périmètre d'unification).
+- Drill-views île-natives : **Wi-Fi, Bluetooth, Audio, Notifications, Calendar, Spotlight (apps),
+  Clipboard**. Le footer du hub (5 icônes : apps/notifications/calendar/clipboard/settings) n'ouvre
+  plus qu'UN popout DMS : « All settings » (`control`) — gardé exprès comme passerelle vers l'app
+  complète (équivalent « Réglages système… » macOS).
+
+## Spotlight (apps) + Clipboard en drill view (fait 2026-06-02)
+
+- `panels/SpotlightPanel.qml` (id `appCol`, `panelView="apps"`) : champ de recherche + liste de
+  résultats. Recherche `AppSearchService.searchApplications(query)` ; lancement
+  `SessionService.launchDesktopEntry(app)` ; icônes via `AppIconRenderer { iconValue; iconSize }`.
+  Enter lance le 1er résultat, Esc revient au hub.
+  ⚠️ **`results` calculé en IMPÉRATIF** (`property var results: []` + `refresh()` sur `onTextEdited`
+  / `onVisibleChanged`), PAS en binding : `searchApplications()` écrit ses propres caches qu'il lit
+  → un binding réactif boucle (« Binding loop detected for property results »).
+- `panels/ClipboardPanel.qml` (id `clipCol`, `panelView="clipboard"`) : recherche + liste
+  `ClipboardService.clipboardEntries` (filtre local sur `.preview`, ici un binding pur = OK car
+  lecture seule). `refresh()` à l'ouverture ; clic = `copyEntry(entry)` ; ✕ = `deleteEntry(entry)` ;
+  images = icône `image` + label « Image ». Backend = daemon DMS (cliphist).
+- ⚠️ **FOCUS CLAVIER** : la fenêtre île est `keyboardFocus: None` par défaut. Pour ces 2 vues (champ
+  de saisie) le contrôleur passe à **`WlrKeyboardFocus.Exclusive`** quand `mode==="expanded" &&
+  panelView ∈ {apps,clipboard}`, sinon `None`. Choix d'Exclusive (et pas OnDemand comme DMS sur
+  Hyprland) : OnDemand ne s'engage qu'au **clic pointeur** sur la surface → la saisie ne marchait pas
+  à l'ouverture ; Exclusive (grab modal) marche tout de suite. Le champ fait `forceActiveFocus()` à
+  l'ouverture (`onVisibleChanged`). Esc renvoyé au hub via `keyForwardTargets:[escHandler]` du
+  `DankTextField`. Le grab est relâché dès que `panelView` quitte apps/clipboard. Vérifié par
+  capture : `wtype "set"` filtre sur « System Settings », Esc revient au hub.
 
 ## Bannières de notification macOS (refonte complète, 2026-06-02)
 
