@@ -396,8 +396,12 @@ Expérience moderne : recherche, onglets de catégories, grille **couleur** (Not
      `Hyprland.toplevels.values[i].wayland === ToplevelManager.activeToplevel` → `.address`.
   2. `pick()` → `island.insertText(e)` : ferme l'île, puis `insertFocusTimer` (150 ms) appelle
      `HyprlandService.focusWindow(_typeAddr)` (re-focalise explicitement), puis `insertTypeTimer`
-     (70 ms) lance `Quickshell.execDetached(["wtype", e])`. Toast « Inserted … ».
-  - ⚠️ `wtype` TAPE bien les emojis (vérifié) ; le souci était uniquement le focus.
+     (70 ms) **colle via presse-papier + Ctrl+V** (PAS un wtype direct de l'emoji). Toast « Inserted … ».
+  - ⚠️ **wtype d'un emoji ne marche PAS en XWayland** (Discord `xwayland:1`, etc.) : le keysym Unicode
+     remappé n'est pas reçu. Solution universelle = `wl-copy` l'emoji + `wtype -M ctrl -P v -p v -m ctrl`
+     (Ctrl+V standard, reçu partout, c'est la méthode de `ClipboardService` DMS), puis **restaure le
+     presse-papier précédent** (`old=$(wl-paste -n); … ; printf %s "$old" | wl-copy`) → presse-papier
+     non pollué. Vérifié : pendant=emoji, restauré=ancien contenu.
   - ⚠️ Test headless impossible dans cette session : le focus clavier seat reste sur le terminal
     Claude Code (multi-écran), donc les `wtype` de test fuient dans l'input Claude au lieu de la
     cible. À VÉRIFIER côté user : `mainMod + semicolon` dans un vrai champ.

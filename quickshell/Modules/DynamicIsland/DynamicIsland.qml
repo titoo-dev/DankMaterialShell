@@ -263,15 +263,21 @@ PanelWindow {
             insertTypeTimer.restart()
         }
     }
-    // step 2: focus settled, type the text into it
+    // step 2: focus settled, paste the text into it. Use clipboard + Ctrl+V (not a
+    // direct wtype of the emoji): a wtype'd emoji uses a remapped Unicode keysym that
+    // XWayland apps (Discord, ...) don't receive, whereas Ctrl+V is standard keys and
+    // pastes everywhere. Restore the previous clipboard afterwards so we don't leave
+    // the emoji sitting in it (same paste mechanism DMS's ClipboardService uses).
     Timer {
         id: insertTypeTimer
         interval: 70
         onTriggered: {
-            if (root._typePending.length > 0) {
-                Quickshell.execDetached(["wtype", root._typePending])
-                root._typePending = ""
-            }
+            if (root._typePending.length === 0) return
+            const e = root._typePending
+            root._typePending = ""
+            Quickshell.execDetached(["sh", "-c",
+                "old=$(wl-paste -n 2>/dev/null); printf %s \"$1\" | wl-copy; sleep 0.06; wtype -M ctrl -P v -p v -m ctrl; sleep 0.25; printf %s \"$old\" | wl-copy",
+                "island-emoji", e])
         }
     }
 
