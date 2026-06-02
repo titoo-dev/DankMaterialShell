@@ -230,15 +230,15 @@ PanelWindow {
     }
     onPlayingChanged: if (!hovered && !pinned && mode !== "notif" && mode !== "presenter") mode = restMode()
 
-    // ---------- insert text into the focused app (emoji picker) ----------
-    // Our island is a PERSISTENT layer-shell that never unmaps, so dropping the
-    // Exclusive keyboard grab doesn't make Hyprland hand focus back to the app
-    // underneath (unlike DMS's clipboard popout, which unmaps). And a direct wtype
-    // of an emoji uses a remapped Unicode keysym that XWayland apps (Discord, ...)
-    // never receive. So: close the island, then in a detached shell re-focus the
-    // active window with hyprctl (runtime dispatch, works for any config format),
-    // paste via clipboard + Ctrl+V (standard keys, work everywhere incl. XWayland),
-    // and restore the previous clipboard so it isn't left polluted.
+    // ---------- insert the emoji into the focused app (emoji picker) ----------
+    // Hard reality of this Wayland+XWayland setup:
+    //   - wtype types emoji into NATIVE Wayland apps, but can't reach XWayland at all.
+    //   - ydotool reaches XWayland but only for plain keys (no emoji, no Ctrl+V).
+    //   - xdotool speaks X11 natively, so it CAN send a real Ctrl+V to XWayland apps.
+    // So we branch on the focused window: native Wayland → wtype the emoji directly
+    // (no clipboard); XWayland (Discord, ...) → copy it + xdotool Ctrl+V, then restore
+    // the previous clipboard so it isn't left polluted. Close island first, then
+    // re-focus the active window (Lua-config dispatch: hl.dsp.focus).
     property string _typePending: ""
     function insertText(text) {
         if (!text || text.length === 0) return
@@ -254,11 +254,15 @@ PanelWindow {
             const e = root._typePending
             root._typePending = ""
             Quickshell.execDetached(["sh", "-c",
-                "a=$(hyprctl activewindow | awk 'NR==1{print $2}'); "
+                "info=$(hyprctl activewindow); a=$(echo \"$info\" | awk 'NR==1{print $2}'); "
                 + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
                 + "sleep 0.12; "
-                + "if command -v ydotool >/dev/null 2>&1; then ydotool type -- \"$1\"; "
-                + "else old=$(wl-paste -n 2>/dev/null); printf %s \"$1\" | wl-copy; sleep 0.06; wtype -M ctrl -P v -p v -m ctrl; sleep 0.6; printf %s \"$old\" | wl-copy; fi",
+                + "if echo \"$info\" | grep -q 'xwayland: 1'; then "
+                +   "old=$(wl-paste -n 2>/dev/null); printf %s \"$1\" | wl-copy; sleep 0.1; "
+                +   "DISPLAY=${DISPLAY:-:0} xdotool key --clearmodifiers ctrl+v; "
+                +   "sleep 0.7; printf %s \"$old\" | wl-copy; "
+                + "elif command -v wtype >/dev/null 2>&1; then wtype \"$1\"; "
+                + "else printf %s \"$1\" | wl-copy; fi",
                 "island-emoji", e])
         }
     }

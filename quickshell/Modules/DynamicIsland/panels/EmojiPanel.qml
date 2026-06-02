@@ -39,7 +39,7 @@ Column {
         const e = emojiOf(it)
         if (!e) return
         addRecent(e)
-        ToastService.showInfo(I18n.tr("Inserted %1").arg(e))
+        ToastService.showInfo(e)
         island.insertText(e)
     }
     function addRecent(e) {

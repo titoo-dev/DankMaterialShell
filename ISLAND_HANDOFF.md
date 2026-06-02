@@ -397,19 +397,23 @@ Expérience moderne : recherche, onglets de catégories, grille **couleur** (Not
   2. `pick()` → `island.insertText(e)` : ferme l'île, puis `insertFocusTimer` (150 ms) appelle
      `HyprlandService.focusWindow(_typeAddr)` (re-focalise explicitement), puis `insertTypeTimer`
      (70 ms) **colle via presse-papier + Ctrl+V** (PAS un wtype direct de l'emoji). Toast « Inserted … ».
-  - ⚠️⚠️ **wtype NE TOUCHE PAS les fenêtres XWayland** (Discord `xwayland:1`, etc.) — NI la frappe
-     d'emoji NI un Ctrl+V (le clavier virtuel Wayland ne va pas vers XWayland). Diagnostiqué via un log
-     de debug : focus `ok`, copie ok, `wtype rc=0`, mais rien ne se colle dans Discord. C'est une
-     limite de `wtype`, pas du code. ⚠️ Gotcha focus en config **Lua** : `hyprctl dispatch focuswindow`
-     est interprété comme du lua et ÉCHOUE → la bonne forme est `hyprctl dispatch
-     'hl.dsp.focus({ window = "address:0x..." })'` (testé « ok »).
-  - **Solution = `ydotool`** (injection via `/dev/uinput`, atteint Wayland ET XWayland). Activé dans le
-     nix-config (`programs.ydotool.enable` + groupe `uinput`, repo `~/personal`). `insertText()` fait :
-     ferme l'île → re-focalise la fenêtre active (`hl.dsp.focus`) → si `ydotool` présent
-     `ydotool type -- "<emoji>"` (frappe directe, **zéro presse-papier**), sinon fallback wtype
-     clipboard+Ctrl+V (marche seulement en natif Wayland). Nécessite un `nixos-rebuild` + re-login
-     (groupe uinput). Socket : ydotoold tourne en service user ; si `ydotool type` ne trouve pas le
-     socket, vérifier `YDOTOOL_SOCKET` dans l'env du service DMS.
+  - ⚠️⚠️ **Saga de l'insertion (diagnostiquée à fond, par log de debug + tests user)** :
+     - `wtype` tape l'emoji dans les apps **natives Wayland**, mais **n'atteint PAS XWayland** du tout.
+     - `ydotool` (uinput) atteint XWayland mais SEULEMENT pour les touches simples : il ne tape pas
+       l'emoji, et ses combos modificateur (Ctrl+V, Shift+Insert) **ne sont pas reçus** par XWayland.
+     - `xdotool` parle **X11 natif** → il atteint les clients XWayland et envoie un vrai Ctrl+V que
+       Discord comprend (mais ne marche PAS pour les apps natives Wayland).
+     - Gotcha focus en config **Lua** : `hyprctl dispatch focuswindow` est interprété comme du lua et
+       ÉCHOUE → bonne forme : `hyprctl dispatch 'hl.dsp.focus({ window = "address:0x..." })'`.
+     - L'île est un layer-shell persistant → relâcher le grab Exclusive ne rend pas le focus tout seul ;
+       on re-focalise explicitement la fenêtre active (qui reste l'« activewindow » même pendant le grab).
+  - **Solution finale = HYBRIDE selon la fenêtre focus** (`insertText()`) : ferme l'île → re-focalise
+     → si la fenêtre est **XWayland** (`hyprctl activewindow | grep 'xwayland: 1'`) : `wl-copy` l'emoji +
+     `DISPLAY=:0 xdotool key --clearmodifiers ctrl+v` + **restaure** le presse-papier précédent (0.7 s
+     après, le temps que Discord lise) → pas de pollution ; sinon (**natif Wayland**) : `wtype "<emoji>"`
+     direct, sans presse-papier. Outils dans le nix-config (`~/personal`) : `xdotool` (systemPackages) +
+     `programs.ydotool.enable` (résiduel, inoffensif). Nécessite un `nixos-rebuild` (xdotool = juste un
+     package, pas de relogin : `/run/current-system/sw/bin` est dans le PATH du service DMS).
   - ⚠️ Test headless impossible dans cette session : le focus clavier seat reste sur le terminal
     Claude Code (multi-écran), donc les `wtype` de test fuient dans l'input Claude au lieu de la
     cible. À VÉRIFIER côté user : `mainMod + semicolon` dans un vrai champ.
