@@ -8,31 +8,31 @@ surface/animations/interactivité = île. Fork de DMS, l'île est un "style" act
 
 ---
 
-## ▶▶ REPRENDRE ICI (prochaine session) — finir la modularisation
+## ✅ MODULARISATION TERMINÉE (2026-06-02)
 
-Contexte : on a commencé à découper le monolithe (voir « Où se trouve le code »). 1ère passe
-faite & commitée : `DynamicIsland.qml` (contrôleur) + `ControlCenterPanel.qml` + `NotificationBanners.qml`.
+Le monolithe est entièrement découpé. Contrôleur `DynamicIsland.qml` : ~1040 → **619 lignes**.
+Ajouter un panneau/pane = créer 1 fichier. Structure finale :
+- `DynamicIsland.qml` — contrôleur pur : props/services partagés, machine à états, géométrie
+  (`pillW`/`pillH`), fenêtre+masque, shell du pill (fond/verre/ombre/squash/behaviors), handlers
+  (Hover/Wheel/bgClick/scrim), bump, `SystemClock`, `QsMenuAnchor`. Instancie tous les composants.
+- `ControlCenterPanel.qml` — hub mode expanded. Instancie les 4 panels (`import "panels"`).
+- `NotificationBanners.qml` — deck bannières macOS.
+- `panels/` — 4 vues drill-down : `WifiPanel`, `BluetoothPanel`, `AudioPanel`, `NotificationsPanel`.
+- `panes/` — 5 panes au repos : `CompactPane`, `ChipPane`, `IdlePane`, `MediaPane`, `PresenterPane`.
+- `IslandHub.qml` — singleton + IpcHandler.
 
-**Tâche : sortir les 4 vues drill-down de `ControlCenterPanel.qml` dans `panels/`** (puis les panes
-au repos dans `panes/`). But : ajouter un futur panneau = créer 1 fichier.
+Vérifié par capture cette session : **compact, idle, media, presenter, chip, control-center hub,
+wifi drill-down** rendent tous sans erreur QML.
 
-Recette (testée cette session, voir GOTCHAs d'extraction plus bas) :
-1. Dans `ControlCenterPanel.qml`, les 4 vues sont des `Column` délimitées par des commentaires :
-   `// ---- WI-FI detail view`, `NOTIFICATIONS detail view`, `BLUETOOTH detail view`,
-   `AUDIO OUTPUT detail view` (ids `wifiCol`/`notifCol`/`btCol`/`audioCol`). Le hub = `ccColumn`.
-2. Pour chaque vue → `panels/WifiPanel.qml` etc. : `Column { id: <wifiCol…>; property var island: null; … }`,
-   remplacer `island.` reste, garder les ids internes. Réécrire les réfs externes via `island.`
-   (elles le sont déjà — la vue référence `island.panelView`, `NetworkService`, `Theme`…).
-   **Ré-importer** : `QtQuick`, `qs.Common`, `qs.Services`, `qs.Widgets` (+ `QtQuick.Controls` si `ToolTip`).
-3. Dans `ControlCenterPanel.qml` : remplacer chaque `Column {…}` par `WifiPanel { id: wifiCol; island: ccPanel.island }`
-   (garder le MÊME id pour que `viewHeight` continue de lire `wifiCol.implicitHeight`). `viewHeight`
-   (ligne ~15) reste inchangé.
-4. `systemctl --user restart dms.service` + vérifier (voir GOTCHAs workflow), capturer (`dms screenshot full`).
+Helpers ajoutés au contrôleur pour les panes extraites :
+- `clockShort` / `clockLong` (string) — `clock.date` formaté (les panes ne voient plus l'id `clock`).
+- `openTrayMenu(menuObj, rect)` — la `IdlePane` délègue l'ouverture du menu tray (l'id `trayMenu`
+  reste dans le contrôleur).
 
-Ensuite (plus délicat) : panes au repos (`compact/chip/idle/media/presenter`) dans `panes/` —
-ATTENTION `pillW`/`pillH` (DynamicIsland.qml ~ligne 290-370) lisent `compactRow.implicitWidth`,
-`mTitle/mArtist/mEyebrow.implicitWidth`, `wsRow/rightCluster.implicitWidth` → les panes devront
-exposer ces tailles en `readonly property` et le contrôleur les lire via l'id de l'instance.
+Géométrie : les panes exposent en `readonly property` ce que `pillW` lit, et le contrôleur les lit
+via l'id de l'instance :
+- `compactPane.contentWidth` (compact), `mediaPane.titleW` + `mediaPane.controlsWidth` (media),
+  `idlePane.wsWidth` + `idlePane.clusterWidth` (idle).
 
 ## GOTCHAs d'extraction (composant → fichier)
 - Composant = `Item/Column { property var island: null; … }` ; `root.` → `island.` (sed
@@ -50,24 +50,29 @@ exposer ces tailles en `readonly property` et le contrôleur les lire via l'id d
 ## Où se trouve le code
 
 - **Fork DMS** (= ce repo cloné) : `~/Projects/DankMaterialShell/`
-  - **MODULARISÉ (2026-06-02)** — `Modules/DynamicIsland/` :
-    - `DynamicIsland.qml` (~1040 l.) — **contrôleur** : props/services partagés, machine à états
+  - **MODULARISÉ — 100% (2026-06-02)** — `Modules/DynamicIsland/` :
+    - `DynamicIsland.qml` (~619 l.) — **contrôleur pur** : props/services partagés, machine à états
       (`mode`/`panelView`), géométrie (`pillW`/`pillH`), fenêtre+masque, shell du pill (fond, verre,
-      ombre, squash, behaviors), panes au repos (compact/chip/idle/media/presenter), HoverHandler/
-      WheelHandler/bgClick/scrim, bump, QsMenuAnchor. Instancie les composants ci-dessous.
-    - `ControlCenterPanel.qml` (~580 l.) — mode expanded : hub (toggles/sliders/now-playing/footer)
-      + vues drill-down Wi-Fi/Bluetooth/Audio/Notifications. `property var island` ; expose
-      `viewHeight` (lu par `pillH`). Instancié : `ControlCenterPanel { id: controlPanel; island: root }`.
+      ombre, squash, behaviors), HoverHandler/WheelHandler/bgClick/scrim, bump, `SystemClock`,
+      `QsMenuAnchor`. Instancie tous les composants. `import "panels"` + `import "panes"`.
+    - `ControlCenterPanel.qml` (~196 l.) — hub mode expanded (toggles/sliders/now-playing/footer).
+      `property var island` ; expose `viewHeight` (lu par `pillH`). Instancie les 4 panels.
+    - `panels/` — 4 vues drill-down : `WifiPanel`, `BluetoothPanel`, `AudioPanel`,
+      `NotificationsPanel`. Ids internes conservés (`wifiCol`/`btCol`/`audioCol`/`notifCol`) →
+      `viewHeight` lit `wifiCol.implicitHeight` etc.
+    - `panes/` — 5 panes au repos : `CompactPane` (expose `contentWidth`), `ChipPane`,
+      `IdlePane` (expose `wsWidth`/`clusterWidth`, délègue à `island.openTrayMenu`),
+      `MediaPane` (expose `titleW`/`controlsWidth`), `PresenterPane`. `pillW` lit ces tailles via
+      l'id de l'instance (`compactPane`/`idlePane`/`mediaPane`).
     - `NotificationBanners.qml` (~245 l.) — deck de bannières macOS. `property var island` ;
       `NotificationBanners { id: notifBanners; island: root }` (réf. dans le `mask`).
     - `IslandHub.qml` — singleton + IpcHandler (target `island`).
-  - **PATTERN d'extraction** (pour les futurs composants) : un composant = `Item/Column { property
-    var island: null; ... }` ; remplacer `root.` par `island.` ; exposer ce que la géométrie lit
-    (`viewHeight`, `contentWidth`…) en `readonly property`. ⚠️ ré-importer ce qu'utilise le bloc
-    (`QtQuick.Controls` pour `ToolTip`, `QtQuick.Shapes`, `Quickshell.Services.Notifications`…).
-    À FAIRE ensuite (même pattern) : sortir les 4 vues drill-down dans `panels/`, et les panes au
-    repos dans `panes/` (attention : `pillW`/`pillH` lisent `compactRow.implicitWidth`,
-    `mTitle/mArtist`, `wsRow/rightCluster` — exposer ces tailles).
+  - **PATTERN d'extraction** (rappel) : un composant = `Item/Column { property var island: null; … }` ;
+    `root.` → `island.` ; exposer ce que la géométrie lit (`viewHeight`, `contentWidth`,
+    `titleW`…) en `readonly property` ; placer dans un sous-dossier et `import "<dossier>"`.
+    ⚠️ ré-importer ce qu'utilise le bloc (`QtQuick.Controls` pour `ToolTip`, `QtQuick.Shapes` pour
+    `Shape/PathAngleArc`…). Ce qui n'est PAS exposable en property (id comme `clock`, `trayMenu`) →
+    exposer une property dérivée (`clockShort`) ou une fonction (`openTrayMenu`) sur le contrôleur.
   - `quickshell/Modules/DynamicIsland/island-blur.conf` — snippet Hyprland pour le flou (opt-in)
   - `quickshell/DMSShell.qml` — intègre l'île (Variants par écran), supprime la DankBar quand l'île est ON, supprime VolumeOSD/BrightnessOSD
   - `quickshell/Common/SettingsData.qml` + `Common/settings/SettingsSpec.js` — flags `dynamicIslandEnabled` (def true), `dynamicIslandBlur` (def false)

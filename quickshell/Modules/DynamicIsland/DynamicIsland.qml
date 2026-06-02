@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Controls
-import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -10,6 +9,7 @@ import Quickshell.Services.Notifications
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "panes"
 
 // Dynamic Island "style" for DankMaterialShell — minimalist rounded-rectangle.
 // Inherits all DMS features (Theme, services, menus). Compact at rest so it
@@ -152,6 +152,11 @@ PanelWindow {
     readonly property bool muted: audioNode ? audioNode.muted : false
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
+    // formatted clock strings exposed to the extracted at-rest panes (panes/)
+    readonly property string clockShort: Qt.formatDateTime(clock.date, "HH:mm")
+    readonly property string clockLong: Qt.formatDateTime(clock.date, "ddd  HH:mm")
+    // open a tray item's context menu (anchored by the idle pane, owned here)
+    function openTrayMenu(menuObj, rect) { trayMenu.menu = menuObj; trayMenu.anchor.rect = rect; trayMenu.open() }
 
     // avoid presenter flashes during startup
     property bool ready: false
@@ -345,19 +350,18 @@ PanelWindow {
         case "chip":      return 220
         case "media": {
             // grow so the title fits, clamped to the screen
-            const titleW = Math.min(Math.max(mTitle.implicitWidth, mArtist.implicitWidth, mEyebrow.implicitWidth), 360)
-            const content = 44 + Theme.spacingM + titleW + Theme.spacingS + controls.implicitWidth + 20
+            const content = 44 + Theme.spacingM + mediaPane.titleW + Theme.spacingS + mediaPane.controlsWidth + 20
             return Math.max(410, Math.min(content, screenW - 40))
         }
         case "expanded":  return 460
         case "idle": {
             // grow when the side clusters are wide so the centre title never collapses
-            const need = wsRow.implicitWidth + rightCluster.implicitWidth + 90 + Theme.spacingL * 2 + Theme.spacingM * 2
+            const need = idlePane.wsWidth + idlePane.clusterWidth + 90 + Theme.spacingL * 2 + Theme.spacingM * 2
             return Math.max(480, Math.min(need, screenW - 40))
         }
         case "notif":     return notifActions.length > 0 ? 524 : 464
         case "presenter": return 320
-        default:          return Math.max(92, compactRow.implicitWidth + Theme.spacingL * 2)  // compact
+        default:          return Math.max(92, compactPane.contentWidth + Theme.spacingL * 2)  // compact
         }
     }
     readonly property real pillH: {
@@ -522,443 +526,18 @@ PanelWindow {
             }
 
             // reusable morph: scale+fade content per mode
-            // (each block sets `visible/opacity/scale` from root.mode)
-
-            // ===== COMPACT (rest): split leading-status | notch gap | trailing-clock =====
-            Row {
-                id: compactRow
-                anchors.centerIn: parent
-                spacing: Theme.spacingXS
-                opacity: root.mode === "compact" ? 1 : 0
-                visible: opacity > 0
-                scale: root.mode === "compact" ? 1 : 0.9
-                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
-
-                // leading cluster: privacy (mic/cam/screen-share) + battery-low
-                Row {
-                    id: cStatus
-                    spacing: Theme.spacingXS
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: root.privacyActive || (root.batAvailable && root.batPct <= 20 && !root.charging)
-                    DankIcon { visible: PrivacyService.microphoneActive; name: "mic"; size: 14; color: Theme.error; filled: true; anchors.verticalCenter: parent.verticalCenter }
-                    DankIcon { visible: PrivacyService.cameraActive; name: "videocam"; size: 14; color: Theme.error; filled: true; anchors.verticalCenter: parent.verticalCenter }
-                    DankIcon { visible: PrivacyService.screensharingActive; name: "screen_share"; size: 14; color: Theme.warning; filled: true; anchors.verticalCenter: parent.verticalCenter }
-                    DankIcon { visible: root.batAvailable && root.batPct <= 20 && !root.charging; name: "battery_alert"; size: 14; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
-                }
-                // central "notch" gap — only present when the leading cluster has content
-                Item { width: Theme.spacingL; height: 1; anchors.verticalCenter: parent.verticalCenter; visible: cStatus.visible }
-                // trailing cluster: clock
-                StyledText {
-                    text: Qt.formatDateTime(clock.date, "HH:mm")
-                    color: root.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-
-            // ===== CHIP (rest + media): tiny now-playing =====
-            Row {
-                anchors.centerIn: parent
-                spacing: Theme.spacingS
-                opacity: root.mode === "chip" ? 1 : 0
-                visible: opacity > 0
-                scale: root.mode === "chip" ? 1 : 0.9
-                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
-                Item {  // album art wrapped in a circular progress ring (Apple "Live Activity" feel)
-                    width: 26; height: 26
-                    anchors.verticalCenter: parent.verticalCenter
-                    Shape {  // faint track
-                        anchors.fill: parent; antialiasing: true
-                        visible: root.mediaLen > 0
-                        ShapePath {
-                            strokeWidth: 2; capStyle: ShapePath.RoundCap; fillColor: "transparent"
-                            strokeColor: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22)
-                            PathAngleArc { centerX: 13; centerY: 13; radiusX: 11.5; radiusY: 11.5; startAngle: -90; sweepAngle: 360 }
-                        }
-                    }
-                    Shape {  // progress
-                        anchors.fill: parent; antialiasing: true
-                        visible: root.mediaLen > 0
-                        ShapePath {
-                            strokeWidth: 2; capStyle: ShapePath.RoundCap; fillColor: "transparent"
-                            strokeColor: root.accent
-                            PathAngleArc {
-                                centerX: 13; centerY: 13; radiusX: 11.5; radiusY: 11.5
-                                startAngle: -90; sweepAngle: 360 * root.mediaFrac
-                                Behavior on sweepAngle { NumberAnimation { duration: 900; easing.type: Easing.OutSine } }
-                            }
-                        }
-                    }
-                    Rectangle {
-                        width: 20; height: 20; radius: 6; clip: true; color: Theme.primaryBackground
-                        anchors.centerIn: parent
-                        Image { anchors.fill: parent; source: root.player ? (root.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; visible: status === Image.Ready }
-                        DankIcon { anchors.centerIn: parent; name: "music_note"; size: 12; color: root.accent; visible: !(root.player && root.player.trackArtUrl) }
-                    }
-                }
-                Row {
-                    spacing: 2; height: 16; anchors.verticalCenter: parent.verticalCenter
-                    Repeater {
-                        model: 5
-                        Rectangle {
-                            width: 2.5; radius: 1.25; color: root.accent
-                            anchors.verticalCenter: parent.verticalCenter
-                            height: root.eqHeight(index)
-                            Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutSine } }
-                        }
-                    }
-                }
-                // central "notch" gap + trailing clock (Apple leading/trailing split)
-                Item { width: Theme.spacingM; height: 1; anchors.verticalCenter: parent.verticalCenter }
-                StyledText {
-                    text: Qt.formatDateTime(clock.date, "HH:mm")
-                    color: root.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-
-            // ===== IDLE (hover): workspaces + clock + tray + battery =====
-            Item {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.spacingL; anchors.rightMargin: Theme.spacingL
-                opacity: root.mode === "idle" ? 1 : 0
-                visible: opacity > 0
-                scale: root.mode === "idle" ? 1 : 0.94
-                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
-
-                Row {
-                    id: wsRow
-                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    spacing: Theme.spacingXS
-                    Repeater {
-                        model: root.wsList
-                        Rectangle {
-                            readonly property bool active: modelData.focused
-                            width: 30; height: 30; radius: 10
-                            color: active ? Theme.primarySelected : (wsArea.containsMouse ? Theme.surfaceHover : "transparent")
-                            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                            scale: wsArea.pressed ? 0.86 : 1.0
-                            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                            StyledText {
-                                anchors.centerIn: parent; text: modelData.label
-                                color: active ? root.accent : root.subText
-                                font.pixelSize: Theme.fontSizeSmall; font.bold: active
-                            }
-                            MouseArea {
-                                id: wsArea; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.wsActivate(modelData.key)
-                            }
-                        }
-                    }
-                }
-                // focused window — fills the gap BETWEEN the side clusters and
-                // truncates to whatever width is actually available (no overlap)
-                Item {
-                    id: centerSlot
-                    anchors.left: wsRow.right; anchors.leftMargin: Theme.spacingM
-                    anchors.right: rightCluster.left; anchors.rightMargin: Theme.spacingM
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: parent.height
-                    // width comes purely from the anchors -> never collapses
-                    StyledText {
-                        anchors.fill: parent
-                        visible: root.focusedTitle.length > 0
-                        text: root.focusedTitle
-                        elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        color: root.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-                    }
-                    StyledText {
-                        anchors.fill: parent
-                        visible: root.focusedTitle.length === 0
-                        text: Qt.formatDateTime(clock.date, "ddd  HH:mm")
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        color: root.textColor; font.pixelSize: Theme.fontSizeLarge; font.bold: true
-                    }
-                }
-                Row {
-                    id: rightCluster
-                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    spacing: Theme.spacingS
-                    StyledText {
-                        text: Qt.formatDateTime(clock.date, "HH:mm")
-                        color: root.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Row {  // weather
-                        spacing: 3; visible: root.weatherReady; anchors.verticalCenter: parent.verticalCenter
-                        DankIcon { name: root.weatherIcon; size: Theme.iconSize - 7; color: root.subText; anchors.verticalCenter: parent.verticalCenter }
-                        StyledText { text: root.weatherTemp; color: root.textColor; font.pixelSize: Theme.fontSizeSmall; anchors.verticalCenter: parent.verticalCenter }
-                    }
-                    DankIcon {  // VPN
-                        name: "vpn_lock"; size: Theme.iconSize - 6; color: root.accent
-                        visible: root.vpnOn; anchors.verticalCenter: parent.verticalCenter
-                    }
-                    StyledText {  // keyboard layout (niri/dwl)
-                        text: root.kbLayout.substring(0, 2).toUpperCase()
-                        visible: root.kbLayout.length > 0
-                        color: root.subText; font.pixelSize: Theme.fontSizeSmall; font.bold: true
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Row {
-                        spacing: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
-                        Repeater {
-                            model: root.trayItems
-                            Item {
-                                width: 22; height: 22; anchors.verticalCenter: parent.verticalCenter
-                                scale: trayArea.pressed ? 0.82 : (trayArea.containsMouse ? 1.12 : 1.0)
-                                Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                                Image {
-                                    anchors.centerIn: parent; width: 17; height: 17
-                                    source: modelData.icon ?? ""
-                                    sourceSize.width: 17; sourceSize.height: 17
-                                }
-                                MouseArea {
-                                    id: trayArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: mouse => {
-                                        if (mouse.button === Qt.MiddleButton) {
-                                            modelData.secondaryActivate()
-                                        } else if (mouse.button === Qt.RightButton && modelData.hasMenu && modelData.menu) {
-                                            const p = trayArea.mapToItem(null, 0, 0)
-                                            trayMenu.menu = modelData.menu
-                                            trayMenu.anchor.rect = Qt.rect(p.x, p.y + trayArea.height, trayArea.width, trayArea.height)
-                                            trayMenu.open()
-                                        } else {
-                                            modelData.activate()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Row {
-                        spacing: 4; visible: root.batAvailable; anchors.verticalCenter: parent.verticalCenter
-                        DankIcon {
-                            name: root.charging ? "battery_charging_full" : "battery_full"
-                            size: Theme.iconSize - 5
-                            color: root.charging ? Theme.primary : root.subText
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        StyledText {
-                            text: root.batPct + "%"; color: root.textColor; font.pixelSize: Theme.fontSizeSmall
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                }
-            }
-
-            // ===== MEDIA (hover + playing): art, title, transport, scrubber =====
-            Item {
-                anchors.fill: parent
-                anchors.leftMargin: 10; anchors.rightMargin: 10
-                anchors.topMargin: 9; anchors.bottomMargin: 10
-                opacity: root.mode === "media" ? 1 : 0
-                visible: opacity > 0
-                scale: root.mode === "media" ? 1 : 0.94
-                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
-
-                Rectangle {
-                    id: art
-                    width: 44; height: 44; radius: 12; clip: true
-                    anchors.left: parent.left; anchors.top: parent.top
-                    color: Theme.primaryBackground
-                    Image {
-                        anchors.fill: parent
-                        source: root.player ? (root.player.trackArtUrl ?? "") : ""
-                        fillMode: Image.PreserveAspectCrop
-                        visible: status === Image.Ready
-                    }
-                    DankIcon {
-                        anchors.centerIn: parent; name: "music_note"
-                        size: 22; color: root.accent
-                        visible: !(root.player && root.player.trackArtUrl)
-                    }
-                }
-                Column {
-                    anchors.left: art.right; anchors.leftMargin: Theme.spacingM
-                    anchors.right: controls.left; anchors.rightMargin: Theme.spacingS
-                    anchors.verticalCenter: art.verticalCenter
-                    spacing: 1
-                    StyledText {  // eyebrow: player source / "NOW PLAYING"
-                        id: mEyebrow
-                        width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                        text: (root.player && root.player.identity) ? root.player.identity : I18n.tr("Now Playing")
-                        color: root.accent; font.pixelSize: Theme.fontSizeSmall - 2
-                        font.bold: true; font.capitalization: Font.AllUppercase
-                    }
-                    StyledText {
-                        id: mTitle
-                        width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                        text: root.player ? (root.player.trackTitle || "Unknown") : ""
-                        color: root.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-                    }
-                    StyledText {
-                        id: mArtist
-                        width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                        text: root.player ? (root.player.trackArtist || "") : ""
-                        color: root.subText; font.pixelSize: Theme.fontSizeSmall
-                    }
-                }
-                Row {
-                    id: controls
-                    anchors.right: parent.right; anchors.verticalCenter: art.verticalCenter
-                    spacing: 0
-                    Repeater {
-                        model: [
-                            { icon: "skip_previous", label: I18n.tr("Previous"), big: false, en: root.player && root.player.canGoPrevious, act: () => { if (root.player) root.player.previous() } },
-                            { icon: root.playing ? "pause" : "play_arrow", label: root.playing ? I18n.tr("Pause") : I18n.tr("Play"), big: true, en: !!root.player, act: () => { if (root.player) root.player.togglePlaying() } },
-                            { icon: "skip_next", label: I18n.tr("Next"), big: false, en: root.player && root.player.canGoNext, act: () => { if (root.player) root.player.next() } }
-                        ]
-                        Rectangle {
-                            width: 36; height: 36; radius: 12
-                            color: cArea.containsMouse && modelData.en ? Theme.primaryHover : "transparent"
-                            opacity: modelData.en ? 1 : 0.35
-                            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                            scale: cArea.pressed && modelData.en ? 0.86 : 1.0
-                            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                            DankIcon { anchors.centerIn: parent; name: modelData.icon; size: modelData.big ? 26 : 20; color: root.accent }
-                            ToolTip.visible: cArea.containsMouse && modelData.en
-                            ToolTip.text: modelData.label
-                            ToolTip.delay: 400
-                            MouseArea {
-                                id: cArea; anchors.fill: parent; hoverEnabled: true
-                                enabled: modelData.en; cursorShape: Qt.PointingHandCursor
-                                onClicked: modelData.act()
-                            }
-                        }
-                    }
-                }
-                Rectangle {
-                    id: trackBar
-                    anchors.left: art.right; anchors.leftMargin: Theme.spacingM
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 4; radius: 2
-                    color: Theme.surfaceVariant
-                    property int tick: 0
-                    property bool seeking: false
-                    property real seekFrac: 0
-                    readonly property real frac: {
-                        trackBar.tick
-                        const len = MprisController.activePlayerStableLength
-                        return (root.player && len > 0) ? Math.min(1, root.player.position / len) : 0
-                    }
-                    readonly property real shownFrac: seeking ? seekFrac : frac
-                    Timer { interval: 1000; repeat: true; running: root.mode === "media" && root.playing && !trackBar.seeking; onTriggered: trackBar.tick++ }
-                    Rectangle {
-                        width: parent.width * trackBar.shownFrac; height: parent.height; radius: parent.radius
-                        color: root.accent
-                        Behavior on width { enabled: !trackBar.seeking; NumberAnimation { duration: 240 } }
-                    }
-                    // grab handle (visible while dragging)
-                    Rectangle {
-                        width: 10; height: 10; radius: 5; color: root.accent
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: parent.width * trackBar.shownFrac - width / 2
-                        opacity: (seekArea.containsMouse || trackBar.seeking) ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                    }
-                    MouseArea {
-                        id: seekArea
-                        anchors.fill: parent; anchors.topMargin: -8; anchors.bottomMargin: -8
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        enabled: root.player && root.player.canSeek
-                        preventStealing: true
-                        function fracAt(mx) { return Math.max(0, Math.min(1, mx / width)) }
-                        onPressed: mouse => { trackBar.seeking = true; trackBar.seekFrac = fracAt(mouse.x) }
-                        onPositionChanged: mouse => { if (trackBar.seeking) trackBar.seekFrac = fracAt(mouse.x) }
-                        onReleased: mouse => {
-                            const len = MprisController.activePlayerStableLength
-                            if (root.player && len > 0)
-                                root.player.position = trackBar.seekFrac * len
-                            trackBar.seeking = false
-                        }
-                        onCanceled: trackBar.seeking = false
-                    }
-                    // elapsed / remaining timestamps, revealed when scrubbing/hovering the bar
-                    property bool timesShown: (seekArea.containsMouse || trackBar.seeking) && root.mediaLen > 0
-                    StyledText {
-                        anchors.left: parent.left; anchors.bottom: parent.top; anchors.bottomMargin: 4
-                        text: { root.mediaTick; return root.fmtTime(trackBar.seeking ? trackBar.seekFrac * root.mediaLen : (root.player ? root.player.position : 0)) }
-                        color: root.subText; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true
-                        opacity: trackBar.timesShown ? 0.9 : 0
-                        Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                    }
-                    StyledText {
-                        anchors.right: parent.right; anchors.bottom: parent.top; anchors.bottomMargin: 4
-                        text: { root.mediaTick; return "-" + root.fmtTime(Math.max(0, root.mediaLen - (trackBar.seeking ? trackBar.seekFrac * root.mediaLen : (root.player ? root.player.position : 0)))) }
-                        color: root.subText; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true
-                        opacity: trackBar.timesShown ? 0.9 : 0
-                        Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                    }
-                }
-            }
+            // each at-rest pane (panes/) sets visible/opacity/scale from root.mode
+            // and exposes the widths the pill geometry reads.
+            CompactPane   { id: compactPane;   island: root }
+            ChipPane      { id: chipPane;       island: root }
+            IdlePane      { id: idlePane;       island: root }
+            MediaPane     { id: mediaPane;      island: root }
 
             // ===== EXPANDED: inline Control Center + drill-down views =====
             ControlCenterPanel { id: controlPanel; island: root }
 
-            // ===== PRESENTER: volume / brightness OSD =====
-            // FIXED width (matches presenter pillW - margins) so the progress bar
-            // keeps its correct proportion and just scales/fades in — the pill
-            // shape springs behind it, but the bar never sweeps up from zero.
-            Item {
-                width: 320 - Theme.spacingL * 2
-                height: parent.height
-                anchors.centerIn: parent
-                opacity: root.mode === "presenter" ? 1 : 0
-                visible: opacity > 0
-                scale: root.mode === "presenter" ? 1 : 0.94
-                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
-
-                readonly property bool isSplash: root.presenterKind === "splash"
-
-                DankIcon {
-                    id: pIcon
-                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    name: root.presenterIcon; size: 24; color: root.accent
-                }
-                Rectangle {
-                    anchors.left: pIcon.right; anchors.leftMargin: Theme.spacingM
-                    anchors.right: pVal.left; anchors.rightMargin: Theme.spacingM
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 6; radius: 3; color: Theme.surfaceVariant
-                    visible: !parent.isSplash
-                    Rectangle {
-                        // parent width is now constant → only animates on real value changes
-                        width: parent.width * Math.max(0, Math.min(1, root.presenterValue / 100))
-                        height: parent.height; radius: parent.radius; color: root.accent
-                        Behavior on width { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
-                    }
-                }
-                StyledText {
-                    id: pVal
-                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: root.presenterValue + "%"
-                    visible: !parent.isSplash
-                    color: root.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-                }
-                StyledText {  // splash label (e.g. "AirPods connected")
-                    anchors.left: pIcon.right; anchors.leftMargin: Theme.spacingM
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: parent.isSplash
-                    text: root.splashLabel
-                    elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                    color: root.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-                }
-            }
+            // ===== PRESENTER: volume / brightness / battery OSD + BT splash =====
+            PresenterPane { id: presenterPane; island: root }
 
             // ---- hover (tracks through child MouseAreas) ----
             HoverHandler {
