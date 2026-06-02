@@ -184,6 +184,7 @@ Singleton {
     property bool padHours12Hour: false
     property bool dynamicIslandEnabled: true
     property bool dynamicIslandBlur: false
+    property bool dynamicIslandNotchMode: false
     property bool useFahrenheit: false
     property string windSpeedUnit: "kmh"
     property bool nightModeEnabled: false

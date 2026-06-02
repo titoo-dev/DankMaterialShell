@@ -545,7 +545,8 @@ Item {
     }
 
     Variants {
-        model: SettingsData.notificationFocusedMonitor ? Quickshell.screens : SettingsData.getFilteredScreens("notifications")
+        // suppressed in island mode: the Dynamic Island shows its own macOS-style banners
+        model: SettingsData.dynamicIslandEnabled ? [] : (SettingsData.notificationFocusedMonitor ? Quickshell.screens : SettingsData.getFilteredScreens("notifications"))
 
         delegate: NotificationPopupManager {
             modelData: item

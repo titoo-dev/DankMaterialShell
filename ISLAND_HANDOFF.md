@@ -126,6 +126,24 @@ bind = SUPER, I, exec, dms ipc call island toggle
   `presenterValue = volPct` dans `onVolumeChanged` lisait une dérivée pas encore recalculée →
   l'OSD affichait la valeur du palier PRÉCÉDENT. (Même classe de bug que la lecture impérative
   de `notifActions`/`notifCritical` dans `showNotif`.) Vérifié wpctl 30/72/45 → exact.
+- **Notif image stale / boîte vide (ex. screenshot DMS)** : les images de notif sont souvent des
+  URLs de provider transitoires `image://qsimage/N/M` (vérifié : screenshot DMS → `image://qsimage/2/1`).
+  Avec `cache: true` (défaut), Qt sert l'ANCIENNE image en cache quand le provider réutilise un
+  handle → display stale. De plus le bell-fallback était caché dès que `cleanImage` était défini,
+  donc image échouée = boîte vide. Fix : `cache: false` + `asynchronous: true` sur `notifImg`, et
+  bell `visible: notifImg.status !== Image.Ready` (fallback sur le statut réel de chargement).
+- **Île étendue qui ne se replie pas au clic dehors** : le `mask: Region { item: pill }` ne capte
+  que les clics SUR le pill → un clic dehors part en passthrough, jamais reçu. Le clic d'expansion
+  mettait `pinned=true` qui BLOQUE `settle()`. Fix : le clic d'expansion ne pin plus (seul Super+I
+  pin). **Comportement macOS (refonte)** : le panneau expanded reste ouvert et se ferme au **clic
+  EN DEHORS**, pas sur sortie de souris. Implémentation : la fenêtre est passée en **PLEIN ÉCRAN**
+  (`anchors` top+bottom+left+right, margins 0) ; `mask: Region { item: mode==="expanded" ? stage
+  : pill }` → masque limité au pill (reste click-through) SAUF en expanded où tout l'écran est
+  capté ; un `MouseArea` scrim plein écran (z:-5, `enabled: mode==="expanded"`, derrière le pill)
+  ferme au clic dehors. Le pill se positionne lui-même (`y: notchMode ? 0 : 4`, x centré via
+  `stage.cx`). `hideTimer` (1800 ms) ne s'applique plus au mode expanded (idle/média seulement).
+  ⚠️ Le plein écran repose sur le `mask` pour le passthrough (clics hors pill → fenêtres dessous) —
+  même mécanisme qu'avant, juste étendu.
 - **Barre OSD qui « sweepe » depuis 0 à la réouverture** : le contenu presenter était
   `anchors.fill: parent` → la track était ancrée au pill qui SPRINGE de la taille compacte (92)
   vers 320 → `track.width` grandissait → `fill = track.width*frac` partait petit et grandissait
@@ -167,6 +185,124 @@ Suite à un audit complet, appliqués dans `DynamicIsland.qml` (+ `IslandHub.qml
     (activation **synchrone** : le `Component.onCompleted` du popout assigne la ref dans la foulée,
     vérifié). `toggleDankDash` s'auto-activait déjà, d'où dash OK mais notif/control muets avant.
     → clic cloche = centre de notifications (= **historique des notifs**).
+    SUITE (2026-06-02) : `openMenu()` utilise désormais les variantes **`open*`** (openControlCenter,
+    openNotificationCenter, openDankDash, openDankLauncherV2) au lieu de `toggle*`. Un launcher doit
+    OUVRIR, pas basculer : si le `shouldBeVisible` d'un popout restait `true` (stale), `toggle()` le
+    REFERMAIT → « rien ne s'affiche au clic réglages ». Vérifié par capture : le control center
+    s'ouvre et rend bien (BT, Night/Dark mode), layers `dms:control-center` créés.
+
+## Apple UX batch (fait 2026-06-02) — 10 améliorations
+
+Inspiration Apple / macOS. Toutes dans `DynamicIsland.qml` (+ flag `dynamicIslandNotchMode`).
+1. **Spring Apple + squash-and-stretch** : W/H springs asymétriques (H plus rebondi) ; à chaque
+   `onModeChanged`, `squashAnim` (squashX/squashY via `transform: Scale`) → morph gélatineux.
+2. **Progress ring pochette (chip)** : `QtQuick.Shapes` `PathAngleArc` autour de l'art, `sweepAngle
+   = 360*mediaFrac`. Helpers partagés `mediaTick`/`mediaFrac`/`mediaLen`/`fmtTime()`.
+3. **Timestamps scrubber** : écoulé / `-restant` aux extrémités, révélés au hover/drag du scrubber.
+4. **Notch mode** (toggle `dynamicIslandNotchMode`, carte DankBarTab) : `margins.top 0` + coins haut
+   carrés (`topLeftRadius/topRightRadius = 0`), coins bas arrondis. Look encoche MacBook.
+5. **Verre dépoli** : overlay gradient (sheen blanc en haut + inner-shadow noire en bas) suivant les
+   coins du pill ; `islandColor` alpha 0.72 en mode blur (vibrancy).
+6. **Halo couleur d'ambiance pochette** : copie floutée (`MultiEffect blur 64`) de l'art DERRIÈRE le
+   pill en média/chip → bloom couleur de l'album, GPU-only (pas d'extraction). Hors masque input.
+7. **Notifs empilées + swipe-to-dismiss** : ledge `peek` derrière quand `popups>1` ; drag sur le
+   corps (`notifPane.dragX/dragY` + `transform: Translate`) → dismiss si swipe-up>26 ou |dx|>64,
+   sinon ressort retour ; tap propre (<6px) = action default / centre de notif.
+8. **Splash Live Activity (Bluetooth)** : nouvel état `presenterKind="splash"` (icône + label, sans
+   barre) ; watcher `btConnected: BluetoothService.connected` → `showSplash(...)` 2.6 s.
+9. **Micro-interactions** : press-scale homogène + hover-lift (workspaces, tray, chips notif,
+   launchers expanded). (Le parallax souris a été retiré sur demande utilisateur.)
+10. (= #1 dans la liste) cf. spring/squash ci-dessus.
+
+GOTCHA Shapes : `PathAngleArc.sweepAngle` accepte un Behavior pour animer la progression.
+GOTCHA mask : `mask: Region { item: pill }` = région d'INPUT seulement ; le halo (#6) rend bien
+au-delà du pill (passthrough), pas clippé visuellement.
+
+## Mode expanded = Control Center INLINE (refonte UX 2026-06-02)
+
+Remplace les 5 icônes-launchers (qui ouvraient des popouts séparés) par un vrai panneau
+type macOS Control Center, rendu DANS l'île :
+- **4 tuiles toggle** (Repeater key wifi/bt/dnd/theme) : `NetworkService.toggleWifiRadio()`,
+  `BluetoothService.adapter.enabled`, `SessionData.setDoNotDisturb()`, `Theme.setLightMode()`.
+  Accent quand actif, état live (bindings sur les services).
+- **2 DankSlider** luminosité (`DisplayService.setBrightness(v,"",true)`) + volume
+  (`audioNode.volume = v/100`).
+- **Now Playing** inline (art + titre + ⏮⏯⏭) visible si `player`.
+- **Footer** : 4 petites icônes (apps / notifs / presse-papier / tune=control center complet)
+  via `openMenu()` pour les surfaces lourdes.
+- Géométrie : `pillW` expanded = 460, `pillH` expanded = `ccColumn.implicitHeight + spacingM*2`
+  (s'adapte au contenu). Fenêtre `implicitHeight` montée à 440. Un `MouseArea` plein absorbe les
+  clics internes (pas de collapse accidentel) ; le repli se fait au pointer-leave (hideTimer).
+- GARDE : `showPresenter()` retourne tôt si `mode==="expanded"` — sinon régler le volume via le
+  slider déclencherait l'OSD et sortirait du control center.
+Vérifié par capture : tuiles + sliders + rendu OK.
+
+## Panneaux île-natifs (unification UX, 2026-06-02)
+
+But : NE PLUS ouvrir les popouts DMS par défaut ; héberger des vues maison île-stylées qui lisent
+les mêmes services. Navigation **drill-down macOS**.
+- État : `property string panelView: "controls" | "wifi"`. `onModeChanged` reset à "controls" à la
+  fermeture. Le hub (ccColumn) et chaque vue détail coexistent dans le mode expanded, en
+  cross-fade + slide (`Translate.x` ±24, opacity), `pillH` = hauteur de la vue active.
+- **Tuile Wi-Fi = drill-in** (chevron) → `panelView="wifi"` + `scanWifiNetworks()`. (Les tuiles
+  BT/DND/Thème restent des toggles directs.)
+- **Vue Wi-Fi** (`wifiCol`) : header back + titre + switch radio (`toggleWifiRadio`) ; liste
+  scrollable (Flickable, hauteur adaptative cap 232) des `NetworkService.wifiNetworks`
+  ({ssid, signal, secured, saved}) ; connecté = `ssid === currentWifiSSID` ; tap → `connectToWifi`,
+  réseau sécurisé non sauvegardé → champ mot de passe inline (DankTextField echoMode Password) +
+  bouton connexion ; état vide « No networks / Scanning… / Wi-Fi off ». Vérifié par capture.
+- **Vue Bluetooth** (`btCol`, panelView "bluetooth", drill depuis la tuile BT) : header back + titre
+  + switch radio (`adapter.enabled`) ; liste `BluetoothService.pairedDevices` (icône
+  `getDeviceIcon`, nom, Connected/Disconnected + batterie%, ✓/+ ) ; tap → `connectDeviceWithTrust` /
+  `device.disconnect()` ; discovery activée à l'entrée. État vide « Bluetooth is off / No devices ».
+- **Vue Audio/Output** (`audioCol`, panelView "audio", drill depuis le bouton 🔊 à droite du slider
+  volume) : header back + « Output » ; liste `AudioService.typedSinks` (icône, `description`, ✓ si
+  courant via `sink.name`) ; tap → `AudioService.setSink(node)`. Vérifié par capture.
+- **Vue Notifications** (`notifCol`, panelView "notifications") : header back + titre + « Clear all »
+  (`clearAllNotifications`) ; liste scrollable (Flickable adaptatif cap 300) de
+  `NotificationService.notifications` (NotifWrapper : appName/summary/body/cleanImage/appIcon/
+  timeStr/actions) ; chaque ligne = icône (image cache:false + fallback cloche sur `status`),
+  eyebrow app + `timeStr`, titre, corps, ✕ dismiss au survol (`dismissNotification`) ; tap ligne =
+  invoque l'action par défaut si présente. Entrées : footer hub (icône notifs) + clic-corps d'une
+  notif active (`openPanel("notifications")`). Vérifié par capture (3 notifs listées). Remplace le
+  centre de notif DMS dans le flux île.
+- Drill-views île-natives COMPLÈTES : **Wi-Fi, Bluetooth, Audio, Notifications**. Le footer du hub
+  n'ouvre plus de popouts DMS que pour apps (spotlight), presse-papier et « réglages complets »
+  (surfaces app/launcher, pas des panneaux de connectivité — hors périmètre d'unification).
+
+## Bannières de notification macOS (refonte complète, 2026-06-02)
+
+Le mode "notif" du pill (style iPhone Dynamic Island) est **retiré**. Les notifications suivent
+désormais le modèle **macOS** : des **bannières indépendantes en haut-droite**, stylées comme l'île,
+qui n'interrompent JAMAIS l'interaction en cours.
+- **`bannerArea`** (refonte deck, 2026-06-02) : `Item` top-right + `Repeater` (model `popups`) à
+  positionnement ABSOLU (plus de ListView). Rang `r = n-1-index` (0 = newest, en haut, z le plus
+  haut). **Collapse system** : `collapsed = n>1 && !expanded` ; `expanded = areaHover.hovered`.
+  - Collapsé : deck — newest plein, cartes derrière à `y = min(r,2)*peek(9)`, `scale 1-min(r,2)*0.05`,
+    opacity 0 si r≥3 ; chip compteur « +N » en bas-droite.
+  - Déplié (survol) : spread vertical, `y = spreadY` (cumul des hauteurs via `hmap` index→hauteur,
+    `setH`/`cardH`), gap 10. Hauteur du conteneur animée (collapsedH ↔ expandedH).
+  - Carte raffinée : radius 24, padding 16, icône 46, eyebrow app + heure (baseline-aligné, time à
+    droite), titre fontSizeMedium 1 ligne élidée, corps fontSizeSmall 2 lignes élidées (lineHeight
+    1.15), chips d'action arrondis, ✕ au survol. Glass + shadow (rouge si critique).
+  - Auto-dismiss 5 s (pause si `areaHover.hovered`), critique persiste, swipe-droite>90 = dismiss,
+    tap = action default (ou déplie le deck si collapsé). MouseArea `enabled: bWrap.active` (seule la
+    carte du dessus interactive en collapsé). GOTCHA : pas de bloc JS multi-instruction dans `text:`.
+- **Carte bannière** (île visuelle) : radius 22, `islandColor`, bordure (ROUGE si critique), overlay
+  verre (sheen + inner-shadow), MultiEffect shadow (glow rouge si critique), hover-lift, icône
+  (image `cache:false` + fallback cloche), eyebrow app + `timeStr`, summary, body (2 lignes),
+  chips d'action (exclut "default", cap 3, press-scale), ✕ au survol.
+- **Auto-dismiss** 5 s par carte (Timer), **critique = persiste**, **pause au survol**. **Swipe
+  droite > 80px = dismiss** ; **tap = action default**. `modelData.popup = false` retire la carte
+  (→ transition remove).
+- **Masque d'input** : `Region { Region{pill/stage} ; Region{bannerList} }` (UNION) — les boutons
+  des bannières sont cliquables, le reste reste click-through.
+- **DMS natif supprimé** : `NotificationPopupManager` Variants gated par `!dynamicIslandEnabled`
+  dans DMSShell (sinon double notif — bas-droite DMS + haut-droite île).
+- Code mort retiré : bloc visuel NOTIF du pill (~184 lignes), ledge stack, `settle()` simplifié,
+  `pendingPopup`/`engaged` supprimés. (Restent inertes/inoffensifs : `showNotif`/`notifTimer`/
+  `notifActions`/`notifCritical` + refs `mode==="notif"` jamais atteintes.)
+Vérifié par capture : bannières haut-droite, île non hijackée, chips/✕/swipe OK.
 
 ## Backlog restant (priorité basse)
 

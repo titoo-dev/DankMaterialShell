@@ -231,6 +231,15 @@ Item {
                     checked: SettingsData.dynamicIslandBlur
                     onToggled: SettingsData.set("dynamicIslandBlur", checked)
                 }
+
+                DankToggle {
+                    width: parent.width
+                    text: I18n.tr("Notch mode")
+                    description: I18n.tr("Dock the island flush to the top edge with squared top corners, like a MacBook notch.")
+                    enabled: SettingsData.dynamicIslandEnabled
+                    checked: SettingsData.dynamicIslandNotchMode
+                    onToggled: SettingsData.set("dynamicIslandNotchMode", checked)
+                }
             }
 
             SettingsCard {
