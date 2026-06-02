@@ -12,7 +12,7 @@ import "panels"
                 id: ccPanel
                 property var island: null
                 // active view height (drives the pill height in the controller)
-                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : ccColumn.implicitHeight)
+                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : ccColumn.implicitHeight)
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 opacity: island.mode === "expanded" ? 1 : 0
@@ -158,13 +158,14 @@ import "panels"
                         width: parent.width
                         Repeater {
                             model: [
-                                { icon: "apps",          which: "apps",          tip: I18n.tr("Apps") },
-                                { icon: "notifications", which: "notifications", tip: I18n.tr("Notifications") },
-                                { icon: "content_paste", which: "clipboard",     tip: I18n.tr("Clipboard") },
-                                { icon: "tune",          which: "control",       tip: I18n.tr("All settings") }
+                                { icon: "apps",            which: "apps",          tip: I18n.tr("Apps") },
+                                { icon: "notifications",   which: "notifications", tip: I18n.tr("Notifications") },
+                                { icon: "calendar_month",  which: "calendar",      tip: I18n.tr("Calendar") },
+                                { icon: "content_paste",   which: "clipboard",     tip: I18n.tr("Clipboard") },
+                                { icon: "tune",            which: "control",       tip: I18n.tr("All settings") }
                             ]
                             Item {
-                                width: parent.width / 4; height: 34
+                                width: parent.width / 5; height: 34
                                 Rectangle {
                                     anchors.centerIn: parent; width: 34; height: 30; radius: 9
                                     color: ftArea.containsMouse ? Theme.primaryHover : "transparent"
@@ -176,8 +177,9 @@ import "panels"
                                     MouseArea {
                                         id: ftArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            // notifications has an island-native view; others still open DMS popouts
+                                            // notifications & calendar have island-native views; others still open DMS popouts
                                             if (modelData.which === "notifications") island.panelView = "notifications"
+                                            else if (modelData.which === "calendar") island.panelView = "calendar"
                                             else { island.openMenu(modelData.which); island.pinned = false; island.settle() }
                                         }
                                     }
@@ -192,4 +194,5 @@ import "panels"
                 NotificationsPanel { id: notifCol; island: ccPanel.island }
                 BluetoothPanel     { id: btCol;    island: ccPanel.island }
                 AudioPanel         { id: audioCol; island: ccPanel.island }
+                CalendarPanel      { id: calCol;   island: ccPanel.island }
             }
