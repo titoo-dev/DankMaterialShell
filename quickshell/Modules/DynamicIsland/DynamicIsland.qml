@@ -231,52 +231,34 @@ PanelWindow {
     onPlayingChanged: if (!hovered && !pinned && mode !== "notif" && mode !== "presenter") mode = restMode()
 
     // ---------- insert text into the focused app (emoji picker) ----------
-    // wtype CAN type emoji, but after our Exclusive keyboard grab closes, Hyprland
-    // does NOT auto-restore keyboard focus to the app underneath — so we capture
-    // its address first, close, re-focus it explicitly, then type.
+    // Our island is a PERSISTENT layer-shell that never unmaps, so dropping the
+    // Exclusive keyboard grab doesn't make Hyprland hand focus back to the app
+    // underneath (unlike DMS's clipboard popout, which unmaps). And a direct wtype
+    // of an emoji uses a remapped Unicode keysym that XWayland apps (Discord, ...)
+    // never receive. So: close the island, then in a detached shell re-focus the
+    // active window with hyprctl (runtime dispatch, works for any config format),
+    // paste via clipboard + Ctrl+V (standard keys, work everywhere incl. XWayland),
+    // and restore the previous clipboard so it isn't left polluted.
     property string _typePending: ""
-    property string _typeAddr: ""
-    function _hyprActiveAddr() {
-        if (!CompositorService.isHyprland || !Hyprland.toplevels || !Hyprland.toplevels.values)
-            return ""
-        const wl = ToplevelManager.activeToplevel
-        const arr = Array.from(Hyprland.toplevels.values)
-        for (var i = 0; i < arr.length; i++)
-            if (arr[i] && arr[i].wayland === wl) return arr[i].address || ""
-        return ""
-    }
-    // continuously remember the user's app while the island ISN'T grabbing — by the
-    // time it opens (and the grab nulls the active toplevel) we've already captured it
-    onActiveWinChanged: if (mode !== "expanded") _typeAddr = _hyprActiveAddr()
     function insertText(text) {
         if (!text || text.length === 0) return
         _typePending = text
         panelView = "controls"; pinned = false; settle()
-        insertFocusTimer.restart()
+        insertTimer.restart()
     }
-    // step 1: grab released, re-assert keyboard focus on the captured window
     Timer {
-        id: insertFocusTimer
-        interval: 150
-        onTriggered: {
-            if (root._typeAddr.length > 0) HyprlandService.focusWindow(root._typeAddr)
-            insertTypeTimer.restart()
-        }
-    }
-    // step 2: focus settled, paste the text into it. Use clipboard + Ctrl+V (not a
-    // direct wtype of the emoji): a wtype'd emoji uses a remapped Unicode keysym that
-    // XWayland apps (Discord, ...) don't receive, whereas Ctrl+V is standard keys and
-    // pastes everywhere. Restore the previous clipboard afterwards so we don't leave
-    // the emoji sitting in it (same paste mechanism DMS's ClipboardService uses).
-    Timer {
-        id: insertTypeTimer
-        interval: 70
+        id: insertTimer
+        interval: 180   // let the Exclusive grab actually release first
         onTriggered: {
             if (root._typePending.length === 0) return
             const e = root._typePending
             root._typePending = ""
             Quickshell.execDetached(["sh", "-c",
-                "old=$(wl-paste -n 2>/dev/null); printf %s \"$1\" | wl-copy; sleep 0.06; wtype -M ctrl -P v -p v -m ctrl; sleep 0.25; printf %s \"$old\" | wl-copy",
+                "a=$(hyprctl activewindow | awk 'NR==1{print $2}'); "
+                + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
+                + "sleep 0.12; "
+                + "if command -v ydotool >/dev/null 2>&1; then ydotool type -- \"$1\"; "
+                + "else old=$(wl-paste -n 2>/dev/null); printf %s \"$1\" | wl-copy; sleep 0.06; wtype -M ctrl -P v -p v -m ctrl; sleep 0.6; printf %s \"$old\" | wl-copy; fi",
                 "island-emoji", e])
         }
     }

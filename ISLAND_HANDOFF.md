@@ -397,11 +397,19 @@ Expérience moderne : recherche, onglets de catégories, grille **couleur** (Not
   2. `pick()` → `island.insertText(e)` : ferme l'île, puis `insertFocusTimer` (150 ms) appelle
      `HyprlandService.focusWindow(_typeAddr)` (re-focalise explicitement), puis `insertTypeTimer`
      (70 ms) **colle via presse-papier + Ctrl+V** (PAS un wtype direct de l'emoji). Toast « Inserted … ».
-  - ⚠️ **wtype d'un emoji ne marche PAS en XWayland** (Discord `xwayland:1`, etc.) : le keysym Unicode
-     remappé n'est pas reçu. Solution universelle = `wl-copy` l'emoji + `wtype -M ctrl -P v -p v -m ctrl`
-     (Ctrl+V standard, reçu partout, c'est la méthode de `ClipboardService` DMS), puis **restaure le
-     presse-papier précédent** (`old=$(wl-paste -n); … ; printf %s "$old" | wl-copy`) → presse-papier
-     non pollué. Vérifié : pendant=emoji, restauré=ancien contenu.
+  - ⚠️⚠️ **wtype NE TOUCHE PAS les fenêtres XWayland** (Discord `xwayland:1`, etc.) — NI la frappe
+     d'emoji NI un Ctrl+V (le clavier virtuel Wayland ne va pas vers XWayland). Diagnostiqué via un log
+     de debug : focus `ok`, copie ok, `wtype rc=0`, mais rien ne se colle dans Discord. C'est une
+     limite de `wtype`, pas du code. ⚠️ Gotcha focus en config **Lua** : `hyprctl dispatch focuswindow`
+     est interprété comme du lua et ÉCHOUE → la bonne forme est `hyprctl dispatch
+     'hl.dsp.focus({ window = "address:0x..." })'` (testé « ok »).
+  - **Solution = `ydotool`** (injection via `/dev/uinput`, atteint Wayland ET XWayland). Activé dans le
+     nix-config (`programs.ydotool.enable` + groupe `uinput`, repo `~/personal`). `insertText()` fait :
+     ferme l'île → re-focalise la fenêtre active (`hl.dsp.focus`) → si `ydotool` présent
+     `ydotool type -- "<emoji>"` (frappe directe, **zéro presse-papier**), sinon fallback wtype
+     clipboard+Ctrl+V (marche seulement en natif Wayland). Nécessite un `nixos-rebuild` + re-login
+     (groupe uinput). Socket : ydotoold tourne en service user ; si `ydotool type` ne trouve pas le
+     socket, vérifier `YDOTOOL_SOCKET` dans l'env du service DMS.
   - ⚠️ Test headless impossible dans cette session : le focus clavier seat reste sur le terminal
     Claude Code (multi-écran), donc les `wtype` de test fuient dans l'input Claude au lieu de la
     cible. À VÉRIFIER côté user : `mainMod + semicolon` dans un vrai champ.
