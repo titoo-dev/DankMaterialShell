@@ -334,11 +334,19 @@ les mêmes services. Navigation **drill-down macOS**.
 
 - `panels/SpotlightPanel.qml` (id `appCol`, `panelView="apps"`) : champ de recherche + liste de
   résultats. Recherche `AppSearchService.searchApplications(query)` ; lancement
-  `SessionService.launchDesktopEntry(app)` ; icônes via `AppIconRenderer { iconValue; iconSize }`.
-  Enter lance le 1er résultat, Esc revient au hub.
+  `SessionService.launchDesktopEntry(app)` ; icônes via `AppIconRenderer`.
   ⚠️ **`results` calculé en IMPÉRATIF** (`property var results: []` + `refresh()` sur `onTextEdited`
   / `onVisibleChanged`), PAS en binding : `searchApplications()` écrit ses propres caches qu'il lit
   → un binding réactif boucle (« Binding loop detected for property results »).
+  ⚠️ **Icône réelle** : `AppIconRenderer` est un `Item` SANS taille implicite → il FAUT lui donner
+  `width`/`height` (pas seulement `iconSize`), sinon l'`IconImage` (anchors.fill) est 0×0 et l'icône
+  est invisible (on voyait du vide/fallback). `iconValue: modelData.icon` se résout via
+  `Paths.resolveIconPath` → vraie icône du thème.
+  ⌨️ **Nav clavier** : `selIndex` + `move(±1)` (clampé) + `ensureVisible()` (auto-scroll du Flickable)
+  + `launchSel()`. Le `DankTextField` a `ignoreUpDownKeys: true` et `keyForwardTargets: [navHandler]`
+  → ↑/↓ pilotent la liste (pas le caret), Enter (`onAccepted`) lance le sélectionné, Esc revient au
+  hub (via le navHandler). La ligne `index === selIndex` est surlignée ; le survol souris met aussi
+  à jour `selIndex`. Vérifié : `wtype "set"` filtre, ↓↓ déplace la sélection d'exactement 2 lignes.
 - `panels/ClipboardPanel.qml` (id `clipCol`, `panelView="clipboard"`) : recherche + liste
   `ClipboardService.clipboardEntries` (filtre local sur `.preview`, ici un binding pur = OK car
   lecture seule). `refresh()` à l'ouverture ; clic = `copyEntry(entry)` ; ✕ = `deleteEntry(entry)` ;

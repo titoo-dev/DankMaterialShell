@@ -3,16 +3,46 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-// Spotlight app launcher (drill-down, island-native). Search field + results;
-// Enter launches the top hit, Esc returns to the hub. Needs the window in
-// keyboardFocus OnDemand (the controller flips it on for this view).
+// Spotlight app launcher (drill-down, island-native). Search field + results with
+// full keyboard navigation: type to filter, ↑/↓ to move, Enter to launch, Esc to
+// go back. Needs the window in an Exclusive keyboard grab (the controller flips it
+// on for this view).
 Column {
     id: appCol
     property var island: null
+    readonly property int rowH: 48
+    readonly property int rowGap: 2
+
     // computed imperatively (NOT a binding): searchApplications() mutates the
     // service's own caches, which a reactive binding would treat as a loop.
     property var results: []
-    function refresh() { results = AppSearchService.searchApplications(searchField.text) }
+    property int selIndex: 0
+    function refresh() {
+        results = AppSearchService.searchApplications(searchField.text)
+        selIndex = 0
+        appFlick.contentY = 0
+    }
+    function move(delta) {
+        if (results.length === 0) return
+        selIndex = Math.max(0, Math.min(results.length - 1, selIndex + delta))
+        ensureVisible()
+    }
+    function ensureVisible() {
+        const step = rowH + rowGap
+        const y = selIndex * step
+        if (y < appFlick.contentY)
+            appFlick.contentY = y
+        else if (y + rowH > appFlick.contentY + appFlick.height)
+            appFlick.contentY = y + rowH - appFlick.height
+    }
+    function launchSel() { launch(results.length > selIndex ? results[selIndex] : null) }
+    function launch(app) {
+        if (!app) return
+        SessionService.launchDesktopEntry(app)
+        island.panelView = "controls"
+        island.pinned = false
+        island.settle()
+    }
 
     anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
     spacing: Theme.spacingS
@@ -22,17 +52,11 @@ Column {
     transform: Translate { x: island.panelView === "apps" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
-    function launch(app) {
-        if (!app) return
-        SessionService.launchDesktopEntry(app)
-        island.panelView = "controls"
-        island.pinned = false
-        island.settle()
-    }
-
-    // receives forwarded Esc from the search field -> back to hub
+    // receives forwarded ↑/↓/Esc from the search field (no focus needed for forwardTo)
     Item {
-        id: escHandler
+        id: navHandler
+        Keys.onUpPressed: appCol.move(-1)
+        Keys.onDownPressed: appCol.move(1)
         Keys.onEscapePressed: island.panelView = "controls"
     }
 
@@ -56,19 +80,21 @@ Column {
             height: 36
             leftIconName: "search"
             placeholderText: I18n.tr("Search apps")
-            keyForwardTargets: [escHandler]
+            ignoreUpDownKeys: true            // let ↑/↓ drive list navigation instead of the caret
+            keyForwardTargets: [navHandler]
             onTextEdited: appCol.refresh()
-            onAccepted: appCol.launch(appCol.results.length > 0 ? appCol.results[0] : null)
+            onAccepted: appCol.launchSel()
         }
     }
 
     // results list — adaptive height, capped
     Flickable {
+        id: appFlick
         width: parent.width; height: Math.min(appList.height, 296); clip: true
         contentHeight: appList.height; boundsBehavior: Flickable.StopAtBounds
         Column {
             id: appList
-            width: parent.width; spacing: 2
+            width: parent.width; spacing: appCol.rowGap
             StyledText {
                 width: parent.width; height: 44
                 visible: appCol.results.length === 0
@@ -78,15 +104,16 @@ Column {
             Repeater {
                 model: appCol.results.slice(0, 24)
                 Rectangle {
-                    width: appList.width; height: 48; radius: 12
-                    readonly property bool first: index === 0
-                    color: appRowArea.containsMouse ? Theme.surfaceLight : (first ? Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4) : "transparent")
+                    width: appList.width; height: appCol.rowH; radius: 12
+                    readonly property bool selected: index === appCol.selIndex
+                    color: selected ? Theme.primarySelected : (appRowArea.containsMouse ? Theme.surfaceLight : "transparent")
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                     AppIconRenderer {
                         id: appIco
+                        width: 34; height: 34
                         anchors.left: parent.left; anchors.leftMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter
                         iconValue: (modelData.icon && modelData.icon !== "") ? modelData.icon : ""
-                        iconSize: 32
+                        iconSize: 34
                         fallbackText: (modelData.name && modelData.name.length > 0) ? modelData.name.charAt(0).toUpperCase() : "A"
                     }
                     Column {
@@ -103,6 +130,7 @@ Column {
                     }
                     MouseArea {
                         id: appRowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onPositionChanged: appCol.selIndex = index
                         onClicked: appCol.launch(modelData)
                     }
                 }
