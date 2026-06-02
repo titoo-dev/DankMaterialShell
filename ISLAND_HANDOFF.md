@@ -385,14 +385,23 @@ Expérience moderne : recherche, onglets de catégories, grille **couleur** (Not
 - **Dataset** `EmojiData.js` (`.pragma library`) : `CATEGORIES` (recent + 9 catégories) et `EMOJI`
   (curé ~280 emojis : `{e,n,k,c}` = char/nom/keywords/catégorie). `search(q)` (substring sur nom+kw),
   `byCategory(cat)`. Pas exhaustif (la longue traîne est rare) mais couvre l'usage courant.
-- **Auto-paste (pas de copie)** : à la sélection, on **tape l'emoji dans le champ focus** via
-  `wtype` (façon emoji picker Windows) au lieu de copier → ne pollue PAS le presse-papier. Séquence :
-  `pick()` ferme l'île (panelView=controls + pinned=false + settle()) → le grab clavier Exclusive se
-  relâche → le focus revient à l'app en dessous → un `Timer` (200 ms) lance `execDetached(["wtype",
-  emoji])` qui tape dans cette app. `ToastService.showInfo("Inserted …")`. ⚠️ Il FAUT fermer AVANT de
-  wtype (sinon la frappe part dans l'île qui a le grab). Vérifié : presse-papier inchangé (sentinelle)
-  après un pick ; le focus revient bien à la fenêtre active (Hyprland). Keybind : `mainMod + semicolon`
-  (dotfiles, style Win+;).
+- **Auto-paste (pas de copie)** : à la sélection, on **tape l'emoji dans le champ focus** via `wtype`
+  (façon emoji picker Windows) au lieu de copier → ne pollue PAS le presse-papier. ⚠️ GROS GOTCHA :
+  après la fermeture, Hyprland **ne restaure PAS** le focus clavier vers l'app en dessous (le grab
+  Exclusive d'un layer-shell persistant ne déclenche pas de re-focus). Donc `wtype` partait dans le
+  vide. FIX dans le contrôleur (`insertText()`) :
+  1. on capture EN CONTINU l'adresse de la dernière app active hors-expanded
+     (`onActiveWinChanged: if (mode!=="expanded") _typeAddr = _hyprActiveAddr()`) — car pendant le
+     grab `ToplevelManager.activeToplevel` peut devenir null. `_hyprActiveAddr()` matche
+     `Hyprland.toplevels.values[i].wayland === ToplevelManager.activeToplevel` → `.address`.
+  2. `pick()` → `island.insertText(e)` : ferme l'île, puis `insertFocusTimer` (150 ms) appelle
+     `HyprlandService.focusWindow(_typeAddr)` (re-focalise explicitement), puis `insertTypeTimer`
+     (70 ms) lance `Quickshell.execDetached(["wtype", e])`. Toast « Inserted … ».
+  - ⚠️ `wtype` TAPE bien les emojis (vérifié) ; le souci était uniquement le focus.
+  - ⚠️ Test headless impossible dans cette session : le focus clavier seat reste sur le terminal
+    Claude Code (multi-écran), donc les `wtype` de test fuient dans l'input Claude au lieu de la
+    cible. À VÉRIFIER côté user : `mainMod + semicolon` dans un vrai champ.
+  - Keybind : `mainMod + semicolon` (dotfiles `hyprland.lua`, style Win+;).
 - **Récents** : `FileView` (Quickshell.Io) → `~/.local/state/DankMaterialShell/island-emoji-recents.json`
   (`setText(JSON.stringify(...))`, cap 36, dédupe). ⚠️ `StandardPaths` vient de `import QtCore` (pas
   Quickshell). `onLoadFailed` → `recents=[]` (1er lancement, warning "file does not exist" bénin).

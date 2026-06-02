@@ -230,6 +230,51 @@ PanelWindow {
     }
     onPlayingChanged: if (!hovered && !pinned && mode !== "notif" && mode !== "presenter") mode = restMode()
 
+    // ---------- insert text into the focused app (emoji picker) ----------
+    // wtype CAN type emoji, but after our Exclusive keyboard grab closes, Hyprland
+    // does NOT auto-restore keyboard focus to the app underneath — so we capture
+    // its address first, close, re-focus it explicitly, then type.
+    property string _typePending: ""
+    property string _typeAddr: ""
+    function _hyprActiveAddr() {
+        if (!CompositorService.isHyprland || !Hyprland.toplevels || !Hyprland.toplevels.values)
+            return ""
+        const wl = ToplevelManager.activeToplevel
+        const arr = Array.from(Hyprland.toplevels.values)
+        for (var i = 0; i < arr.length; i++)
+            if (arr[i] && arr[i].wayland === wl) return arr[i].address || ""
+        return ""
+    }
+    // continuously remember the user's app while the island ISN'T grabbing — by the
+    // time it opens (and the grab nulls the active toplevel) we've already captured it
+    onActiveWinChanged: if (mode !== "expanded") _typeAddr = _hyprActiveAddr()
+    function insertText(text) {
+        if (!text || text.length === 0) return
+        _typePending = text
+        panelView = "controls"; pinned = false; settle()
+        insertFocusTimer.restart()
+    }
+    // step 1: grab released, re-assert keyboard focus on the captured window
+    Timer {
+        id: insertFocusTimer
+        interval: 150
+        onTriggered: {
+            if (root._typeAddr.length > 0) HyprlandService.focusWindow(root._typeAddr)
+            insertTypeTimer.restart()
+        }
+    }
+    // step 2: focus settled, type the text into it
+    Timer {
+        id: insertTypeTimer
+        interval: 70
+        onTriggered: {
+            if (root._typePending.length > 0) {
+                Quickshell.execDetached(["wtype", root._typePending])
+                root._typePending = ""
+            }
+        }
+    }
+
     function showNotif() {
         pendingPopup = null
         mode = "notif"; bump()

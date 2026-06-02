@@ -33,30 +33,14 @@ Column {
 
     function emojiOf(it) { return (typeof it === "string") ? it : (it ? it.e : "") }
     // type the emoji straight into the focused input (Windows-emoji-picker style)
-    // instead of copying it — avoids polluting the clipboard. We must close first
-    // so the Exclusive keyboard grab releases and focus returns to the app below,
-    // THEN wtype into it (small delay covers the focus hand-back).
-    property string _pendingType: ""
-    Timer {
-        id: typeTimer
-        interval: 200   // let the Exclusive grab release & focus hand back to the app first
-        onTriggered: {
-            if (emojiCol._pendingType.length > 0) {
-                Quickshell.execDetached(["wtype", emojiCol._pendingType])
-                emojiCol._pendingType = ""
-            }
-        }
-    }
+    // instead of copying it — no clipboard pollution. The controller closes the
+    // island, re-focuses the previously-active window, then wtypes into it.
     function pick(it) {
         const e = emojiOf(it)
         if (!e) return
         addRecent(e)
-        emojiCol._pendingType = e
-        island.panelView = "controls"
-        island.pinned = false
-        island.settle()
-        typeTimer.restart()
         ToastService.showInfo(I18n.tr("Inserted %1").arg(e))
+        island.insertText(e)
     }
     function addRecent(e) {
         var out = [e]
