@@ -363,6 +363,32 @@ qui n'interrompent JAMAIS l'interaction en cours.
   `notifActions`/`notifCritical` + refs `mode==="notif"` jamais atteintes.)
 Vérifié par capture : bannières haut-droite, île non hijackée, chips/✕/swipe OK.
 
+## Enhancements UI/UX batch (fait 2026-06-02) — 5 features
+
+Suite à une session de propositions (10 enhancements Apple/macOS), 5 retenus & implémentés :
+1. **Glow de bord d'écran sur notif** — `NotificationEdgeGlow.qml` (composant overlay dans `stage`,
+   HORS masque input → passthrough). Dégradés sur les 4 bords, pulse (220 ms↑ / 1100 ms↓) à chaque
+   NOUVEAU popup. Accent, ou ROUGE si critique. Déclencheur : `onPopupsChanged` dans le contrôleur
+   (compare `popups.length` à `_popupCount`), gated `isFocusedScreen` + `!doNotDisturb`. Vérifié en
+   figeant `pulse:1`.
+2. **Tick volume macOS** — `WheelHandler.onWheel` appelle `AudioService.playVolumeChangeSoundIfEnabled()`.
+   ⚠️ Les sons notif/batterie sont DÉJÀ câblés côté service (`NotificationService:707`,
+   `BatteryService:115`) → ne pas les redoubler depuis l'île.
+3. **Live Activities** (réutilise le splash presenter via `showSplash`) : **charge** plug/unplug
+   (`onChargingChanged` → "Charging • N%") et **Focus/DND** (`Connections` sur `SessionData.doNotDisturb`).
+   ⚠️ PAS de power-profile : `PowerProfileOSD` DMS n'est PAS gated par `dynamicIslandEnabled` dans
+   DMSShell (~ligne 1293) → il s'affiche déjà, doublon évité. (Volume/Media/Brightness OSD, eux, SONT
+   gated `dynamicIslandEnabled ? [] : …`.)
+4. **Pop tactile au hover-expand** — `bump()` quand l'île se déplie de compact/chip au survol.
+5. **Drill-down Calendrier** — `panels/CalendarPanel.qml` (`panelView="calendar"`, id `calCol`) : grille
+   du mois Monday-first, today/sélection surlignés, dots d'events, nav mois, bouton "Today", agenda du
+   jour sélectionné. Events via `CalendarService` (backend `khal` ; agenda vide si khal absent).
+   Entrée : 5e icône footer du hub (`calendar_month`, footer passé `/4`→`/5`). Câblé dans `viewHeight`.
+
+Restants des 10 proposés (non faits) : navigation clavier du Control Center, gestes média swipe-to-skip,
+notifications groupées par app, pill squircle (courbure continue), accent adaptatif depuis la pochette
+(nécessite une extraction de couleur — aucune dans le repo).
+
 ## Backlog restant (priorité basse)
 
 - Keyboard-layout sur Hyprland (DMS n'expose pas la source ; OK sur niri/dwl).
