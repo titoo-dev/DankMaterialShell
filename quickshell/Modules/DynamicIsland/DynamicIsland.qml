@@ -122,6 +122,16 @@ PanelWindow {
     readonly property var popups: NotificationService.popups ?? []
     // NotificationService appends new popups, so the freshest is the LAST element
     readonly property var latestPopup: popups.length > 0 ? popups[popups.length - 1] : null
+    // ambient screen-edge glow pulse whenever a NEW popup arrives (focused screen only)
+    property int _popupCount: 0
+    onPopupsChanged: {
+        if (popups.length > _popupCount && ready && isFocusedScreen && !SessionData.doNotDisturb) {
+            const p = popups[popups.length - 1]
+            const crit = p ? (p.urgency === NotificationUrgency.Critical) : false
+            edgeGlow.flash(crit ? Theme.error : Theme.primary)
+        }
+        _popupCount = popups.length
+    }
     // named actions for the active notif, minus the implicit "default" (body click), capped to keep the pill compact
     readonly property var notifActions: {
         if (!latestPopup || !latestPopup.actions) return []
@@ -288,7 +298,21 @@ PanelWindow {
         target: DisplayService
         function onBrightnessChanged(showOsd) { if (showOsd) root.showPresenter("brightness") }
     }
-    onChargingChanged: if (ready) showPresenter("battery")
+    // Live Activity: power adapter plugged / unplugged
+    onChargingChanged: {
+        if (!ready) return
+        showSplash(charging ? "battery_charging_full" : "battery_full",
+                   (charging ? I18n.tr("Charging") : I18n.tr("On battery")) + " • " + batPct + "%")
+    }
+    // Live Activity: Focus (Do Not Disturb) toggled
+    Connections {
+        target: SessionData
+        function onDoNotDisturbChanged() {
+            if (!root.ready) return
+            root.showSplash(SessionData.doNotDisturb ? "do_not_disturb_on" : "do_not_disturb_off",
+                            SessionData.doNotDisturb ? I18n.tr("Focus on") : I18n.tr("Focus off"))
+        }
+    }
 
     // Super+I (via `dms ipc call island toggle`) -> expand/collapse focused island
     Connections {
@@ -436,6 +460,9 @@ PanelWindow {
             }
         }
 
+        // ambient screen-edge glow pulse on a new notification (passthrough)
+        NotificationEdgeGlow { id: edgeGlow; island: root }
+
         Rectangle {
             id: pill
             x: stage.cx - width / 2
@@ -549,8 +576,10 @@ PanelWindow {
                         // keep an actionable notif up while the pointer is on it, so its buttons stay clickable
                         if (root.mode === "notif" && root.notifActions.length > 0)
                             notifTimer.stop()
-                        if (root.mode === "compact" || root.mode === "chip")
+                        if (root.mode === "compact" || root.mode === "chip") {
                             root.mode = root.playing ? "media" : "idle"
+                            root.bump()   // tactile pop as the island unfolds under the pointer
+                        }
                     } else if (!root.pinned) {
                         // critical notifs never auto-dismiss; others resume their timer
                         if (root.mode === "notif" && !root.notifCritical)
@@ -570,6 +599,7 @@ PanelWindow {
                     if (!root.audioNode) return
                     const step = (event.angleDelta.y > 0 ? 0.05 : -0.05)
                     root.audioNode.volume = Math.max(0, Math.min(1, root.audioNode.volume + step))
+                    AudioService.playVolumeChangeSoundIfEnabled()   // macOS-style volume tick
                 }
             }
 
