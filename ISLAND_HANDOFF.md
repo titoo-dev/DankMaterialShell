@@ -385,8 +385,14 @@ Expérience moderne : recherche, onglets de catégories, grille **couleur** (Not
 - **Dataset** `EmojiData.js` (`.pragma library`) : `CATEGORIES` (recent + 9 catégories) et `EMOJI`
   (curé ~280 emojis : `{e,n,k,c}` = char/nom/keywords/catégorie). `search(q)` (substring sur nom+kw),
   `byCategory(cat)`. Pas exhaustif (la longue traîne est rare) mais couvre l'usage courant.
-- **Copie** : `Quickshell.execDetached(["dms","cl","copy", emoji])` → atterrit aussi dans l'historique
-  clipboard DMS (donc visible dans notre Clipboard panel). Puis `ToastService.showInfo` + ferme l'île.
+- **Auto-paste (pas de copie)** : à la sélection, on **tape l'emoji dans le champ focus** via
+  `wtype` (façon emoji picker Windows) au lieu de copier → ne pollue PAS le presse-papier. Séquence :
+  `pick()` ferme l'île (panelView=controls + pinned=false + settle()) → le grab clavier Exclusive se
+  relâche → le focus revient à l'app en dessous → un `Timer` (200 ms) lance `execDetached(["wtype",
+  emoji])` qui tape dans cette app. `ToastService.showInfo("Inserted …")`. ⚠️ Il FAUT fermer AVANT de
+  wtype (sinon la frappe part dans l'île qui a le grab). Vérifié : presse-papier inchangé (sentinelle)
+  après un pick ; le focus revient bien à la fenêtre active (Hyprland). Keybind : `mainMod + semicolon`
+  (dotfiles, style Win+;).
 - **Récents** : `FileView` (Quickshell.Io) → `~/.local/state/DankMaterialShell/island-emoji-recents.json`
   (`setText(JSON.stringify(...))`, cap 36, dédupe). ⚠️ `StandardPaths` vient de `import QtCore` (pas
   Quickshell). `onLoadFailed` → `recents=[]` (1er lancement, warning "file does not exist" bénin).
