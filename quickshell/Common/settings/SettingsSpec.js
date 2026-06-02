@@ -38,6 +38,8 @@ var SPEC = {
     use24HourClock: { def: true },
     showSeconds: { def: false },
     padHours12Hour: { def: false },
+    dynamicIslandEnabled: { def: true },
+    dynamicIslandBlur: { def: false },
     useFahrenheit: { def: false },
     windSpeedUnit: { def: "kmh" },
     nightModeEnabled: { def: false },

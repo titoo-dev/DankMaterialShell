@@ -211,6 +211,29 @@ Item {
             spacing: Theme.spacingXL
 
             SettingsCard {
+                iconName: "blur_on"
+                title: I18n.tr("Dynamic Island Style")
+                settingKey: "dynamicIslandStyle"
+
+                DankToggle {
+                    width: parent.width
+                    text: I18n.tr("Use Dynamic Island")
+                    description: I18n.tr("Replace the bar with a compact, animated Dynamic Island at the top center. All bar menus stay available from it.")
+                    checked: SettingsData.dynamicIslandEnabled
+                    onToggled: SettingsData.set("dynamicIslandEnabled", checked)
+                }
+
+                DankToggle {
+                    width: parent.width
+                    text: I18n.tr("Frosted blur")
+                    description: I18n.tr("Make the island translucent. Requires a Hyprland layer-blur rule (see island README); without it the island is simply see-through.")
+                    enabled: SettingsData.dynamicIslandEnabled
+                    checked: SettingsData.dynamicIslandBlur
+                    onToggled: SettingsData.set("dynamicIslandBlur", checked)
+                }
+            }
+
+            SettingsCard {
                 iconName: "dashboard"
                 title: I18n.tr("Bar Configurations")
                 settingKey: "barConfigurations"

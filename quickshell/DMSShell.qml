@@ -22,6 +22,7 @@ import qs.Modules.OSD
 import qs.Modules.ProcessList
 import qs.Modules.DankBar
 import qs.Modules.DankBar.Popouts
+import qs.Modules.DynamicIsland
 import qs.Modules.Frame
 import qs.Modules.WorkspaceOverlays
 import qs.Modules.Settings.DisplayConfig
@@ -258,7 +259,7 @@ Item {
             id: barLoader
             required property var modelData
             property var barConfig: SettingsData.barConfigs.find(cfg => cfg.id === modelData.id) || null
-            active: root.barSurfacesLoaded && (barConfig?.enabled ?? false)
+            active: root.barSurfacesLoaded && (barConfig?.enabled ?? false) && !SettingsData.dynamicIslandEnabled
             asynchronous: false
 
             sourceComponent: DankBar {
@@ -273,6 +274,13 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    Variants {
+        model: SettingsData.dynamicIslandEnabled ? Quickshell.screens : []
+        delegate: DynamicIsland {
+            modelData: item
         }
     }
 
@@ -1233,7 +1241,7 @@ Item {
         sourceComponent: Component {
             Item {
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: VolumeOSD {
                         modelData: item
@@ -1265,7 +1273,7 @@ Item {
                 }
 
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: BrightnessOSD {
                         modelData: item
