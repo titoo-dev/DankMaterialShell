@@ -17,8 +17,54 @@ Column {
     // service's own caches, which a reactive binding would treat as a loop.
     property var results: []
     property int selIndex: 0
+
+    // subsequence ("fzf-style") fuzzy score: >0 only if every query char appears in
+    // order in the text; rewards consecutive runs and word-start hits, prefers short
+    // names and early first-match. Complements the service's Levenshtein/typo fuzzy.
+    function fuzzy(text, q) {
+        if (!text) return 0
+        text = text.toLowerCase()
+        let ti = 0, qi = 0, score = 0, streak = 0, first = -1
+        while (ti < text.length && qi < q.length) {
+            if (text.charAt(ti) === q.charAt(qi)) {
+                if (first < 0) first = ti
+                streak += 1
+                score += 1 + streak
+                if (ti === 0 || text.charAt(ti - 1) === " ") score += 5
+                qi += 1
+            } else {
+                streak = 0
+            }
+            ti += 1
+        }
+        if (qi < q.length) return 0   // not all query chars matched in order
+        return score + Math.max(0, 10 - first) - text.length * 0.05
+    }
+
     function refresh() {
-        results = AppSearchService.searchApplications(searchField.text)
+        const q = searchField.text.trim()
+        const primary = AppSearchService.searchApplications(q)
+        if (q.length === 0) {
+            results = primary
+        } else {
+            // append subsequence-fuzzy matches the service missed
+            // (e.g. "vsc" -> Visual Studio Code, "frfx" -> Firefox)
+            const ql = q.toLowerCase()
+            const seen = ({})
+            for (var i = 0; i < primary.length; i++) {
+                if (primary[i].id) seen[primary[i].id] = true
+            }
+            const extra = []
+            const apps = AppSearchService.getVisibleApplications()
+            for (var j = 0; j < apps.length; j++) {
+                const app = apps[j]
+                if (app.id && seen[app.id]) continue
+                const sc = Math.max(fuzzy(app.name, ql), fuzzy(app.id || "", ql) * 0.7, fuzzy(app.genericName || "", ql) * 0.6)
+                if (sc > 0) extra.push({ app: app, sc: sc })
+            }
+            extra.sort((a, b) => b.sc - a.sc)
+            results = primary.concat(extra.map(e => e.app))
+        }
         selIndex = 0
         appFlick.contentY = 0
     }

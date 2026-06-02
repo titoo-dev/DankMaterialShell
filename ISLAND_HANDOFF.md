@@ -342,6 +342,11 @@ les mêmes services. Navigation **drill-down macOS**.
   `width`/`height` (pas seulement `iconSize`), sinon l'`IconImage` (anchors.fill) est 0×0 et l'icône
   est invisible (on voyait du vide/fallback). `iconValue: modelData.icon` se résout via
   `Paths.resolveIconPath` → vraie icône du thème.
+  🔎 **Fuzzy subsequence** : `searchApplications()` ne fait que du fuzzy Levenshtein (typos), pas du
+  subsequence type fzf. Le panel ajoute une passe `fuzzy(text, q)` (tous les chars de q dans l'ordre,
+  bonus runs consécutifs + début de mot) sur `getVisibleApplications()`, et **append** au résultat du
+  service les apps qu'il a ratées (ex. « sttgs » → System Settings, « vsc » → VS Code). On garde le bon
+  classement frecency/prefix du service en tête. Vérifié : « sttgs » → « System Settings ».
   ⌨️ **Nav clavier** : `selIndex` + `move(±1)` (clampé) + `ensureVisible()` (auto-scroll du Flickable)
   + `launchSel()`. Le `DankTextField` a `ignoreUpDownKeys: true` et `keyForwardTargets: [navHandler]`
   → ↑/↓ pilotent la liste (pas le caret), Enter (`onAccepted`) lance le sélectionné, Esc revient au
