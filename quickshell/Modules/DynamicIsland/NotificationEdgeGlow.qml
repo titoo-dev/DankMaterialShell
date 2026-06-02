@@ -13,8 +13,9 @@ Item {
     // 0 -> 1 -> 0 pulse driven by flash(); color set per-notification
     property real pulse: 0
     property color glowColor: Theme.primary
-    readonly property real thickness: 150
-    readonly property real maxAlpha: 0.55
+    // thin, compact rim of light hugging the screen edge
+    readonly property real thickness: 44
+    readonly property real maxAlpha: 0.6
 
     visible: pulse > 0
     z: -2   // behind the pill, in front of the scrim
@@ -24,10 +25,12 @@ Item {
         pulseAnim.restart()
     }
 
+    // gentle breath: soft fade-in, brief hold, soft fade-out (no hard flash/blink)
     SequentialAnimation {
         id: pulseAnim
-        NumberAnimation { target: edgeGlow; property: "pulse"; to: 1; duration: 220; easing.type: Easing.OutQuad }
-        NumberAnimation { target: edgeGlow; property: "pulse"; to: 0; duration: 1100; easing.type: Easing.InQuad }
+        NumberAnimation { target: edgeGlow; property: "pulse"; to: 1; duration: 500; easing.type: Easing.InOutSine }
+        PauseAnimation { duration: 450 }
+        NumberAnimation { target: edgeGlow; property: "pulse"; to: 0; duration: 1200; easing.type: Easing.InOutSine }
     }
 
     // top
