@@ -377,6 +377,27 @@ les mêmes services. Navigation **drill-down macOS**.
   `DankTextField`. Le grab est relâché dès que `panelView` quitte apps/clipboard. Vérifié par
   capture : `wtype "set"` filtre sur « System Settings », Esc revient au hub.
 
+## Emoji picker île-natif (fait 2026-06-02)
+
+`panels/EmojiPanel.qml` (id `emojiCol`, `panelView="emoji"`) + dataset `panels/EmojiData.js`.
+Expérience moderne : recherche, onglets de catégories, grille **couleur** (Noto Color Emoji),
+**récents persistés**, navigation clavier 2D.
+- **Dataset** `EmojiData.js` (`.pragma library`) : `CATEGORIES` (recent + 9 catégories) et `EMOJI`
+  (curé ~280 emojis : `{e,n,k,c}` = char/nom/keywords/catégorie). `search(q)` (substring sur nom+kw),
+  `byCategory(cat)`. Pas exhaustif (la longue traîne est rare) mais couvre l'usage courant.
+- **Copie** : `Quickshell.execDetached(["dms","cl","copy", emoji])` → atterrit aussi dans l'historique
+  clipboard DMS (donc visible dans notre Clipboard panel). Puis `ToastService.showInfo` + ferme l'île.
+- **Récents** : `FileView` (Quickshell.Io) → `~/.local/state/DankMaterialShell/island-emoji-recents.json`
+  (`setText(JSON.stringify(...))`, cap 36, dédupe). ⚠️ `StandardPaths` vient de `import QtCore` (pas
+  Quickshell). `onLoadFailed` → `recents=[]` (1er lancement, warning "file does not exist" bénin).
+- **Nav clavier** : `selIndex` + `move(dx,dy)` (2D, `columns = floor(gridWidth/cell)`, clamp +
+  auto-scroll). `DankTextField` avec `ignoreUpDownKeys` + `ignoreLeftRightKeys` + `keyForwardTargets:
+  [navHandler]` → les 4 flèches pilotent la grille, Enter copie le sélectionné, Esc revient au hub.
+- Entrées : 6e icône footer du hub (`mood`, footer passé `/5`→`/6`) ET `dms ipc call island open emoji`
+  (keybind). Ajouté à la condition keyboardFocus Exclusive (apps|clipboard|emoji) et à `viewHeight`.
+- Vérifié par capture : ouverture via IPC, recherche « fire » → 🔥, Enter copie (presse-papier = 🔥,
+  récents = `["🔥"]`), toast + repli, nav 2D « face » déplace la sélection.
+
 ## Bannières de notification macOS (refonte complète, 2026-06-02)
 
 Le mode "notif" du pill (style iPhone Dynamic Island) est **retiré**. Les notifications suivent

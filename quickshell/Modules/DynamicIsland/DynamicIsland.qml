@@ -196,7 +196,7 @@ PanelWindow {
     property bool pinned: false
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "notifications" | "calendar" | "apps" | "clipboard"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "notifications" | "calendar" | "apps" | "clipboard" | "emoji"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
@@ -425,7 +425,7 @@ PanelWindow {
     // Hyprland's OnDemand focus-grab only kicks in on a pointer click. Released the
     // instant panelView leaves apps/clipboard; Esc / click-outside scrim / back all exit.
     WlrLayershell.keyboardFocus: {
-        if (mode !== "expanded" || (panelView !== "apps" && panelView !== "clipboard"))
+        if (mode !== "expanded" || (panelView !== "apps" && panelView !== "clipboard" && panelView !== "emoji"))
             return WlrKeyboardFocus.None
         return WlrKeyboardFocus.Exclusive
     }
