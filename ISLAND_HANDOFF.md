@@ -12,8 +12,24 @@ activable.
 ## Où se trouve le code
 
 - **Fork DMS** (= ce repo cloné) : `~/Projects/DankMaterialShell/`
-  - `quickshell/Modules/DynamicIsland/DynamicIsland.qml` — **le composant principal**
-  - `quickshell/Modules/DynamicIsland/IslandHub.qml` — singleton + IpcHandler (target `island`)
+  - **MODULARISÉ (2026-06-02)** — `Modules/DynamicIsland/` :
+    - `DynamicIsland.qml` (~1040 l.) — **contrôleur** : props/services partagés, machine à états
+      (`mode`/`panelView`), géométrie (`pillW`/`pillH`), fenêtre+masque, shell du pill (fond, verre,
+      ombre, squash, behaviors), panes au repos (compact/chip/idle/media/presenter), HoverHandler/
+      WheelHandler/bgClick/scrim, bump, QsMenuAnchor. Instancie les composants ci-dessous.
+    - `ControlCenterPanel.qml` (~580 l.) — mode expanded : hub (toggles/sliders/now-playing/footer)
+      + vues drill-down Wi-Fi/Bluetooth/Audio/Notifications. `property var island` ; expose
+      `viewHeight` (lu par `pillH`). Instancié : `ControlCenterPanel { id: controlPanel; island: root }`.
+    - `NotificationBanners.qml` (~245 l.) — deck de bannières macOS. `property var island` ;
+      `NotificationBanners { id: notifBanners; island: root }` (réf. dans le `mask`).
+    - `IslandHub.qml` — singleton + IpcHandler (target `island`).
+  - **PATTERN d'extraction** (pour les futurs composants) : un composant = `Item/Column { property
+    var island: null; ... }` ; remplacer `root.` par `island.` ; exposer ce que la géométrie lit
+    (`viewHeight`, `contentWidth`…) en `readonly property`. ⚠️ ré-importer ce qu'utilise le bloc
+    (`QtQuick.Controls` pour `ToolTip`, `QtQuick.Shapes`, `Quickshell.Services.Notifications`…).
+    À FAIRE ensuite (même pattern) : sortir les 4 vues drill-down dans `panels/`, et les panes au
+    repos dans `panes/` (attention : `pillW`/`pillH` lisent `compactRow.implicitWidth`,
+    `mTitle/mArtist`, `wsRow/rightCluster` — exposer ces tailles).
   - `quickshell/Modules/DynamicIsland/island-blur.conf` — snippet Hyprland pour le flou (opt-in)
   - `quickshell/DMSShell.qml` — intègre l'île (Variants par écran), supprime la DankBar quand l'île est ON, supprime VolumeOSD/BrightnessOSD
   - `quickshell/Common/SettingsData.qml` + `Common/settings/SettingsSpec.js` — flags `dynamicIslandEnabled` (def true), `dynamicIslandBlur` (def false)
