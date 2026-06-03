@@ -367,6 +367,25 @@ PanelWindow {
             root.pinned = true
             root.mode = "expanded"
         }
+        // collapse the island no matter what it is showing
+        function onCloseRequested() {
+            if (!root.isFocusedScreen)
+                return
+            root.pinned = false
+            root.panelView = "controls"
+            root.settle()
+        }
+        // step back one level: a drill view returns to the hub, the hub closes
+        function onBackRequested() {
+            if (!root.isFocusedScreen)
+                return
+            if (root.mode === "expanded" && root.panelView !== "controls") {
+                root.panelView = "controls"
+            } else {
+                root.pinned = false
+                root.settle()
+            }
+        }
         // open straight to a drill view (e.g. Super+Space -> Spotlight); pressing
         // the same bind again while it's showing toggles the island shut
         function onOpenViewRequested(view) {

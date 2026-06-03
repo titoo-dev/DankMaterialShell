@@ -159,19 +159,31 @@ droit `notifRight`, avant le badge +N et le ✕. Source : `latestPopup.actions`
 IPC dispo (`IslandHub.qml`, target `island`) :
 - `dms ipc call island toggle` — expand/collapse du control center
 - `dms ipc call island expand` — ouvre (idempotent)
+- `dms ipc call island close` — replie quel que soit l'état affiché (`onCloseRequested` → unpin + `panelView="controls"` + `settle()`)
+- `dms ipc call island back` — recule d'un niveau : une drill view revient au hub, le hub se ferme (`onBackRequested`)
 - `dms ipc call island open <view>` — ouvre direct sur une drill view (re-presser = referme).
-  views : `controls | wifi | bluetooth | audio | notifications | calendar | apps | clipboard`.
+  views : `controls | wifi | bluetooth | audio | notifications | calendar | apps | clipboard | emoji`.
   Handler contrôleur `onOpenViewRequested` (gated `isFocusedScreen`) → `openPanel(view)`.
   Pour `apps`/`clipboard` le grab clavier Exclusive s'engage SANS clic (vérifié : ouverture par IPC
   puis `wtype "fire"` filtre sur Firefox).
 
-Binds Hyprland (à mettre où vivent les binds — le `~/.config/hypr/hyprland.conf` ici ne fait que
-`source = ./dms/outputs.conf`, les binds sont probablement ailleurs / gérés par DMS) :
+Binds Hyprland — **CÂBLÉS (2026-06-03)** dans `~/.config/hypr/hyprland.lua` (config active depuis
+Hyprland 0.55 ; `hyprland.conf` n'est plus chargé). Bloc « Dynamic Island control » après les binds
+Spotlight (`SUPER+R`) / emoji (`SUPER+;`). `SUPER+ALT` = namespace dédié sans conflit pour ouvrir
+chaque drill view :
 ```
-bind = SUPER, I,     exec, dms ipc call island toggle
-bind = SUPER, Space, exec, dms ipc call island open apps        # Spotlight
-bind = SUPER, V,     exec, dms ipc call island open clipboard
+SUPER + I            toggle (control center hub)
+SUPER + SHIFT + I    close  (replie quoi qu'il arrive)
+SUPER + SHIFT + B    back   (recule d'un niveau)
+SUPER + ALT + C      open controls       SUPER + ALT + N    open notifications
+SUPER + ALT + W      open wifi           SUPER + ALT + K    open calendar (kalendar)
+SUPER + ALT + B      open bluetooth      SUPER + ALT + V    open clipboard
+SUPER + ALT + A      open audio          SUPER + ALT + E    open emoji
+SUPER + ALT + Space  open apps (Spotlight)
 ```
+Note : `SUPER+R` (apps) et `SUPER+;` (emoji) gardent leurs binds historiques ; `SUPER+V` reste vicinae.
+Vérifié 2026-06-03 : les 12 binds sont enregistrés (`hyprctl binds`, modmask 64/65/72) et chaque
+commande IPC répond (`ISLAND_TOGGLE/CLOSE/BACK/OPEN:*`), sans erreur QML au restart.
 
 ## Réglages de positionnement actuels (DynamicIsland.qml)
 
