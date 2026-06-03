@@ -217,7 +217,7 @@ PanelWindow {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "apps" | "clipboard" | "emoji"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "apps" | "clipboard" | "emoji" | "power"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
@@ -249,6 +249,9 @@ PanelWindow {
         if (hovered) { mode = playing ? "media" : "idle"; return }
         mode = restMode()
     }
+    // fully collapse the island from a panel action (lock/power/settings):
+    // drop the pin and force a rest mode even while the pointer is over it.
+    function closeIsland() { panelView = "controls"; pinned = false; mode = restMode() }
     onPlayingChanged: if (!hovered && !pinned && mode !== "notif" && mode !== "presenter") mode = restMode()
 
     // ---------- insert the emoji into the focused app (emoji picker) ----------
@@ -418,36 +421,6 @@ PanelWindow {
             } else {
                 root.openPanel(view)
             }
-        }
-    }
-
-    // open the real DMS menus, anchored under the island.
-    // Popouts center under (triggerX + triggerWidth/2), so triggerX must be the
-    // island's LEFT edge (the pill is centered in the screen-centered window).
-    function openMenu(which) {
-        const sw = modelData?.width ?? 1920
-        const w = pill.width
-        const sx = (sw - w) / 2
-        // anchor below the resting island with a small breathing gap
-        const sy = 52
-        // a launcher button should OPEN its menu, never toggle it shut: if a popout's
-        // shouldBeVisible was left true (stale), toggle() would close it -> "nothing
-        // happens". open*() is idempotent. The bar (gone in island mode) normally
-        // activates these LazyLoaders, so we do it ourselves before opening.
-        switch (which) {
-        case "apps":          PopoutService.openDankLauncherV2(); break
-        case "dash":          PopoutService.openDankDash(0, sx, sy, w, "center", modelData); break
-        case "notifications":
-            if (PopoutService.notificationCenterLoader)
-                PopoutService.notificationCenterLoader.active = true
-            PopoutService.openNotificationCenter(sx, sy, w, "center", modelData)
-            break
-        case "control":
-            if (PopoutService.controlCenterLoader)
-                PopoutService.controlCenterLoader.active = true
-            PopoutService.openControlCenter(sx, sy, w, "center", modelData)
-            break
-        case "clipboard":     PopoutService.openClipboardHistory(); break
         }
     }
 

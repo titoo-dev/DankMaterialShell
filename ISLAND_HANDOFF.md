@@ -555,6 +555,35 @@ Restants des 10 proposés (non faits) : navigation clavier du Control Center, ge
 notifications groupées par app, pill squircle (courbure continue), accent adaptatif depuis la pochette
 (nécessite une extraction de couleur — aucune dans le repo).
 
+## Boutons d'option (lock / settings / power) — fait 2026-06-03
+
+Intégrés dans le **hub** (mode expanded) avec un design « title bar » macOS original.
+- **Header du hub** (`ControlCenterPanel.qml`, en tête de `ccColumn`, AVANT les tuiles) : à gauche
+  l'**avatar** (`DankCircularImage`, `PortalService.profileImage`, fallback `person`) + nom
+  (`UserInfoService.fullName||username`) + sous-titre « Control Center » ; à droite **3 boutons orbe**
+  circulaires (36px, radius 18) frostés : `lock`, `settings`, `power`. Hover = fill teinté + ring
+  (`border` accent ; **rouge `Theme.error`** pour power), icône recolorée, press-scale 0.88. ToolTips.
+- **Actions** : `lock` → `island.closeIsland()` + `IdleService.lockRequested()` (chemin lock canonique
+  DMS, cf. DMSShell:109) ; `settings` → `island.closeIsland()` + `PopoutService.openSettings()`
+  (modal Réglages DMS = « réglages de l'OS ») ; `power` → drill-in `panelView="power"`.
+- **Helper contrôleur** `closeIsland()` (près de `settle()`) : `panelView="controls"; pinned=false;
+  mode=restMode()` — force le repli même si le pointeur est encore sur l'île (settle() ne replierait
+  pas car `hovered`). Utilisé par les orbes lock/settings et par chaque action du PowerPanel.
+- **Vue Power** (`panels/PowerPanel.qml`, id `powerCol`, `panelView="power"`) : header back + « Power » ;
+  2 grandes tuiles (Lock / Sleep) puis 3 lignes pleine largeur (Log Out / Restart / Shut Down,
+  les 2 destructives teintées `Theme.error` au survol). Actions = `IdleService.lockRequested()`,
+  `SessionService.suspend/logout/reboot/poweroff()` ; chaque clic `closeIsland()` d'abord.
+  Instanciée dans `ControlCenterPanel` + câblée dans `viewHeight`. Accessible aussi par
+  `dms ipc call island open power` (pas de whitelist IPC → marche d'office).
+- Vérifié : restart sans erreur QML, `open controls`/`open power`/`back` OK, zéro binding loop/TypeError.
+  ⚠️ Capture d'écran impossible cette session (ni grim/grimblast, spectacle headless échoue).
+- **« All Settings » retiré (2026-06-03)** : l'orbe Settings + les vues île-natives couvrent tout, donc
+  le 6e icône footer `tune`→`control` (qui ouvrait le **Control Center natif DMS** en popout) est
+  supprimé. Footer repassé `/6`→`/5` (apps/notifications/calendar/emoji/clipboard), `onClicked`
+  simplifié en `island.panelView = modelData.which` (toutes les surfaces sont des drill views).
+  La fonction `openMenu()` du contrôleur — devenue **sans aucun appelant** — est supprimée (le seul
+  popout DMS restant accessible depuis l'île est désormais la **modal Réglages** via l'orbe Settings).
+
 ## Backlog restant (priorité basse)
 
 - Keyboard-layout sur Hyprland (DMS n'expose pas la source ; OK sur niri/dwl).

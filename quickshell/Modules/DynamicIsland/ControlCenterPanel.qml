@@ -12,7 +12,7 @@ import "panels"
                 id: ccPanel
                 property var island: null
                 // active view height (drives the pill height in the controller)
-                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "input" ? inputCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : island.panelView === "emoji" ? emojiCol.implicitHeight : ccColumn.implicitHeight)
+                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "input" ? inputCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : island.panelView === "emoji" ? emojiCol.implicitHeight : island.panelView === "power" ? powerCol.implicitHeight : ccColumn.implicitHeight)
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 opacity: island.mode === "expanded" ? 1 : 0
@@ -34,6 +34,75 @@ import "panels"
                     visible: opacity > 0
                     transform: Translate { x: island.panelView === "controls" ? 0 : -24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
                     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+
+                    // ---- header: identity + session orbs (lock / settings / power) ----
+                    Item {
+                        width: parent.width; height: 40
+                        Row {
+                            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.spacingS
+                            DankCircularImage {
+                                width: 36; height: 36
+                                anchors.verticalCenter: parent.verticalCenter
+                                imageSource: {
+                                    if (!PortalService.profileImage || PortalService.profileImage === "") return ""
+                                    return PortalService.profileImage.startsWith("/") ? "file://" + PortalService.profileImage : PortalService.profileImage
+                                }
+                                fallbackIcon: "person"
+                            }
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter; spacing: 0
+                                StyledText {
+                                    text: UserInfoService.fullName || UserInfoService.username || I18n.tr("User")
+                                    color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
+                                    elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                                }
+                                StyledText {
+                                    text: I18n.tr("Control Center")
+                                    color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1
+                                }
+                            }
+                        }
+                        // three frosted "orb" buttons — lift + glow on hover, power tinted danger
+                        Row {
+                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.spacingXS
+                            Repeater {
+                                model: [
+                                    { key: "lock",     icon: "lock",                tip: I18n.tr("Lock"),     danger: false },
+                                    { key: "settings", icon: "settings",            tip: I18n.tr("Settings"), danger: false },
+                                    { key: "power",    icon: "power_settings_new",  tip: I18n.tr("Power"),    danger: true  }
+                                ]
+                                Rectangle {
+                                    readonly property bool danger: modelData.danger
+                                    width: 36; height: 36; radius: 18
+                                    color: orbArea.containsMouse
+                                        ? (danger ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.20)
+                                                  : Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.18))
+                                        : Theme.surfaceLight
+                                    Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                    border.width: orbArea.containsMouse ? 1 : 0
+                                    border.color: danger ? Theme.error : island.accent
+                                    scale: orbArea.pressed ? 0.88 : 1.0
+                                    Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+                                    DankIcon {
+                                        anchors.centerIn: parent; name: modelData.icon; size: 18
+                                        color: orbArea.containsMouse ? (danger ? Theme.error : island.accent) : island.textColor
+                                        Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                    }
+                                    ToolTip.visible: orbArea.containsMouse; ToolTip.text: modelData.tip; ToolTip.delay: 400
+                                    MouseArea {
+                                        id: orbArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (modelData.key === "lock") { island.closeIsland(); IdleService.lockRequested() }
+                                            else if (modelData.key === "settings") { island.closeIsland(); PopoutService.openSettings() }
+                                            else island.panelView = "power"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // ---- quick-toggle tiles ----
                     Row {
@@ -163,7 +232,7 @@ import "panels"
                         }
                     }
 
-                    // ---- footer: access to the heavier DMS surfaces ----
+                    // ---- footer: island-native drill views ----
                     Row {
                         width: parent.width
                         Repeater {
@@ -172,11 +241,10 @@ import "panels"
                                 { icon: "notifications",   which: "notifications", tip: I18n.tr("Notifications") },
                                 { icon: "calendar_month",  which: "calendar",      tip: I18n.tr("Calendar") },
                                 { icon: "mood",            which: "emoji",         tip: I18n.tr("Emoji") },
-                                { icon: "content_paste",   which: "clipboard",     tip: I18n.tr("Clipboard") },
-                                { icon: "tune",            which: "control",       tip: I18n.tr("All settings") }
+                                { icon: "content_paste",   which: "clipboard",     tip: I18n.tr("Clipboard") }
                             ]
                             Item {
-                                width: parent.width / 6; height: 34
+                                width: parent.width / 5; height: 34
                                 Rectangle {
                                     anchors.centerIn: parent; width: 34; height: 30; radius: 9
                                     color: ftArea.containsMouse ? Theme.primaryHover : "transparent"
@@ -187,15 +255,8 @@ import "panels"
                                     ToolTip.visible: ftArea.containsMouse; ToolTip.text: modelData.tip; ToolTip.delay: 400
                                     MouseArea {
                                         id: ftArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            // most surfaces are island-native now; only "control" (full settings) opens a DMS popout
-                                            if (modelData.which === "notifications") island.panelView = "notifications"
-                                            else if (modelData.which === "calendar") island.panelView = "calendar"
-                                            else if (modelData.which === "apps") island.panelView = "apps"
-                                            else if (modelData.which === "clipboard") island.panelView = "clipboard"
-                                            else if (modelData.which === "emoji") island.panelView = "emoji"
-                                            else { island.openMenu(modelData.which); island.pinned = false; island.settle() }
-                                        }
+                                        // every footer surface is an island-native drill view now
+                                        onClicked: island.panelView = modelData.which
                                     }
                                 }
                             }
@@ -213,4 +274,5 @@ import "panels"
                 SpotlightPanel     { id: appCol;   island: ccPanel.island }
                 ClipboardPanel     { id: clipCol;  island: ccPanel.island }
                 EmojiPanel         { id: emojiCol; island: ccPanel.island }
+                PowerPanel         { id: powerCol; island: ccPanel.island }
             }
