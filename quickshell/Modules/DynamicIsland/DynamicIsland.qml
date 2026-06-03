@@ -177,6 +177,18 @@ PanelWindow {
         active: root.cavaActive
         sourceComponent: Component { Ref { service: CavaService } }
     }
+    // system monitor: stream cpu/memory/network/system stats from the native
+    // DgopService backend ONLY while the monitor drill view is open (3s cadence),
+    // so polling stays idle the rest of the time.
+    Loader {
+        active: root.mode === "expanded" && root.panelView === "monitor"
+        sourceComponent: Component {
+            QtObject {
+                Component.onCompleted: DgopService.addRef(["cpu", "memory", "network", "system"])
+                Component.onDestruction: DgopService.removeRef(["cpu", "memory", "network", "system"])
+            }
+        }
+    }
     // fallback animation when the `cava` binary isn't installed
     Timer {
         interval: 90; repeat: true
@@ -217,7 +229,7 @@ PanelWindow {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "apps" | "clipboard" | "emoji" | "power"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "apps" | "clipboard" | "emoji" | "power"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }

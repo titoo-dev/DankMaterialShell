@@ -16,6 +16,7 @@ import Quickshell.Io
 //   bind = SUPER SHIFT, I,   exec, dms ipc call island close
 //   bind = SUPER ALT, Space, exec, dms ipc call island open apps
 //   bind = SUPER ALT, V,     exec, dms ipc call island open clipboard
+//   bind = SUPER ALT, M,     exec, dms ipc call island open monitor
 Singleton {
     id: hub
 
@@ -47,7 +48,7 @@ Singleton {
         }
         // open the expanded panel straight to a drill view (toggles it shut if
         // already showing): controls | wifi | bluetooth | audio | notifications |
-        // calendar | apps | clipboard | emoji | power
+        // calendar | monitor | apps | clipboard | emoji | power
         function open(view: string): string {
             hub.openViewRequested(view && view.length > 0 ? view : "controls");
             return "ISLAND_OPEN:" + view;

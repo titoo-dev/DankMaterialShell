@@ -12,7 +12,7 @@ import "panels"
                 id: ccPanel
                 property var island: null
                 // active view height (drives the pill height in the controller)
-                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "input" ? inputCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : island.panelView === "emoji" ? emojiCol.implicitHeight : island.panelView === "power" ? powerCol.implicitHeight : ccColumn.implicitHeight)
+                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "input" ? inputCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : island.panelView === "emoji" ? emojiCol.implicitHeight : island.panelView === "power" ? powerCol.implicitHeight : island.panelView === "monitor" ? monCol.implicitHeight : ccColumn.implicitHeight)
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 opacity: island.mode === "expanded" ? 1 : 0
@@ -240,11 +240,12 @@ import "panels"
                                 { icon: "apps",            which: "apps",          tip: I18n.tr("Apps") },
                                 { icon: "notifications",   which: "notifications", tip: I18n.tr("Notifications") },
                                 { icon: "calendar_month",  which: "calendar",      tip: I18n.tr("Calendar") },
+                                { icon: "monitoring",      which: "monitor",       tip: I18n.tr("System") },
                                 { icon: "mood",            which: "emoji",         tip: I18n.tr("Emoji") },
                                 { icon: "content_paste",   which: "clipboard",     tip: I18n.tr("Clipboard") }
                             ]
                             Item {
-                                width: parent.width / 5; height: 34
+                                width: parent.width / 6; height: 34
                                 Rectangle {
                                     anchors.centerIn: parent; width: 34; height: 30; radius: 9
                                     color: ftArea.containsMouse ? Theme.primaryHover : "transparent"
@@ -275,4 +276,5 @@ import "panels"
                 ClipboardPanel     { id: clipCol;  island: ccPanel.island }
                 EmojiPanel         { id: emojiCol; island: ccPanel.island }
                 PowerPanel         { id: powerCol; island: ccPanel.island }
+                SystemMonitorPanel { id: monCol;   island: ccPanel.island }
             }
