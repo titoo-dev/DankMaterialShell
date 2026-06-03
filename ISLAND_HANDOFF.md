@@ -355,10 +355,27 @@ les mêmes services. Navigation **drill-down macOS**.
   ({ssid, signal, secured, saved}) ; connecté = `ssid === currentWifiSSID` ; tap → `connectToWifi`,
   réseau sécurisé non sauvegardé → champ mot de passe inline (DankTextField echoMode Password) +
   bouton connexion ; état vide « No networks / Scanning… / Wi-Fi off ». Vérifié par capture.
+  **Bouton refresh** (fait 2026-06-03) dans le header (avant le switch radio) → `scanWifiNetworks()` ;
+  l'icône `refresh` **tourne** tant que `NetworkService.isScanning` (RotationAnimation, reset à 0 à
+  l'arrêt) ; désactivé/atténué si Wi-Fi off. Remplace l'ancien texte « Scanning… » du header.
 - **Vue Bluetooth** (`btCol`, panelView "bluetooth", drill depuis la tuile BT) : header back + titre
   + switch radio (`adapter.enabled`) ; liste `BluetoothService.pairedDevices` (icône
   `getDeviceIcon`, nom, Connected/Disconnected + batterie%, ✓/+ ) ; tap → `connectDeviceWithTrust` /
   `device.disconnect()` ; discovery activée à l'entrée. État vide « Bluetooth is off / No devices ».
+  **Bouton refresh** (fait 2026-06-03) dans le header (avant le switch radio) → **redémarre la
+  discovery** (`adapter.discovering=false` puis `btRescanTimer` 250 ms le repasse à `true` → balayage
+  frais) ; l'icône `refresh` tourne tant que `BluetoothService.discovering` ; désactivé si BT off.
+  **Appairage d'un nouvel appareil** (fait 2026-06-03) : section « Available » sous les appareils
+  appairés, listant les appareils découverts non-appairés (`availableDevices` = même filtre que le
+  DMS natif : `!paired && !pairing && !blocked && signalStrength>0`, trié par `sortDevices`). La
+  **discovery démarre/s'arrête automatiquement** avec la vue (`btActive = mode==="expanded" &&
+  panelView==="bluetooth"` → `onBtActiveChanged: ensureDiscovery()` ; bound sur un bool, PAS sur
+  `visible` qui traîne derrière le fade ; aussi re-déclenché sur `BluetoothService.onEnabledChanged`).
+  Tap sur une ligne → `pairNew()` → `BluetoothService.pairDevice(dev, cb)` (agent bluez DMS si
+  `enhancedPairingAvailable`, sinon trust+connect), toast succès/erreur (`ToastService`), spinner
+  par-appareil via `pairingAddrs` (map address→true réassignée) + `modelData.pairing`. État vide :
+  « Searching for devices… » (si discovering) / « Tap refresh to scan ». ⚠️ Pas testé avec un vrai
+  appareil (aucun à proximité dans la session) ; chemin identique à `ControlCenter/Details/BluetoothDetail.qml`.
 - **Vue Audio/Output** (`audioCol`, panelView "audio", drill depuis le bouton 🔊 à droite du slider
   volume) : header back + « Output » ; liste `AudioService.typedSinks` (icône, `description`, ✓ si
   courant via `sink.name`) ; tap → `AudioService.setSink(node)`. Vérifié par capture.

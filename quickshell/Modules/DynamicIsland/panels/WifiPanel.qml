@@ -33,9 +33,27 @@ Column {
         }
         Row {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: Theme.spacingXS
-            StyledText {
-                visible: NetworkService.isScanning; text: I18n.tr("Scanning…")
-                color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1; anchors.verticalCenter: parent.verticalCenter
+            Rectangle {  // refresh: rescan networks (icon spins while scanning)
+                width: 30; height: 30; radius: 9
+                anchors.verticalCenter: parent.verticalCenter
+                enabled: NetworkService.wifiEnabled
+                opacity: enabled ? 1 : 0.4
+                color: refreshArea.containsMouse ? Theme.primaryHover : "transparent"
+                scale: refreshArea.pressed ? 0.9 : 1.0
+                Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+                DankIcon {
+                    id: wifiRefreshIcon
+                    anchors.centerIn: parent; name: "refresh"; size: 18; color: island.textColor
+                    RotationAnimation on rotation {
+                        running: NetworkService.isScanning
+                        from: 0; to: 360; duration: 900; loops: Animation.Infinite
+                        onRunningChanged: if (!running) wifiRefreshIcon.rotation = 0
+                    }
+                }
+                MouseArea {
+                    id: refreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: if (NetworkService.wifiEnabled) NetworkService.scanWifiNetworks()
+                }
             }
             Rectangle {  // radio on/off pill switch
                 width: 44; height: 24; radius: 12
