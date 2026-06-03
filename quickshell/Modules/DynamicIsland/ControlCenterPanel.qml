@@ -12,7 +12,7 @@ import "panels"
                 id: ccPanel
                 property var island: null
                 // active view height (drives the pill height in the controller)
-                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : island.panelView === "emoji" ? emojiCol.implicitHeight : ccColumn.implicitHeight)
+                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "input" ? inputCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : island.panelView === "emoji" ? emojiCol.implicitHeight : ccColumn.implicitHeight)
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 opacity: island.mode === "expanded" ? 1 : 0
@@ -93,7 +93,7 @@ import "panels"
                     Row {
                         width: parent.width; spacing: Theme.spacingS
                         DankSlider {
-                            width: parent.width - 40
+                            width: parent.width - 80
                             leftIcon: island.muted ? "volume_off" : "volume_up"
                             value: island.volPct
                             onSliderValueChanged: newValue => { if (island.audioNode) island.audioNode.volume = newValue / 100 }
@@ -107,6 +107,16 @@ import "panels"
                             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                             DankIcon { anchors.centerIn: parent; name: "speaker"; size: 17; color: outArea.containsMouse ? island.accent : island.textColor }
                             MouseArea { id: outArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "audio" }
+                        }
+                        Rectangle {  // input device picker (drills into the input view)
+                            width: 32; height: 32; radius: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: inArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
+                            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                            scale: inArea.pressed ? 0.9 : 1.0
+                            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+                            DankIcon { anchors.centerIn: parent; name: "mic"; size: 17; color: inArea.containsMouse ? island.accent : island.textColor }
+                            MouseArea { id: inArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "input" }
                         }
                     }
 
@@ -198,6 +208,7 @@ import "panels"
                 NotificationsPanel { id: notifCol; island: ccPanel.island }
                 BluetoothPanel     { id: btCol;    island: ccPanel.island }
                 AudioPanel         { id: audioCol; island: ccPanel.island }
+                InputPanel         { id: inputCol; island: ccPanel.island }
                 CalendarPanel      { id: calCol;   island: ccPanel.island }
                 SpotlightPanel     { id: appCol;   island: ccPanel.island }
                 ClipboardPanel     { id: clipCol;  island: ccPanel.island }

@@ -379,6 +379,14 @@ les mêmes services. Navigation **drill-down macOS**.
 - **Vue Audio/Output** (`audioCol`, panelView "audio", drill depuis le bouton 🔊 à droite du slider
   volume) : header back + « Output » ; liste `AudioService.typedSinks` (icône, `description`, ✓ si
   courant via `sink.name`) ; tap → `AudioService.setSink(node)`. Vérifié par capture.
+- **Vue Input/Micro** (`inputCol`, `panels/InputPanel.qml`, panelView "input", fait 2026-06-03) :
+  miroir exact de la vue Output mais pour les **sources** — drill depuis un 2e bouton (icône `mic`)
+  ajouté à droite du bouton 🔊 dans la Row volume (slider rétréci à `parent.width - 80`). Header back
+  + « Input » ; liste `AudioService.typedSources` (icône `mic`, `description`, ✓ si courant via
+  `source.name`) ; tap → `AudioService.setSource(node)`. API symétrique de l'output
+  (`typedSources`/`source`/`setSource`, l. 17/101/132 de AudioService). Instancié dans
+  ControlCenterPanel + câblé dans `viewHeight`. Accessible aussi par `dms ipc call island open input`.
+  Vérifié : 4 sources listées, courant = MC001 Pro (log `[INPUT]`), aucune erreur QML.
 - **Vue Notifications** (`notifCol`, panelView "notifications") : header back + titre + « Clear all »
   (`clearAllNotifications`) ; liste scrollable (Flickable adaptatif cap 300) de
   `NotificationService.notifications` (NotifWrapper : appName/summary/body/cleanImage/appIcon/
