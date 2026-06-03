@@ -170,7 +170,7 @@ PanelWindow {
 
     // avoid presenter flashes during startup
     property bool ready: false
-    Timer { running: true; interval: 1500; onTriggered: root.ready = true }
+    Timer { running: true; interval: 1500; onTriggered: { root.ready = true; root._updateFullscreen() } }
 
     // real audio spectrum: hold a ref on CavaService while a visual shows
     Loader {
@@ -194,6 +194,27 @@ PanelWindow {
     property string mode: "compact"
     property bool hovered: false
     property bool pinned: false
+
+    // Hide the island pill when THIS monitor shows a fullscreen window (movies,
+    // focus sessions). The OSD (presenter) and an explicitly-opened panel
+    // (expanded, e.g. via keybind) still show so feedback / actions keep working;
+    // notification banners live in a separate window item and are unaffected.
+    // Recomputed on compositor toplevel/workspace changes (same trigger DankBar
+    // auto-hide uses). Toggle: SettingsData.dynamicIslandHideOnFullscreen.
+    property bool hasFullscreenOnScreen: false
+    function _updateFullscreen() {
+        hasFullscreenOnScreen = CompositorService.hasFullscreenToplevelOnScreen(modelData)
+    }
+    readonly property bool pillSuppressed: SettingsData.dynamicIslandHideOnFullscreen
+        && hasFullscreenOnScreen && mode !== "presenter" && mode !== "expanded"
+    Connections {
+        target: CompositorService
+        function onToplevelsChanged() { root._updateFullscreen() }
+    }
+    Connections {
+        target: NiriService
+        function onAllWorkspacesChanged() { root._updateFullscreen() }
+    }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
     property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "notifications" | "calendar" | "apps" | "clipboard" | "emoji"
@@ -491,7 +512,9 @@ PanelWindow {
     // input region = pill (or full screen when expanded) UNION the banner stack,
     // so banner buttons/swipe are clickable while the rest stays click-through
     mask: Region {
-        Region { item: root.mode === "expanded" ? stage : pill }
+        // drop the pill from the input region while it's hidden for fullscreen, so
+        // clicks at the top-center reach the fullscreen app underneath
+        Region { item: root.mode === "expanded" ? stage : (root.pillSuppressed ? null : pill) }
         Region { item: notifBanners }
     }
 
@@ -518,7 +541,7 @@ PanelWindow {
             anchors.centerIn: pill
             width: pill.width + 56
             height: pill.height + 56
-            opacity: (root.player && root.player.trackArtUrl && (root.mode === "media" || root.mode === "chip")) ? 0.45 : 0
+            opacity: (!root.pillSuppressed && root.player && root.player.trackArtUrl && (root.mode === "media" || root.mode === "chip")) ? 0.45 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.mediumDuration } }
             layer.enabled: true
@@ -558,6 +581,12 @@ PanelWindow {
             Behavior on border.color { ColorAnimation { duration: Theme.mediumDuration } }
             antialiasing: true
             clip: true
+
+            // fade the whole island away while a fullscreen window owns this screen
+            // (presenter OSD / expanded panel are exempt via pillSuppressed)
+            opacity: root.pillSuppressed ? 0 : 1
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.standardEasing } }
 
             // Apple-style morph: gentle overshoot, height a touch bouncier than
             // width so the shape "pops" organically rather than sliding linearly

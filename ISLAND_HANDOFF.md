@@ -154,6 +154,27 @@ droit `notifRight`, avant le badge +N et le ✕. Source : `latestPopup.actions`
   lecture impérative de cette property dans le même tick que `onLatestPopupChanged`.
 - Test : `gdbus call ... Notify "Messages" 0 "" "Léa" "Coucou" "['reply','Répondre','archive','Archiver']" "{}" 6000`
 
+## Masquage en plein écran (fait 2026-06-03)
+
+L'île se cache sur un moniteur quand celui-ci affiche une fenêtre **plein écran** (films, focus).
+- Flag `SettingsData.dynamicIslandHideOnFullscreen` (def `true`) + toggle « Hide on fullscreen »
+  dans la carte DankBarTab (gated par `dynamicIslandEnabled`).
+- Détection : `CompositorService.hasFullscreenToplevelOnScreen(modelData)` (cross-compositeur
+  Hyprland/niri, **par moniteur**). Recalculée dans `_updateFullscreen()` sur
+  `CompositorService.onToplevelsChanged` + `NiriService.onAllWorkspacesChanged` (mêmes triggers que
+  l'auto-hide de la DankBar) + au démarrage (ready Timer). Property `hasFullscreenOnScreen`.
+- Portée = **« seulement le pill »** (choix user) : `pillSuppressed = hideOnFullscreen &&
+  hasFullscreenOnScreen && mode !== "presenter" && mode !== "expanded"`. Donc l'OSD volume/luminosité
+  (presenter) ET un panneau ouvert volontairement (expanded, via keybind) restent visibles ; les
+  **bannières de notif** vivent dans un autre item de fenêtre → inchangées.
+- Effets quand `pillSuppressed` : le pill fade `opacity→0` (`visible: opacity>0`, Behavior), l'art-glow
+  d'ambiance forcé à 0, et le pill est **retiré du masque d'input** (`Region.item: pillSuppressed ?
+  null : pill`) pour que les clics au centre-haut atteignent l'app plein écran dessous.
+- ⚠️ Test (config Lua) : `hyprctl dispatch fullscreen` est parsé comme du lua et ÉCHOUE → utiliser
+  `hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" })'`. Vérifié
+  par log `[DI]` : moniteur avec fenêtre plein écran → `suppressed=true`, l'autre → `false` (par
+  moniteur, pas global).
+
 ## Raccourcis clavier (IPC `island`)
 
 IPC dispo (`IslandHub.qml`, target `island`) :

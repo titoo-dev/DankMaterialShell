@@ -41,6 +41,7 @@ var SPEC = {
     dynamicIslandEnabled: { def: true },
     dynamicIslandBlur: { def: false },
     dynamicIslandNotchMode: { def: false },
+    dynamicIslandHideOnFullscreen: { def: true },
     useFahrenheit: { def: false },
     windSpeedUnit: { def: "kmh" },
     nightModeEnabled: { def: false },

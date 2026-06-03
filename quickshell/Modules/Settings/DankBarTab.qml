@@ -240,6 +240,15 @@ Item {
                     checked: SettingsData.dynamicIslandNotchMode
                     onToggled: SettingsData.set("dynamicIslandNotchMode", checked)
                 }
+
+                DankToggle {
+                    width: parent.width
+                    text: I18n.tr("Hide on fullscreen")
+                    description: I18n.tr("Hide the island on a monitor while it shows a fullscreen window (movies, focus). Volume/brightness OSD and notification banners still appear.")
+                    enabled: SettingsData.dynamicIslandEnabled
+                    checked: SettingsData.dynamicIslandHideOnFullscreen
+                    onToggled: SettingsData.set("dynamicIslandHideOnFullscreen", checked)
+                }
             }
 
             SettingsCard {
