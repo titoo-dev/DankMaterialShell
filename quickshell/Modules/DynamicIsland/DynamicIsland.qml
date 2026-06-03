@@ -229,7 +229,7 @@ PanelWindow {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "apps" | "clipboard" | "emoji" | "power"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
@@ -476,13 +476,15 @@ PanelWindow {
     WlrLayershell.namespace: "dms:dynamic-island"
     WlrLayershell.layer: WlrLayershell.Overlay
     WlrLayershell.exclusiveZone: -1
-    // keyboard focus only for the search-driven drill views (Spotlight / clipboard) so
-    // their text fields can type; everything else stays focus-free (click-through).
+    // keyboard focus for the keyboard-driven drill views: the search ones (Spotlight
+    // / clipboard / emoji) need it to type, the wallpaper grid needs it for arrow
+    // navigation. Everything else stays focus-free (click-through).
     // Exclusive (modal) grab: reliable and engages immediately on open, whereas
     // Hyprland's OnDemand focus-grab only kicks in on a pointer click. Released the
-    // instant panelView leaves apps/clipboard; Esc / click-outside scrim / back all exit.
+    // instant panelView leaves these views; Esc / click-outside scrim / back all exit.
+    readonly property var _kbViews: ["apps", "clipboard", "emoji", "wallpaper"]
     WlrLayershell.keyboardFocus: {
-        if (mode !== "expanded" || (panelView !== "apps" && panelView !== "clipboard" && panelView !== "emoji"))
+        if (mode !== "expanded" || _kbViews.indexOf(panelView) === -1)
             return WlrKeyboardFocus.None
         return WlrKeyboardFocus.Exclusive
     }
