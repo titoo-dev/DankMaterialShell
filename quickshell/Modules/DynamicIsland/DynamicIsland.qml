@@ -471,6 +471,8 @@ PanelWindow {
     readonly property real pillRadius: (mode === "compact" || mode === "chip") ? 12 : 22
     // notch mode: flush to the top edge, only the bottom corners round (MacBook look)
     readonly property bool notchMode: SettingsData.dynamicIslandNotchMode
+    // radius of the concave flare where the notch meets the screen's top edge
+    readonly property real notchCornerR: 13
 
     // ---------- window ----------
     WlrLayershell.namespace: "dms:dynamic-island"
@@ -545,6 +547,49 @@ PanelWindow {
         // ambient screen-edge glow pulse on a new notification (passthrough)
         NotificationEdgeGlow { id: edgeGlow; island: root }
 
+        // unified island body: fill + border + glow drawn as ONE silhouette so
+        // every effect traces the true shape (incl. the concave macOS notch
+        // flares), instead of the rectangular content host. Sits behind the
+        // pill, mirroring its geometry/transforms so they morph in lockstep.
+        readonly property real notchFlare: root.notchMode ? root.notchCornerR : 0
+        NotchVisual {
+            id: notchVisual
+            notchMode: root.notchMode
+            flare: root.notchCornerR
+            cornerRadius: pill.radius
+            x: pill.x - stage.notchFlare
+            y: pill.y
+            width: pill.width + stage.notchFlare * 2
+            height: pill.height
+            fillColor: root.islandColor
+            strokeWidth: pill.alertBorder ? 1.5 : 1
+            strokeColor: pill.alertBorder
+                ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7)
+                : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.22)
+            Behavior on strokeColor { ColorAnimation { duration: Theme.mediumDuration } }
+            antialiasing: true
+            visible: pill.visible
+            opacity: pill.opacity
+            scale: pill.scale
+            transform: Scale {
+                origin.x: notchVisual.width / 2; origin.y: notchVisual.height / 2
+                xScale: pill.squashX; yScale: pill.squashY
+            }
+            // dark elevation shadow, morphing into an accent glow during
+            // media/chip/notif — now cast by the real notch silhouette
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: root.glowActive ? root.accent : "#000000"
+                shadowBlur: root.glowActive ? 1.0 : 0.8
+                shadowVerticalOffset: root.glowActive ? 0 : 4
+                shadowScale: root.glowActive ? 1.04 : 1.0
+                shadowOpacity: root.glowActive ? 0.55 : 0.4
+                Behavior on shadowColor { ColorAnimation { duration: Theme.mediumDuration } }
+                Behavior on shadowOpacity { NumberAnimation { duration: Theme.mediumDuration } }
+            }
+        }
+
         Rectangle {
             id: pill
             x: stage.cx - width / 2
@@ -552,20 +597,11 @@ PanelWindow {
             width: root.pillW
             height: root.pillH
             radius: root.pillRadius
-            // square top corners when docked to the edge (notch), rounded otherwise
-            topLeftRadius: root.notchMode ? 0 : root.pillRadius
-            topRightRadius: root.notchMode ? 0 : root.pillRadius
-            bottomLeftRadius: root.pillRadius
-            bottomRightRadius: root.pillRadius
-            Behavior on topLeftRadius { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
-            Behavior on topRightRadius { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
-            Behavior on bottomLeftRadius { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
-            Behavior on bottomRightRadius { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
-            color: root.islandColor
+            // fill + border + glow are drawn by notchVisual (the unified
+            // silhouette); the pill itself is just the transparent, clipped
+            // host for the content panes + interaction handlers.
+            color: "transparent"
             readonly property bool alertBorder: root.privacyActive || (root.mode === "notif" && root.notifCritical)
-            border.width: alertBorder ? 1.5 : 1
-            border.color: alertBorder ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.22)
-            Behavior on border.color { ColorAnimation { duration: Theme.mediumDuration } }
             antialiasing: true
             clip: true
 
@@ -609,28 +645,16 @@ PanelWindow {
                 }
             }
 
-            // single effect: dark elevation shadow, morphing into an accent
-            // glow during media/chip/notif (replaces the old 2nd MultiEffect)
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: root.glowActive ? root.accent : "#000000"
-                shadowBlur: root.glowActive ? 1.0 : 0.8
-                shadowVerticalOffset: root.glowActive ? 0 : 4
-                shadowScale: root.glowActive ? 1.04 : 1.0
-                shadowOpacity: root.glowActive ? 0.55 : 0.4
-                Behavior on shadowColor { ColorAnimation { duration: Theme.mediumDuration } }
-                Behavior on shadowOpacity { NumberAnimation { duration: Theme.mediumDuration } }
-            }
-
             // glass material: bright specular rim along the top edge + a soft
             // inner shadow at the bottom → "floating glass" depth (macOS vibrancy)
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
                 radius: pill.radius
-                topLeftRadius: pill.topLeftRadius; topRightRadius: pill.topRightRadius
-                bottomLeftRadius: pill.bottomLeftRadius; bottomRightRadius: pill.bottomRightRadius
+                topLeftRadius: root.notchMode ? 0 : pill.radius
+                topRightRadius: root.notchMode ? 0 : pill.radius
+                bottomLeftRadius: pill.radius
+                bottomRightRadius: pill.radius
                 z: 0
                 gradient: Gradient {
                     GradientStop { position: 0.0;  color: Qt.rgba(1, 1, 1, root.notchMode ? 0.05 : 0.11) }
