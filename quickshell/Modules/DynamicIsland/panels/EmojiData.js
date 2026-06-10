@@ -527,6 +527,28 @@ var TONEABLE = {
 }
 var TONES = ["", "\u{1F3FB}", "\u{1F3FC}", "\u{1F3FD}", "\u{1F3FE}", "\u{1F3FF}"]
 function toneable(e) { return TONEABLE[e] === 1 }
+
+// resolve a (possibly toned) char back to its dataset entry char — keeps the
+// variation selector intact (✌🏽 -> ✌️), so default variants render in colour
+function datasetBase(ch) {
+    if (!ch) return ch
+    var b = ch.replace(/\uD83C[\uDFFB-\uDFFF]/g, "").replace(/️/g, "")
+    for (var i = 0; i < EMOJI.length; i++)
+        if (EMOJI[i].e.replace(/️/g, "") === b) return EMOJI[i].e
+    return ch
+}
+
+// reverse lookup for the footer preview: emoji char (possibly toned) -> name
+function nameOf(ch) {
+    if (!ch) return ""
+    // strip skin-tone modifiers (U+1F3FB..FF) and variation selectors first
+    var base = ch.replace(/\uD83C[\uDFFB-\uDFFF]/g, "").replace(/️/g, "")
+    for (var i = 0; i < EMOJI.length; i++) {
+        var ee = EMOJI[i].e
+        if (ee === ch || ee.replace(/️/g, "") === base) return EMOJI[i].n
+    }
+    return ""
+}
 function withTone(e, tone) {
     if (!tone) return e
     // the skin-tone modifier replaces any emoji variation selector (✌️ -> ✌🏽)

@@ -755,6 +755,26 @@ désormais), et le champ mot de passe Wi-Fi.
     concaves du notch restent circulaires** (c'est la signature MacBook). Toggle de revert : non
     (c'est le nouveau look) ; pour comparer, l'ancien `_arc` 90° est dans l'historique git.
 
+**Emoji picker v2.1 (même jour, 7e commit) — clavier complet + UX (feedback user)** :
+28. **Navigation clavier complète** : **Tab/Shift+Tab cyclent les catégories** (saute « recent »
+    vide, vide la recherche d'abord) — via `ignoreTabKeys: true` du DankTextField (la prop
+    existait) + `Keys.onTabPressed` du navHandler (délivré par `Keys.forwardTo`, AVANT le
+    TextInput) ; **Ctrl+←/→** en backup. **Bandeau de teintes pilotable** : Ctrl+T l'ouvre sur la
+    sélection, ←/→ choisissent (`toneSel` surligné, hover synchronisé), Enter insère la variante
+    (`confirm()` route Enter strip-d'abord), Esc ferme le strip avant de quitter ; naviguer la
+    grille ferme le strip.
+2 9. **Footer preview macOS** : emoji sélectionné en grand + son nom (`EmojiData.nameOf`,
+    reverse-lookup qui strippe teintes/VS16) + cheatsheet contextuelle à droite
+    (« Tab tabs · Ctrl+T tones » / « ←/→ · Enter · Esc »).
+30. **Toast supprimé** de `pick()` (c'est de l'auto-insert, pas une copie — feedback user).
+31. **`datasetBase(ch)`** : résout un char teinté vers l'entrée du dataset EN GARDANT le VS16
+    (`✌🏽` → `✌️` — sans VS16 le glyphe par défaut peut rendre monochrome) → le clic droit sur
+    un RÉCENT teinté rouvre bien ses variantes.
+32. **Audit auto-paste (vérifié sur la machine)** : `wtype` ✓ `wl-copy` ✓ (xdotool/ydotool absents
+    et plus utilisés) ; parsing `hyprctl activewindow` ✓ (ADDR extrait, détection xwayland ✓) ;
+    dispatcher **`hl.dsp.focus` répond `ok`**. Chaîne complète : Wayland natif = wtype direct,
+    XWayland = wl-copy + Ctrl+V manuel (par design, cf. saga §emoji).
+
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
 NotchVisual en Shape CurveRenderer, recherche de fichiers Spotlight (si dsearch installé),
 a11y/Échap universel, dataset emoji complet (génération emojibase), accent adaptatif pochette.
