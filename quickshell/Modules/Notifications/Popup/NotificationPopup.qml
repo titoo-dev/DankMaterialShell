@@ -1099,7 +1099,16 @@ PanelWindow {
                         if (canExpand) {
                             win.descriptionExpanded = !win.descriptionExpanded;
                         } else if (notificationData.actions && notificationData.actions.length > 0) {
-                            notificationData.actions[0].invoke();
+                            // freedesktop spec: body click triggers the "default" action
+                            const acts = notificationData.actions;
+                            let act = null;
+                            for (let i = 0; i < acts.length; i++) {
+                                if (acts[i] && acts[i].identifier === "default") {
+                                    act = acts[i];
+                                    break;
+                                }
+                            }
+                            (act || acts[0]).invoke();
                             NotificationService.dismissNotification(notificationData);
                         } else {
                             notificationData.popup = false;

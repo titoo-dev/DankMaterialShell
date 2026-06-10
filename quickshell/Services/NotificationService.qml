@@ -8,6 +8,7 @@ import Quickshell.Services.Notifications
 import qs.Common
 import qs.Services
 import "../Common/markdown2html.js" as Markdown2Html
+import "../Common/notificationMarkup.js" as NotifMarkup
 
 Singleton {
     id: root
@@ -175,10 +176,9 @@ Singleton {
                     continue;
                 const urg = typeof item.urgency === "number" ? item.urgency : 1;
                 const body = item.body || "";
-                let htmlBody = item.htmlBody || _resolveHtmlBody(body);
-                if (htmlBody) {
-                    htmlBody = htmlBody.replace(/<img\b[^>]*>/gi, "");
-                }
+                // Re-sanitize stored markup so pre-sanitizer history entries
+                // render correctly too (sanitize is idempotent and drops <img>).
+                const htmlBody = item.htmlBody ? NotifMarkup.sanitize(item.htmlBody) : _resolveHtmlBody(body);
                 const sourceNotificationId = (item.sourceNotificationId || item.id || "").toString();
                 let historyId = (item.id || "").toString();
                 if (!historyId || seenIds[historyId]) {
@@ -843,9 +843,12 @@ Singleton {
         }
 
         required property Notification notification
-        readonly property string summary: (notification?.summary ?? "").replace(/<img\b[^>]*>/gi, "")
+        // Summaries render as PlainText everywhere: strip markup, decode entities.
+        readonly property string summary: NotifMarkup.toPlainText(notification?.summary ?? "")
         readonly property string body: (notification?.body ?? "").replace(/<img\b[^>]*>/gi, "")
         readonly property string htmlBody: root._resolveHtmlBody(body)
+        // Markup-free single-line body for plain-text previews.
+        readonly property string plainBody: NotifMarkup.toPlainText(body)
         readonly property string appIcon: notification?.appIcon ?? ""
         readonly property string appName: {
             if (!notification)
@@ -1029,106 +1032,35 @@ Singleton {
         }
     }
 
-    function _decodeEntities(s) {
-        s = s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)));
-        s = s.replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCodePoint(parseInt(n, 16)));
-        return s.replace(/&([a-zA-Z][a-zA-Z0-9]*);/g, (match, name) => {
-            switch (name) {
-            case "amp":
-                return "&";
-            case "lt":
-                return "<";
-            case "gt":
-                return ">";
-            case "quot":
-                return "\"";
-            case "apos":
-                return "'";
-            case "nbsp":
-                return "\u00A0";
-            case "ndash":
-                return "\u2013";
-            case "mdash":
-                return "\u2014";
-            case "lsquo":
-                return "\u2018";
-            case "rsquo":
-                return "\u2019";
-            case "ldquo":
-                return "\u201C";
-            case "rdquo":
-                return "\u201D";
-            case "bull":
-                return "\u2022";
-            case "hellip":
-                return "\u2026";
-            case "trade":
-                return "\u2122";
-            case "copy":
-                return "\u00A9";
-            case "reg":
-                return "\u00AE";
-            case "deg":
-                return "\u00B0";
-            case "plusmn":
-                return "\u00B1";
-            case "times":
-                return "\u00D7";
-            case "divide":
-                return "\u00F7";
-            case "micro":
-                return "\u00B5";
-            case "middot":
-                return "\u00B7";
-            case "laquo":
-                return "\u00AB";
-            case "raquo":
-                return "\u00BB";
-            case "larr":
-                return "\u2190";
-            case "rarr":
-                return "\u2192";
-            case "uarr":
-                return "\u2191";
-            case "darr":
-                return "\u2193";
-            default:
-                return match;
-            }
-        });
-    }
-
+    // Resolve a notification body into markup that is GUARANTEED well-formed
+    // for Text.StyledText. Raw markup is sanitized to the supported subset;
+    // entity-encoded markup is decoded first; plain text goes through the
+    // markdown converter then the same sanitizer. <img> never survives
+    // (remote images would leak the client IP to the sender).
     function _resolveHtmlBody(body) {
         if (!body)
             return "";
 
-        let result = body;
-
-        if (/<\/?[a-z][\s\S]*>/i.test(body)) {
-            result = body;
-        } else {
-            // Decode percent-encoded URLs (e.g. https%3A%2F%2F → https://)
-            let processed = body.replace(/\bhttps?%3A%2F%2F[^\s]+/gi, match => {
-                try {
-                    return decodeURIComponent(match);
-                } catch (e) {
-                    return match;
-                }
-            });
-
-            if (/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]+);/.test(processed)) {
-                const decoded = _decodeEntities(processed);
-                if (/<\/?[a-z][\s\S]*>/i.test(decoded))
-                    result = decoded;
-                else
-                    result = Markdown2Html.markdownToHtml(decoded);
-            } else {
-                result = Markdown2Html.markdownToHtml(processed);
+        // Decode percent-encoded URLs (e.g. https%3A%2F%2F -> https://)
+        let processed = body.replace(/\bhttps?%3A%2F%2F[^\s]+/gi, match => {
+            try {
+                return decodeURIComponent(match);
+            } catch (e) {
+                return match;
             }
+        });
+
+        if (NotifMarkup.hasMarkup(processed))
+            return NotifMarkup.sanitize(processed);
+
+        if (NotifMarkup.hasEntities(processed)) {
+            const decoded = NotifMarkup.decodeEntities(processed);
+            if (NotifMarkup.hasMarkup(decoded))
+                return NotifMarkup.sanitize(decoded);
+            processed = decoded;
         }
 
-        // Strip out image tags to prevent IP tracking
-        return result.replace(/<img\b[^>]*>/gi, "");
+        return NotifMarkup.sanitize(Markdown2Html.markdownToHtml(processed));
     }
 
     function getGroupKey(wrapper) {

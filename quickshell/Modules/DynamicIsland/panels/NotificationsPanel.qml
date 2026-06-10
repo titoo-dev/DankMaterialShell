@@ -88,7 +88,7 @@ Column {
                             StyledText { text: (modelData.timeStr || ""); color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2 }
                         }
                         StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: (modelData.summary || modelData.appName || ""); color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true }
-                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: (modelData.body || ""); visible: text.length > 0; color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1 }
+                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: (modelData.plainBody || ""); visible: text.length > 0; color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1 }
                     }
                     Rectangle {  // per-row dismiss
                         id: nRowRight
@@ -103,7 +103,12 @@ Column {
                     MouseArea {
                         id: nRowArea; anchors.fill: parent; hoverEnabled: true; z: -1
                         onClicked: {
-                            const a = (modelData.actions && modelData.actions.length > 0) ? modelData.actions[0] : null
+                            const acts = modelData.actions || []
+                            let a = null
+                            for (let i = 0; i < acts.length; i++) {
+                                if (acts[i] && acts[i].identifier === "default") { a = acts[i]; break }
+                            }
+                            if (!a && acts.length > 0) a = acts[0]
                             if (a && a.invoke) { a.invoke(); NotificationService.dismissNotification(modelData) }
                         }
                     }

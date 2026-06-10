@@ -453,7 +453,11 @@ PanelWindow {
     // Hyprland's OnDemand focus-grab only kicks in on a pointer click. Released the
     // instant panelView leaves these views; Esc / click-outside scrim / back all exit.
     readonly property var _kbViews: ["apps", "clipboard", "wallpaper"]
+    // banner inline-reply (quick reply) needs the keyboard too, for its text field
+    property bool bannerReplyActive: false
     WlrLayershell.keyboardFocus: {
+        if (bannerReplyActive)
+            return WlrKeyboardFocus.Exclusive
         if (mode !== "expanded" || _kbViews.indexOf(panelView) === -1)
             return WlrKeyboardFocus.None
         return WlrKeyboardFocus.Exclusive
