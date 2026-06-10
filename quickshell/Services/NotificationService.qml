@@ -664,6 +664,9 @@ Singleton {
         imageSupported: true
         inlineReplySupported: true
         persistenceSupported: true
+        // advertise the "sound" capability so apps send their native
+        // sound-file / sound-name hints instead of staying silent
+        extraHints: ["sound"]
 
         onNotification: notif => {
             notif.tracked = true;
@@ -703,11 +706,9 @@ Singleton {
             // server not to double up.
             const suppressSound = !!(notif.hints && notif.hints["suppress-sound"]);
             if (SettingsData.soundsEnabled && SettingsData.soundNewNotification && !suppressSound) {
-                if (policy.urgency === NotificationUrgency.Critical) {
-                    AudioService.playCriticalNotificationSound();
-                } else {
-                    AudioService.playNormalNotificationSound();
-                }
+                // sender-provided sound-file / sound-name hints win over the
+                // system pop sound (when enabled in settings)
+                AudioService.playNotificationSound(notif.hints, policy.urgency === NotificationUrgency.Critical);
             }
 
             const shouldShowPopup = !root.popupsDisabled && !SessionData.doNotDisturb && !policy.disablePopup;

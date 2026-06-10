@@ -11,6 +11,8 @@ Item {
     property url normalNotificationSource
     property url criticalNotificationSource
     property url loginSource
+    // set per-notification for app-provided sound-file / sound-name hints
+    property url dynamicSource
 
     readonly property alias mediaDevices: devices
     readonly property alias volumeChangeSound: volumeChangePlayer
@@ -19,6 +21,7 @@ Item {
     readonly property alias normalNotificationSound: normalNotificationPlayer
     readonly property alias criticalNotificationSound: criticalNotificationPlayer
     readonly property alias loginSound: loginPlayer
+    readonly property alias dynamicSound: dynamicPlayer
 
     MediaDevices {
         id: devices
@@ -72,6 +75,15 @@ Item {
     MediaPlayer {
         id: loginPlayer
         source: root.loginSource
+        audioOutput: AudioOutput {
+            device: devices.defaultAudioOutput
+            volume: root.volume
+        }
+    }
+
+    MediaPlayer {
+        id: dynamicPlayer
+        source: root.dynamicSource
         audioOutput: AudioOutput {
             device: devices.defaultAudioOutput
             volume: root.volume

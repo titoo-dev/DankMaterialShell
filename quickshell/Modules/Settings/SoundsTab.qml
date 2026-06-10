@@ -113,6 +113,17 @@ Item {
 
                     SettingsToggleRow {
                         tab: "sounds"
+                        tags: ["sound", "notification", "app", "native", "custom"]
+                        settingKey: "soundAppProvided"
+                        visible: SettingsData.soundNewNotification
+                        text: I18n.tr("App-Provided Sounds")
+                        description: I18n.tr("Play the app's own notification sound when it provides one, instead of the system sound")
+                        checked: SettingsData.soundAppProvided
+                        onToggled: checked => SettingsData.set("soundAppProvided", checked)
+                    }
+
+                    SettingsToggleRow {
+                        tab: "sounds"
                         tags: ["sound", "volume", "changed"]
                         settingKey: "soundVolumeChanged"
                         text: I18n.tr("Volume Changed")
