@@ -532,6 +532,8 @@ Singleton {
     property bool soundsEnabled: true
     property bool useSystemSoundTheme: false
     property bool soundNewNotification: true
+    // honor sender-provided sound-file / sound-name notification hints
+    property bool soundAppProvided: true
     property bool soundVolumeChanged: true
     property bool soundPluggedIn: true
     property bool soundLogin: false

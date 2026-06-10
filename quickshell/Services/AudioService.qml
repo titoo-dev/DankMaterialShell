@@ -21,6 +21,8 @@ Singleton {
     property var availableSoundThemes: []
     property string currentSoundTheme: ""
     property var soundFilePaths: ({})
+    // resolved sound-name hint -> file path ("" = not found), per theme
+    property var _soundNameCache: ({})
 
     readonly property var volumeChangeSound: soundsLoader.item?.volumeChangeSound ?? null
     readonly property var powerPlugSound: soundsLoader.item?.powerPlugSound ?? null
@@ -567,6 +569,7 @@ EOFCONFIG
 
     function reloadSounds() {
         log.debug("Reloading sounds, useSystemSoundTheme:", SettingsData.useSystemSoundTheme, "currentSoundTheme:", currentSoundTheme);
+        _soundNameCache = {};
         if (SettingsData.useSystemSoundTheme && currentSoundTheme) {
             discoverSoundFiles(currentSoundTheme);
         } else {
@@ -606,6 +609,96 @@ EOFCONFIG
         if (!soundsAvailable || !criticalNotificationSound || SessionData.doNotDisturb || notificationsAudioMuted || isMediaPlaying())
             return;
         criticalNotificationSound.play();
+    }
+
+    // Play the sound for a notification, honoring the sender's sound-file /
+    // sound-name hints (freedesktop spec) when enabled; falls back to the
+    // configured system pop sound.
+    function playNotificationSound(hints, isCritical) {
+        const fallback = () => isCritical ? playCriticalNotificationSound() : playNormalNotificationSound();
+
+        if (!SettingsData.soundAppProvided || !hints) {
+            fallback();
+            return;
+        }
+
+        const soundFile = (hints["sound-file"] || "").toString();
+        if (soundFile) {
+            const url = soundFile.startsWith("file://") ? soundFile : (soundFile.startsWith("/") ? "file://" + soundFile : "");
+            if (url) {
+                _playDynamicSound(url);
+                return;
+            }
+        }
+
+        const soundName = (hints["sound-name"] || "").toString();
+        // strict charset: the name is interpolated into a shell script
+        if (soundName && /^[A-Za-z0-9._-]+$/.test(soundName)) {
+            _resolveSoundName(soundName, path => {
+                if (path)
+                    _playDynamicSound("file://" + path);
+                else
+                    fallback();
+            });
+            return;
+        }
+
+        fallback();
+    }
+
+    function _playDynamicSound(url) {
+        if (!soundsAvailable || !soundsLoader.item || SessionData.doNotDisturb || notificationsAudioMuted || isMediaPlaying())
+            return;
+        const player = soundsLoader.item.dynamicSound;
+        player.stop();
+        soundsLoader.item.dynamicSource = url;
+        player.play();
+    }
+
+    // Resolve a freedesktop sound-name against the system sound theme
+    // (theme dirs from XDG_DATA_DIRS, spec fallback chain by stripping
+    // trailing "-" segments, then the "freedesktop" theme).
+    function _resolveSoundName(soundName, callback) {
+        if (_soundNameCache[soundName] !== undefined) {
+            callback(_soundNameCache[soundName]);
+            return;
+        }
+
+        const chain = [];
+        let n = soundName;
+        while (n) {
+            chain.push(n);
+            const i = n.lastIndexOf("-");
+            n = i > 0 ? n.substring(0, i) : "";
+        }
+
+        const xdgDataDirs = Quickshell.env("XDG_DATA_DIRS");
+        const searchPaths = xdgDataDirs && xdgDataDirs.trim() !== "" ? xdgDataDirs.split(":").concat(Paths.strip(StandardPaths.writableLocation(StandardPaths.GenericDataLocation))) : ["/usr/share", "/usr/local/share", Paths.strip(StandardPaths.writableLocation(StandardPaths.GenericDataLocation))];
+
+        const theme = (SettingsData.useSystemSoundTheme && currentSoundTheme) ? currentSoundTheme : "";
+        const themes = theme && theme !== "freedesktop" ? `${theme} freedesktop` : "freedesktop";
+
+        const script = `
+            for name in ${chain.join(" ")}; do
+                for theme in ${themes}; do
+                    for base_path in ${searchPaths.join(" ")}; do
+                        for ext in oga ogg wav mp3 flac; do
+                            f="$base_path/sounds/$theme/stereo/$name.$ext"
+                            if [ -f "$f" ]; then echo "$f"; exit 0; fi
+                        done
+                    done
+                done
+            done
+            exit 1
+        `;
+
+        Proc.runCommand("resolveSoundName_" + soundName, ["sh", "-c", script], (output, exitCode) => {
+            const path = (exitCode === 0 && output.trim()) ? output.trim().split("\n")[0] : "";
+            const cache = _soundNameCache;
+            cache[soundName] = path;
+            _soundNameCache = cache;
+            callback(path);
+        }, 0);
     }
 
     function playLoginSound() {

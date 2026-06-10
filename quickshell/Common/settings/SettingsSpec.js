@@ -265,6 +265,7 @@ var SPEC = {
     useSystemSoundTheme: { def: false },
     soundLogin: { def: false },
     soundNewNotification: { def: true },
+    soundAppProvided: { def: true },
     soundVolumeChanged: { def: true },
     soundPluggedIn: { def: true },
 
