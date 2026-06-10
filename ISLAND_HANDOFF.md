@@ -794,6 +794,27 @@ fenêtre pré-île, refocus ok, wtype ok.
 - **Nouvel IPC `dms ipc call island type "<texte>"`** : injecte du texte par le même chemin
   (debug + scripting). Log d'une ligne par insertion dans `/tmp/island-emoji.log`.
 
+## ⚠️⚠️ GOTCHA MAJEUR : le grab clavier Exclusive COLLE (9e commit, même jour)
+
+**Symptôme combiné** : emoji jamais tapé MÊME avec la bonne cible + « mon focus clavier est
+perdu » après usage du picker (le clavier du seat est MORT pour toutes les fenêtres).
+**Cause** : ce Hyprland **ne relâche PAS un grab Exclusive layer-shell quand
+`WlrKeyboardFocus` repasse à None sur une surface encore mappée**. Après fermeture de
+n'importe quelle vue clavier (emoji/Spotlight/clipboard/wallpaper/wifi-mdp), le grab zombie
+avalait TOUT — y compris les touches virtuelles de wtype (rc=0 mais rien ne sort).
+**Diagnostic** (méthode réutilisable) : fenêtre-harnais `ghostty -e sh -c 'cat > /tmp/keys.txt'`
+→ wtype brut AVANT grab = délivré ; après open+close du picker = rien ; après destruction de
+la surface (restart) = délivré à nouveau. ⚠️ tty en mode canonique : terminer par
+`wtype -k Return` sinon cat ne voit rien.
+**Fix** : `kbGrabActive` (source unique de vérité) ; à sa retombée, **unmap/remap éclair de
+`pillWindow`** (2 frames, `kbRemapTimer` 32 ms, binding `visible` restauré par `Qt.binding`) —
+l'unmap est LE chemin de libération honoré partout ; le morph de repli masque le blink.
+Vérifié : wtype externe délivre juste après open+close, et le flux picker complet tape dans
+la fenêtre cible (« FULLFLOW » reçu par le harnais).
+Note : le warp du curseur vers le centre de la fenêtre refocalisée vient du dispatcher
+`hl.dsp.focus` (comportement focuswindow Hyprland) — pas de l'île ; désactivable côté
+config compositeur si gênant.
+
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
 NotchVisual en Shape CurveRenderer, recherche de fichiers Spotlight (si dsearch installé),
 a11y/Échap universel, dataset emoji complet (génération emojibase), accent adaptatif pochette.
