@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services
 
 // Single shared controller for all per-monitor DynamicIsland instances.
 // Exposes an IPC target so a compositor keybind can drive the island:
@@ -21,7 +22,7 @@ Singleton {
     id: hub
 
     // single source of truth for the drill views reachable over IPC
-    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer", "privacy"]
+    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer", "privacy", "shelf"]
 
     signal toggleRequested
     signal expandRequested
@@ -67,6 +68,14 @@ Singleton {
                 return "ISLAND_ERROR:empty-text";
             hub.typeRequested(text);
             return "ISLAND_TYPE:" + text;
+        }
+        // park a file/dir on the Shelf from the CLI / a file-manager action:
+        //   dms ipc call island shelf /path/to/file
+        function shelf(path: string): string {
+            if (!path || !path.startsWith("/"))
+                return "ISLAND_ERROR:absolute-path-required";
+            ShelfService.addPath(path);
+            return "ISLAND_SHELF:" + path;
         }
     }
 }

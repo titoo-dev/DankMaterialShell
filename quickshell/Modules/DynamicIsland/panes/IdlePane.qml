@@ -130,6 +130,35 @@ Item {
             name: "vpn_lock"; size: Theme.iconSize - 6; color: island.accent
             visible: island.vpnOn; anchors.verticalCenter: parent.verticalCenter
         }
+        Item {  // Shelf: parked items, click drills into the shelf view
+            visible: ShelfService.count > 0
+            width: shelfChip.implicitWidth; height: 22
+            anchors.verticalCenter: parent.verticalCenter
+            scale: shelfArea.pressed ? 0.86 : 1.0
+            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+            Row {
+                id: shelfChip
+                spacing: 2
+                anchors.verticalCenter: parent.verticalCenter
+                DankIcon {
+                    name: "place_item"; size: Theme.iconSize - 7
+                    color: shelfArea.containsMouse ? island.accent : island.subText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                StyledText {
+                    text: ShelfService.count
+                    color: shelfArea.containsMouse ? island.accent : island.textColor
+                    font.pixelSize: Theme.fontSizeSmall; font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+            MouseArea {
+                id: shelfArea
+                anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.openPanel("shelf")
+            }
+        }
         StyledText {  // keyboard layout (niri/dwl)
             text: island.kbLayout.substring(0, 2).toUpperCase()
             visible: island.kbLayout.length > 0

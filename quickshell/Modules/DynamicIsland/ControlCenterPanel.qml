@@ -266,10 +266,11 @@ import "panels"
                                 { icon: "monitoring",      which: "monitor",       tip: I18n.tr("System") },
                                 { icon: "wallpaper",       which: "wallpaper",     tip: I18n.tr("Wallpaper") },
                                 { icon: "mood",            which: "emoji",         tip: I18n.tr("Emoji") },
-                                { icon: "content_paste",   which: "clipboard",     tip: I18n.tr("Clipboard") }
+                                { icon: "content_paste",   which: "clipboard",     tip: I18n.tr("Clipboard") },
+                                { icon: "place_item",      which: "shelf",         tip: I18n.tr("Shelf") }
                             ]
                             Item {
-                                width: parent.width / 7; height: 34
+                                width: parent.width / 8; height: 34
                                 Rectangle {
                                     anchors.centerIn: parent; width: 34; height: 30; radius: 9
                                     color: ftArea.containsMouse ? Theme.primaryHover : "transparent"
@@ -299,7 +300,7 @@ import "panels"
                     "input": inputComp, "notifications": notifComp, "calendar": calComp,
                     "apps": appsComp, "clipboard": clipComp, "emoji": emojiComp,
                     "power": powerComp, "monitor": monComp, "wallpaper": wpComp,
-                    "mixer": mixerComp, "privacy": privacyComp
+                    "mixer": mixerComp, "privacy": privacyComp, "shelf": shelfComp
                 })
                 Component { id: wifiComp;  WifiPanel          { island: ccPanel.island } }
                 Component { id: btComp;    BluetoothPanel     { island: ccPanel.island } }
@@ -315,6 +316,7 @@ import "panels"
                 Component { id: wpComp;    WallpaperPanel     { island: ccPanel.island } }
                 Component { id: mixerComp; MixerPanel         { island: ccPanel.island } }
                 Component { id: privacyComp; PrivacyPanel     { island: ccPanel.island } }
+                Component { id: shelfComp; ShelfPanel         { island: ccPanel.island } }
 
                 Loader {
                     id: drillLoader

@@ -231,7 +231,7 @@ Scope {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer" | "privacy"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer" | "privacy" | "shelf"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     onPanelViewChanged: if (panelView !== "wifi") wifiNeedsKeyboard = false
     // open the expanded panel directly on a given detail view
@@ -329,6 +329,25 @@ Scope {
     // idle/media linger after pointer-leave; the expanded panel is dismissed by a
     // click outside (scrim), not by this timer (macOS behaviour).
     Timer { id: hideTimer; interval: 1800; onTriggered: root.settle() }
+
+    // ---------- Shelf (drop files/links/text onto the island) ----------
+    // a drag hovering the pill auto-opens the shelf view; leaving without
+    // dropping restores the previous rest state
+    property bool _shelfAutoOpened: false
+    // a drag is hovering the pill right now (drives the panel's drop affordance);
+    // suppressed while the drag is one of OUR OWN items leaving the shelf
+    readonly property bool shelfDropHover: shelfDrop.containsDrag && !shelfDragActive
+    // an item is being dragged OUT of the shelf: the scrim must unmap or it
+    // swallows the drop targeted at other apps' windows
+    property bool shelfDragActive: false
+    // shelf feedback for adds that happen while the island is closed (IPC, …)
+    Connections {
+        target: ShelfService
+        function onAdded(n) {
+            if (root.mode !== "expanded")
+                root.pushActivity("place_item", I18n.tr("Added to Shelf") + (n > 1 ? " • " + n : ""))
+        }
+    }
 
     function showPresenter(kind) {
         if (!ready || !isFocusedScreen) return
@@ -572,7 +591,9 @@ Scope {
     PanelWindow {
         id: scrimWindow
         screen: root.modelData
-        visible: root.mode === "expanded"
+        // unmapped while a shelf item is dragged out — the drop must reach the
+        // window UNDER the scrim, not the scrim itself
+        visible: root.mode === "expanded" && !root.shelfDragActive
         WlrLayershell.namespace: "dms:dynamic-island-scrim"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.exclusiveZone: -1
@@ -974,6 +995,39 @@ Scope {
                         // leaves (only Super+I pins, for keyboard users)
                         root.mode = "expanded"
                     }
+                }
+            }
+
+            // ---- Shelf drop target (external Wayland DnD) ----
+            // One DropArea for the whole pill: hovering it with a drag unfolds
+            // the island straight into the shelf view (which grows this very
+            // area), dropping anywhere on the pill files the payload.
+            DropArea {
+                id: shelfDrop
+                anchors.fill: parent
+                onEntered: drag => {
+                    if (!drag.hasUrls && !drag.hasText) { drag.accepted = false; return }
+                    if (root.mode !== "expanded") {
+                        root._shelfAutoOpened = true
+                        root.bump()
+                    }
+                    root.openPanel("shelf")
+                }
+                onExited: {
+                    // drag pulled away without dropping: fold back to rest
+                    if (root._shelfAutoOpened) {
+                        root._shelfAutoOpened = false
+                        root.closeIsland()
+                    }
+                }
+                onDropped: drop => {
+                    root._shelfAutoOpened = false
+                    if (drop.hasUrls)
+                        ShelfService.addUrls(drop.urls)
+                    else if (drop.hasText)
+                        ShelfService.addText(drop.text)
+                    drop.accept(Qt.CopyAction)
+                    root.bump()
                 }
             }
         }

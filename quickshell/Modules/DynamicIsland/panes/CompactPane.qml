@@ -42,4 +42,19 @@ Row {
         color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
         anchors.verticalCenter: parent.verticalCenter
     }
+    // Shelf badge: something is parked on the island (count, accent-tinted)
+    Row {
+        visible: ShelfService.count > 0
+        spacing: 2
+        anchors.verticalCenter: parent.verticalCenter
+        DankIcon {
+            name: "place_item"; size: 13; color: island.accent
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        StyledText {
+            text: ShelfService.count
+            color: island.accent; font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true
+            anchors.verticalCenter: parent.verticalCenter
+        }
+    }
 }
