@@ -299,9 +299,9 @@ Scope {
                 + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
                 + "sleep 0.12; "
                 + "xwl=0; [ -n \"$a\" ] && hyprctl clients | grep -A 30 \"Window $a \" | grep -m1 -q 'xwayland: 1' && xwl=1; "
-                + "echo \"$(date +%T) addr=$a xwl=$xwl\" >> /tmp/island-emoji.log; "
-                + "if [ \"$xwl\" = \"0\" ] && command -v wtype >/dev/null 2>&1; then wtype \"$1\"; "
-                + "else printf %s \"$1\" | wl-copy; fi",
+                + "if [ \"$xwl\" = \"0\" ] && command -v wtype >/dev/null 2>&1; then out=$(wtype \"$1\" 2>&1); rc=$?; "
+                + "else out=$(printf %s \"$1\" | wl-copy 2>&1); rc=copy:$?; fi; "
+                + "echo \"$(date +%T) addr=$a xwl=$xwl rc=$rc out=$out\" >> /tmp/island-emoji.log",
                 "island-emoji", e, root._typeAddr])
         }
     }
@@ -521,6 +521,26 @@ Scope {
     // the Wi-Fi view grabs the keyboard only while an inline password prompt is
     // open (set by WifiPanel) — without it the field can never receive input
     property bool wifiNeedsKeyboard: false
+    // single source of truth for "the pill window holds the Exclusive grab"
+    readonly property bool kbGrabActive: mode === "expanded"
+        && (_kbViews.indexOf(panelView) !== -1 || (panelView === "wifi" && wifiNeedsKeyboard))
+    // ⚠️ Hyprland does NOT release an Exclusive keyboard grab when the property
+    // flips back to None on a still-mapped layer surface — the seat keyboard
+    // stays dead for every toplevel (diagnosed live: after closing the picker,
+    // even an external `wtype` delivered nothing until the surface went away).
+    // The only universally-honoured release is an UNMAP, so blink the pill
+    // window for two frames when the grab ends; the collapse morph hides it.
+    onKbGrabActiveChanged: {
+        if (!kbGrabActive) {
+            pillWindow.visible = false
+            kbRemapTimer.restart()
+        }
+    }
+    Timer {
+        id: kbRemapTimer
+        interval: 32
+        onTriggered: pillWindow.visible = Qt.binding(() => pill.opacity > 0)
+    }
 
     // ---------- windows ----------
 
@@ -606,15 +626,7 @@ Scope {
         // arrow navigation, Wi-Fi while a password prompt is open. Exclusive
         // (modal) grab: engages immediately on open, whereas Hyprland's OnDemand
         // only kicks in on a pointer click. Released the instant panelView leaves.
-        WlrLayershell.keyboardFocus: {
-            if (root.mode !== "expanded")
-                return WlrKeyboardFocus.None
-            if (root._kbViews.indexOf(root.panelView) !== -1)
-                return WlrKeyboardFocus.Exclusive
-            if (root.panelView === "wifi" && root.wifiNeedsKeyboard)
-                return WlrKeyboardFocus.Exclusive
-            return WlrKeyboardFocus.None
-        }
+        WlrLayershell.keyboardFocus: root.kbGrabActive ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         mask: Region {
             // drop the pill from the input region while it's hidden for
             // fullscreen, so top-center clicks reach the app underneath
