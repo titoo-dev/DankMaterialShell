@@ -48,7 +48,7 @@ Singleton {
         }
         // open the expanded panel straight to a drill view (toggles it shut if
         // already showing): controls | wifi | bluetooth | audio | notifications |
-        // calendar | monitor | wallpaper | apps | clipboard | emoji | power
+        // calendar | monitor | wallpaper | apps | clipboard | power
         function open(view: string): string {
             hub.openViewRequested(view && view.length > 0 ? view : "controls");
             return "ISLAND_OPEN:" + view;

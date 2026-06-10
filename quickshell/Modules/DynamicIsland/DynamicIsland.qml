@@ -229,7 +229,7 @@ PanelWindow {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "power"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
@@ -265,38 +265,6 @@ PanelWindow {
     // drop the pin and force a rest mode even while the pointer is over it.
     function closeIsland() { panelView = "controls"; pinned = false; mode = restMode() }
     onPlayingChanged: if (!hovered && !pinned && mode !== "notif" && mode !== "presenter") mode = restMode()
-
-    // ---------- insert the emoji into the focused app (emoji picker) ----------
-    // Wayland vs XWayland reality on this setup:
-    //   - native Wayland apps: wtype types the emoji directly → true auto-insert.
-    //   - XWayland apps (Discord, ...): wtype can't reach them, ydotool can't type
-    //     emoji or send a working modifier combo, and a synthetic Ctrl+V right after
-    //     the island's keyboard grab is unreliable. So we just put the emoji on the
-    //     clipboard and the user presses Ctrl+V (their manual paste always works).
-    // Close the island first, then re-focus the previously active window (Lua: hl.dsp.focus).
-    property string _typePending: ""
-    function insertText(text) {
-        if (!text || text.length === 0) return
-        _typePending = text
-        panelView = "controls"; pinned = false; settle()
-        insertTimer.restart()
-    }
-    Timer {
-        id: insertTimer
-        interval: 180   // let the Exclusive grab actually release first
-        onTriggered: {
-            if (root._typePending.length === 0) return
-            const e = root._typePending
-            root._typePending = ""
-            Quickshell.execDetached(["sh", "-c",
-                "info=$(hyprctl activewindow); a=$(echo \"$info\" | awk 'NR==1{print $2}'); "
-                + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
-                + "sleep 0.12; "
-                + "if ! echo \"$info\" | grep -q 'xwayland: 1' && command -v wtype >/dev/null 2>&1; then wtype \"$1\"; "
-                + "else printf %s \"$1\" | wl-copy; fi",
-                "island-emoji", e])
-        }
-    }
 
     function showNotif() {
         pendingPopup = null
@@ -479,12 +447,12 @@ PanelWindow {
     WlrLayershell.layer: WlrLayershell.Overlay
     WlrLayershell.exclusiveZone: -1
     // keyboard focus for the keyboard-driven drill views: the search ones (Spotlight
-    // / clipboard / emoji) need it to type, the wallpaper grid needs it for arrow
+    // / clipboard) need it to type, the wallpaper grid needs it for arrow
     // navigation. Everything else stays focus-free (click-through).
     // Exclusive (modal) grab: reliable and engages immediately on open, whereas
     // Hyprland's OnDemand focus-grab only kicks in on a pointer click. Released the
     // instant panelView leaves these views; Esc / click-outside scrim / back all exit.
-    readonly property var _kbViews: ["apps", "clipboard", "emoji", "wallpaper"]
+    readonly property var _kbViews: ["apps", "clipboard", "wallpaper"]
     WlrLayershell.keyboardFocus: {
         if (mode !== "expanded" || _kbViews.indexOf(panelView) === -1)
             return WlrKeyboardFocus.None
