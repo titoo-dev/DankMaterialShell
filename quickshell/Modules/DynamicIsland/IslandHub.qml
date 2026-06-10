@@ -21,7 +21,7 @@ Singleton {
     id: hub
 
     // single source of truth for the drill views reachable over IPC
-    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer"]
+    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer", "privacy"]
 
     signal toggleRequested
     signal expandRequested

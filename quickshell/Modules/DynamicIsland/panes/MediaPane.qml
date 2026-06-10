@@ -9,7 +9,7 @@ import qs.Widgets
 Item {
     id: mediaPane
     property var island: null
-    readonly property real titleW: Math.min(Math.max(mTitle.implicitWidth, mArtist.implicitWidth, mEyebrow.implicitWidth), 360)
+    readonly property real titleW: Math.min(Math.max(mTitle.textWidth, mArtist.implicitWidth, mEyebrow.implicitWidth), 360)
     readonly property real controlsWidth: controls.implicitWidth
     anchors.fill: parent
     anchors.leftMargin: 10; anchors.rightMargin: 10
@@ -69,11 +69,11 @@ Item {
             color: island.accent; font.pixelSize: Theme.fontSizeSmall - 2
             font.bold: true; font.capitalization: Font.AllUppercase
         }
-        StyledText {
+        MarqueeText {   // long track titles shuttle instead of eliding (iOS ticker)
             id: mTitle
-            width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+            width: parent.width
             text: island.player ? (island.player.trackTitle || I18n.tr("Unknown")) : ""
-            color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
+            color: island.textColor; pixelSize: Theme.fontSizeMedium; bold: true
         }
         StyledText {
             id: mArtist

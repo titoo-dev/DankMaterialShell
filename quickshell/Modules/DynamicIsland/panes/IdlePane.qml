@@ -44,18 +44,26 @@ Item {
         id: wsRow
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.spacingXS
+        // directional entrance: the leading cluster slides in from the left
+        // while the trailing one comes from the right (iOS unfold feel)
+        transform: Translate {
+            x: island.mode === "idle" ? 0 : -16
+            Behavior on x { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
+        }
         Repeater {
             // gated by visibility: wsList rebuilds on every compositor event, and
             // an ungated Repeater would churn delegates even while the pane rests
             model: idlePane.visible ? island.wsList : []
             Rectangle {
                 readonly property bool active: modelData.focused
-                width: 30; height: 30; radius: 10
+                // circle for digits, capsule for named workspaces
+                width: Math.max(30, wsLabel.implicitWidth + 16); height: 30; radius: height / 2
                 color: active ? Theme.primarySelected : (wsArea.containsMouse ? Theme.surfaceHover : "transparent")
                 Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                 scale: wsArea.pressed ? 0.86 : 1.0
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 StyledText {
+                    id: wsLabel
                     anchors.centerIn: parent; text: modelData.label
                     color: active ? island.accent : island.subText
                     font.pixelSize: Theme.fontSizeSmall; font.bold: active
@@ -77,14 +85,11 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         height: parent.height
         // width comes purely from the anchors -> never collapses
-        StyledText {
+        MarqueeText {
             anchors.fill: parent
             visible: island.focusedTitle.length > 0
             text: island.focusedTitle
-            elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
+            color: island.textColor; pixelSize: Theme.fontSizeMedium; bold: true
         }
         StyledText {
             anchors.fill: parent
@@ -99,6 +104,10 @@ Item {
         id: rightCluster
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.spacingS
+        transform: Translate {
+            x: island.mode === "idle" ? 0 : 16
+            Behavior on x { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
+        }
         StyledText {
             text: island.clockShort
             color: clockArea.containsMouse ? island.accent : island.textColor

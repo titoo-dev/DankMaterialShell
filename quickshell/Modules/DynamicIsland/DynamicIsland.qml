@@ -37,6 +37,25 @@ Scope {
     readonly property bool privacyActive: PrivacyService.microphoneActive || PrivacyService.cameraActive || PrivacyService.screensharingActive
     readonly property bool glowActive: mode === "media" || mode === "chip"
 
+    // ---- satellite bubble (iOS split-island): while the pill rests, the
+    // highest-priority ONGOING state detaches as a small circle to its right ----
+    readonly property string satKind: {
+        if (PrivacyService.screensharingActive) return "screenshare"
+        if (PrivacyService.microphoneActive) return "mic"
+        if (PrivacyService.cameraActive) return "cam"
+        if (batAvailable && !charging && batPct <= 20) return "battery"
+        return ""
+    }
+    readonly property string satIcon: {
+        if (satKind === "screenshare") return "screen_share"
+        if (satKind === "mic") return "mic"
+        if (satKind === "cam") return "videocam"
+        if (satKind === "battery") return Theme.getBatteryIcon(batPct, charging, batAvailable)
+        return ""
+    }
+    // iOS colour language: orange = capture/warning, green = camera, red = battery
+    readonly property color satColor: satKind === "cam" ? Theme.success : (satKind === "battery" ? Theme.error : Theme.warning)
+
     // focused window (wlr foreign-toplevel; works on Hyprland/niri/sway/...)
     readonly property var activeWin: ToplevelManager.activeToplevel
     readonly property string focusedTitle: {
@@ -145,6 +164,7 @@ Scope {
     // formatted clock strings exposed to the extracted at-rest panes (panes/)
     readonly property string clockShort: Qt.formatDateTime(clock.date, "HH:mm")
     readonly property string clockLong: Qt.formatDateTime(clock.date, "ddd  HH:mm")
+    readonly property string dayShort: Qt.formatDateTime(clock.date, "ddd d")
     // open a tray item's context menu (anchored by the idle pane, owned here)
     function openTrayMenu(menuObj, rect) { trayMenu.menu = menuObj; trayMenu.anchor.rect = rect; trayMenu.open() }
 
@@ -211,7 +231,7 @@ Scope {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer" | "privacy"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     onPanelViewChanged: if (panelView !== "wifi") wifiNeedsKeyboard = false
     // open the expanded panel directly on a given detail view
@@ -631,6 +651,7 @@ Scope {
             // drop the pill from the input region while it's hidden for
             // fullscreen, so top-center clicks reach the app underneath
             Region { item: root.pillSuppressed ? null : pill }
+            Region { item: satellite.active ? satellite : null }
         }
 
     Item {
@@ -700,6 +721,105 @@ Scope {
                 shadowOpacity: root.glowActive ? 0.55 : 0.4
                 Behavior on shadowColor { ColorAnimation { duration: Theme.mediumDuration } }
                 Behavior on shadowOpacity { NumberAnimation { duration: Theme.mediumDuration } }
+            }
+        }
+
+        // liquid bridge for the satellite detach/merge (metaball feel): a neck
+        // of island colour connecting pill edge and bubble, thick at birth,
+        // stretching thin and snapping just before full separation
+        Canvas {
+            id: goo
+            readonly property real t: Math.max(0, Math.min(1, satellite.out))
+            visible: satellite.visible && t > 0.02 && t < 0.96
+            opacity: (1 - Math.pow(t, 3)) * pill.opacity
+            x: pill.x + pill.width - 3
+            y: pill.y
+            width: Math.max(1, satellite.x + satellite.width * (1 - satellite.scale) / 2 - x + 3)
+            height: pill.height
+            antialiasing: true
+            onTChanged: requestPaint()
+            onWidthChanged: requestPaint()
+            onVisibleChanged: if (visible) requestPaint()
+            onPaint: {
+                const ctx = getContext("2d")
+                ctx.reset()
+                const W = width, H = height, cy = H / 2
+                const rL = (H / 2) * (1 - 0.55 * t)            // attach radius, pill side
+                const rR = (H / 2) * (0.90 - 0.50 * t)         // attach radius, bubble side
+                const neck = (H / 2) * Math.pow(1 - t, 1.5) * 0.85   // mid half-thickness
+                ctx.beginPath()
+                ctx.moveTo(0, cy - rL)
+                ctx.quadraticCurveTo(W * 0.5, cy - neck, W, cy - rR)
+                ctx.lineTo(W, cy + rR)
+                ctx.quadraticCurveTo(W * 0.5, cy + neck, 0, cy + rL)
+                ctx.closePath()
+                ctx.fillStyle = Qt.rgba(root.islandColor.r, root.islandColor.g, root.islandColor.b, root.islandColor.a)
+                ctx.fill()
+            }
+        }
+
+        // iOS "split island": an ongoing secondary activity (privacy capture,
+        // battery low) detaches as a satellite bubble while the pill rests —
+        // springs out of the pill's right edge, gets reabsorbed on expansion.
+        Item {
+            id: satellite
+            readonly property bool active: !root.pillSuppressed && root.satIcon !== ""
+                && (root.mode === "compact" || root.mode === "chip")
+            // 0 = merged into the pill, 1 = detached; spring gives the pop-out
+            property real out: active ? 1 : 0
+            Behavior on out { SpringAnimation { spring: 4.2; damping: 0.3; epsilon: 0.004 } }
+            // keep the last glyph through the retract animation (satIcon clears
+            // the same frame the state ends, which would blank the merging bubble)
+            property string shownIcon: ""
+            Connections {
+                target: root
+                function onSatIconChanged() { if (root.satIcon !== "") satellite.shownIcon = root.satIcon }
+            }
+            Component.onCompleted: shownIcon = root.satIcon
+            width: pill.height; height: pill.height
+            x: pill.x + pill.width - width + (width + 7) * out
+            y: pill.y
+            scale: 0.5 + 0.5 * Math.max(0, out)
+            opacity: Math.max(0, Math.min(1, out)) * pill.opacity
+            visible: out > 0.02 && pill.visible
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true; shadowColor: "#000000"
+                shadowBlur: 0.8; shadowVerticalOffset: 3; shadowOpacity: 0.4
+            }
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: root.islandColor
+                border.width: 1
+                border.color: Qt.rgba(root.satColor.r, root.satColor.g, root.satColor.b, 0.45)
+            }
+            DankIcon {
+                anchors.centerIn: parent
+                name: satellite.shownIcon
+                size: 15
+                color: root.satColor
+                filled: true
+                // soft breathing pulse — ongoing capture should feel alive
+                SequentialAnimation on scale {
+                    running: satellite.visible
+                    loops: Animation.Infinite
+                    NumberAnimation { to: 1.18; duration: 900; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutSine }
+                }
+            }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                // per-activity expanded layout: privacy bubbles drill straight
+                // into the live-captures view, battery falls back to the hub
+                onClicked: {
+                    if (root.satKind === "mic" || root.satKind === "cam" || root.satKind === "screenshare")
+                        root.openPanel("privacy")
+                    else
+                        root.mode = "expanded"
+                    root.bump()
+                }
             }
         }
 

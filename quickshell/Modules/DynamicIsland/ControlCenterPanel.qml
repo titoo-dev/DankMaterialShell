@@ -299,7 +299,7 @@ import "panels"
                     "input": inputComp, "notifications": notifComp, "calendar": calComp,
                     "apps": appsComp, "clipboard": clipComp, "emoji": emojiComp,
                     "power": powerComp, "monitor": monComp, "wallpaper": wpComp,
-                    "mixer": mixerComp
+                    "mixer": mixerComp, "privacy": privacyComp
                 })
                 Component { id: wifiComp;  WifiPanel          { island: ccPanel.island } }
                 Component { id: btComp;    BluetoothPanel     { island: ccPanel.island } }
@@ -314,6 +314,7 @@ import "panels"
                 Component { id: monComp;   SystemMonitorPanel { island: ccPanel.island } }
                 Component { id: wpComp;    WallpaperPanel     { island: ccPanel.island } }
                 Component { id: mixerComp; MixerPanel         { island: ccPanel.island } }
+                Component { id: privacyComp; PrivacyPanel     { island: ccPanel.island } }
 
                 Loader {
                     id: drillLoader

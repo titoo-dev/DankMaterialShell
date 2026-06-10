@@ -66,8 +66,10 @@ Row {
             }
         }
     }
-    // central "notch" gap + trailing clock (Apple leading/trailing split)
-    Item { width: Theme.spacingM; height: 1; anchors.verticalCenter: parent.verticalCenter }
+    // central "notch" gap + trailing clock (Apple leading/trailing split);
+    // in notch mode the gap is anchored by the camera lens
+    CameraLens { visible: island.notchMode; gap: 40; anchors.verticalCenter: parent.verticalCenter }
+    Item { visible: !island.notchMode; width: Theme.spacingM; height: 1; anchors.verticalCenter: parent.verticalCenter }
     StyledText {
         text: island.clockShort
         color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true
