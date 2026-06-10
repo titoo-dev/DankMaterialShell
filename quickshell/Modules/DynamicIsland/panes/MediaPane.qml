@@ -16,6 +16,7 @@ Item {
     anchors.topMargin: 9; anchors.bottomMargin: 10
     opacity: island.mode === "media" ? 1 : 0
     visible: opacity > 0
+    onVisibleChanged: if (!visible) island.seekHover = false
     scale: island.mode === "media" ? 1 : 0.94
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
     Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
@@ -25,6 +26,8 @@ Item {
         width: 44; height: 44; radius: 12; clip: true
         anchors.left: parent.left; anchors.top: parent.top
         color: Theme.primaryBackground
+        scale: artArea.pressed ? 0.92 : (artArea.containsMouse ? 1.06 : 1.0)
+        Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
         Image {
             id: mArtImg
             anchors.fill: parent
@@ -39,6 +42,19 @@ Item {
             // fall back on the REAL load status (art URLs are often transient
             // tmp files that vanish) — never leave an empty box
             visible: mArtImg.status !== Image.Ready
+        }
+        // click the art = jump to the player app (macOS Now Playing behaviour)
+        MouseArea {
+            id: artArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: island.player && island.player.canRaise ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: {
+                if (island.player && island.player.canRaise) {
+                    island.player.raise()
+                    island.closeIsland()
+                }
+            }
         }
     }
     Column {
@@ -144,8 +160,10 @@ Item {
             anchors.fill: parent; anchors.topMargin: -8; anchors.bottomMargin: -8
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            enabled: island.player && island.player.canSeek
+            enabled: !!(island.player && island.player.canSeek)
             preventStealing: true
+            // tell the pill's volume WheelHandler to stand down over the scrubber
+            onContainsMouseChanged: island.seekHover = containsMouse
             function fracAt(mx) { return Math.max(0, Math.min(1, mx / width)) }
             onPressed: mouse => { trackBar.seeking = true; trackBar.seekFrac = fracAt(mouse.x) }
             onPositionChanged: mouse => { if (trackBar.seeking) trackBar.seekFrac = fracAt(mouse.x) }
@@ -156,6 +174,13 @@ Item {
                 trackBar.seeking = false
             }
             onCanceled: trackBar.seeking = false
+            // wheel on the scrubber = relative seek (macOS: ±5 s)
+            onWheel: wheel => {
+                const len = MprisController.activePlayerStableLength
+                if (!island.player || len <= 0) return
+                const next = Math.max(0, Math.min(len, island.player.position + (wheel.angleDelta.y > 0 ? 5 : -5)))
+                island.player.position = next
+            }
         }
         // elapsed / remaining timestamps, revealed when scrubbing/hovering the bar
         property bool timesShown: (seekArea.containsMouse || trackBar.seeking) && island.mediaLen > 0

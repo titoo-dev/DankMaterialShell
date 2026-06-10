@@ -186,6 +186,8 @@ Scope {
     property string mode: "compact"
     property bool hovered: false
     property bool pinned: false
+    // pointer is over the media scrubber: the global wheel→volume stands down
+    property bool seekHover: false
 
     // Hide the island pill when THIS monitor shows a fullscreen window (movies,
     // focus sessions). The OSD (presenter) and an explicitly-opened panel
@@ -209,7 +211,7 @@ Scope {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     onPanelViewChanged: if (panelView !== "wifi") wifiNeedsKeyboard = false
     // open the expanded panel directly on a given detail view
@@ -723,14 +725,25 @@ Scope {
                 }
             }
 
-            // ---- scroll over the island -> volume ----
+            // ---- scroll over the island -> volume (except over the scrubber,
+            // where the wheel seeks instead — see MediaPane.seekArea) ----
             WheelHandler {
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: event => {
+                    if (root.seekHover) return
                     if (!root.audioNode) return
                     const step = (event.angleDelta.y > 0 ? 0.05 : -0.05)
                     root.audioNode.volume = Math.max(0, Math.min(1, root.audioNode.volume + step))
                     AudioService.playVolumeChangeSoundIfEnabled()   // macOS-style volume tick
+                }
+            }
+
+            // ---- press-and-hold (the signature iOS island gesture; matters on
+            // touch, where there is no hover to auto-expand the rest states) ----
+            TapHandler {
+                onLongPressed: {
+                    if (root.mode === "chip") { root.mode = "media"; root.bump() }
+                    else if (root.mode === "compact" || root.mode === "idle") { root.mode = "expanded"; root.bump() }
                 }
             }
 

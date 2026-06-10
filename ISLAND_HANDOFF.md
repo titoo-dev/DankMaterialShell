@@ -705,9 +705,38 @@ désormais), et le champ mot de passe Wi-Fi.
     mappée/démappée proprement. ⚠️ Rendu visuel du badge ×N et du champ reply à sanity-checker
     à l'œil (pas de capture possible headless).
 
+**Sprint final (même jour, 5e commit) — Spotlight riche, gestes, mixer par app** :
+22. **Spotlight multi-providers** (`SpotlightPanel` réécrit) : la liste unifiée mêle
+    **apps** (service + fuzzy subsequence, inchangé), **calculatrice inline** (`tryCalc` :
+    whitelist regex `[0-9+\-*/%^().,\s]` puis `Function("use strict"...)` — aucune identifiant ne
+    peut passer la regex ; `=2*3` ou `23*48` direct ; Enter = copie wl-copy + toast),
+    **actions d'apps** (`AppSearchService.searchAppActions`, lancées via
+    `SessionService.launchDesktopAction(parentApp, actionData)`, cap 3) et **presse-papiers**
+    (`ClipboardService.getLauncherEntries(q, 4, 2)`, clic = copyEntry). Rows typées
+    `{kind: "calc"|"app"|"action"|"clip"}` + badge de source à droite ; nav clavier inchangée.
+    ⚠️ **Recherche de FICHIERS non branchée** : le backend DMS est `dsearch`, ABSENT de cette
+    machine (`DSearchService.dsearchAvailable=false`) — à brancher si dsearch est installé un jour.
+23. **Gestes signature** : `TapHandler.onLongPressed` sur le pill (touch : chip→media,
+    compact/idle→expanded — à la souris le hover a déjà fait la transition) ; clic pochette
+    MediaPane = **`player.raise()`** (ouvre l'app, gardé `canRaise`) + closeIsland ; tap pochette
+    chip = play/pause ; **molette sur le scrubber = seek ±5 s** (le WheelHandler volume du pill
+    se désengage via `island.seekHover`, posé par seekArea.containsMouse, reset à la sortie du
+    mode media).
+24. **Mixer par application** (`panels/MixerPanel.qml`, panelView `"mixer"`) — Win11 l'a, macOS
+    NON : une carte par stream de lecture Pipewire (`Pipewire.nodes` filtré
+    `audio && isSink && isStream`, pattern du AudioOutputDetail natif), nom
+    (`AudioService.displayName`) + `media.name`, slider volume + mute par stream.
+    ⚠️ **`PwObjectTracker { objects: streams }` local OBLIGATOIRE** (celui d'AudioService exclut
+    les streams → sans lui, volume/mute ne sont pas liés). Entrées : bouton `tune` à côté du
+    slider volume du hub (slider rétréci à width-120) + `dms ipc call island open mixer`.
+    Câblé : viewRegistry + whitelist IPC + commentaire panelView.
+    Vérifié : apps/mixer/audio/controls s'ouvrent par IPC, zéro erreur QML. À sanity-checker à
+    l'œil : la calculatrice (`=2*3` + Enter), une action d'app (« private »), le mixer avec un
+    média en lecture.
+
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
-NotchVisual en Shape CurveRenderer, Spotlight providers riches, a11y/Échap universel,
-Phase 3 (Live Activities, mixer par app, emoji v2, squircle/accent adaptatif).
+NotchVisual en Shape CurveRenderer, recherche de fichiers Spotlight (si dsearch installé),
+a11y/Échap universel, Phase 3 (Live Activities, emoji v2, squircle/accent adaptatif).
 
 ## Backlog restant (priorité basse)
 

@@ -44,8 +44,14 @@ Row {
         Rectangle {
             width: 20; height: 20; radius: 6; clip: true; color: Theme.primaryBackground
             anchors.centerIn: parent
-            Image { anchors.fill: parent; source: island.player ? (island.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; visible: status === Image.Ready }
-            DankIcon { anchors.centerIn: parent; name: "music_note"; size: 12; color: island.accent; visible: !(island.player && island.player.trackArtUrl) }
+            Image { id: chipArtImg; anchors.fill: parent; source: island.player ? (island.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; cache: false; asynchronous: true; visible: status === Image.Ready }
+            DankIcon { anchors.centerIn: parent; name: "music_note"; size: 12; color: island.accent; visible: chipArtImg.status !== Image.Ready }
+        }
+        // tap the art = play/pause without expanding (touch: no hover-expand there)
+        MouseArea {
+            anchors.fill: parent; anchors.margins: -4
+            cursorShape: Qt.PointingHandCursor
+            onClicked: if (island.player) island.player.togglePlaying()
         }
     }
     Row {

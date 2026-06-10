@@ -165,10 +165,20 @@ import "panels"
                     Row {
                         width: parent.width; spacing: Theme.spacingS
                         DankSlider {
-                            width: parent.width - 80
+                            width: parent.width - 120
                             leftIcon: island.muted ? "volume_off" : "volume_up"
                             value: island.volPct
                             onSliderValueChanged: newValue => { if (island.audioNode) island.audioNode.volume = newValue / 100 }
+                        }
+                        Rectangle {  // per-app volume mixer (drills into the mixer view)
+                            width: 32; height: 32; radius: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: mixArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
+                            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                            scale: mixArea.pressed ? 0.9 : 1.0
+                            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+                            DankIcon { anchors.centerIn: parent; name: "tune"; size: 17; color: mixArea.containsMouse ? island.accent : island.textColor }
+                            MouseArea { id: mixArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "mixer" }
                         }
                         Rectangle {  // output device picker (drills into the audio view)
                             width: 32; height: 32; radius: 10
@@ -288,7 +298,8 @@ import "panels"
                     "wifi": wifiComp, "bluetooth": btComp, "audio": audioComp,
                     "input": inputComp, "notifications": notifComp, "calendar": calComp,
                     "apps": appsComp, "clipboard": clipComp, "emoji": emojiComp,
-                    "power": powerComp, "monitor": monComp, "wallpaper": wpComp
+                    "power": powerComp, "monitor": monComp, "wallpaper": wpComp,
+                    "mixer": mixerComp
                 })
                 Component { id: wifiComp;  WifiPanel          { island: ccPanel.island } }
                 Component { id: btComp;    BluetoothPanel     { island: ccPanel.island } }
@@ -302,6 +313,7 @@ import "panels"
                 Component { id: powerComp; PowerPanel         { island: ccPanel.island } }
                 Component { id: monComp;   SystemMonitorPanel { island: ccPanel.island } }
                 Component { id: wpComp;    WallpaperPanel     { island: ccPanel.island } }
+                Component { id: mixerComp; MixerPanel         { island: ccPanel.island } }
 
                 Loader {
                     id: drillLoader
