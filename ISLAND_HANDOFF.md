@@ -658,10 +658,34 @@ Vérifié live : cycle IPC des 12 vues ×2 restarts, notifs, journal 100% propre
 emoji/wallpaper après le passage au Loader (le `forceActiveFocus` part de `Component.onCompleted`
 désormais), et le champ mot de passe Wi-Fi.
 
-Restent dans la roadmap (ISLAND_AUDIT.md §7) : Phase 1 fin (éclatement de la fenêtre plein écran,
-IslandState typé, virtualisation ListView/GridView, NotchVisual en Shape CurveRenderer),
-Phase 2 suite (groupement notifs + inline reply, Spotlight providers, a11y/Échap universel),
-Phase 3 (Live Activities, mixer par app, emoji v2, squircle/accent adaptatif).
+**Phase 1 finale (même jour, 3e commit) — ÉCLATEMENT DE LA FENÊTRE PLEIN ÉCRAN** :
+18. La racine de `DynamicIsland.qml` est passée de `PanelWindow` (fullscreen permanent par
+    moniteur) à **`Scope`** possédant **4 surfaces layer-shell indépendantes** :
+    - **`pillWindow`** (`dms:dynamic-island`) : bande haute **1920×620 fixe** (resize d'une layer
+      surface à chaque frame de spring = storm de configures → hauteur fixe), anchors
+      top+left+right, mask = pill seul, `visible: pill.opacity > 0` → **DÉMAPPÉE entièrement**
+      quand le pill est suppressed (fullscreen) → **direct scanout restauré**. Porte le
+      `keyboardFocus` (dérivé de `root._kbViews`/`wifiNeedsKeyboard`).
+    - **`bannerWindow`** (`-banners`) : 440×720 top-right, `visible: isFocusedScreen && popups>0`,
+      mask = `Region { item: notifBanners }`. Mappée seulement pendant des popups (vérifié).
+    - **`scrimWindow`** (`-scrim`) : fullscreen, `visible: mode === "expanded"` seulement.
+      ⚠️ GOTCHA : une surface fraîchement mappée arrive AU-DESSUS de sa layer → le scrim couvre le
+      pill ; son mask **soustrait** (`Intersection.Subtract`) les rects du pill ET du deck de
+      bannières pour laisser passer leurs clics. Clic ailleurs = dismiss.
+    - **`glowWindow`** (`-glow`) : fullscreen, `visible: edgeGlow.pulse > 0` (~2 s), mask vide
+      (click-through total). ⚠️ Sur la layer **Top** (pas Overlay) : sinon, remappée à chaque
+      pulse, elle peinturerait son dégradé PAR-DESSUS l'île/bannières.
+    - `QsMenuAnchor.anchor.window: pillWindow` ; le scrim MouseArea in-stage et le mask union
+      d'avant sont supprimés.
+    **Vérifié par `hyprctl layers`** : au repos = 2 bandes 1920×620 SEULEMENT (avant : 2 fullscreen
+    1080 permanents) ; expanded → scrim mappé sur l'écran focus puis démappé ; notif → glow+banners
+    mappés ~5 s puis démappés ; **fullscreen → le pill de l'écran passe de mappé à DÉMAPPÉ** puis
+    revient. Zéro erreur QML.
+
+Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
+NotchVisual en Shape CurveRenderer, Phase 2 suite (groupement notifs + inline reply, Spotlight
+providers, a11y/Échap universel), Phase 3 (Live Activities, mixer par app, emoji v2,
+squircle/accent adaptatif).
 
 ## Backlog restant (priorité basse)
 

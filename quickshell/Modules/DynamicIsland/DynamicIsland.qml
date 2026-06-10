@@ -14,11 +14,15 @@ import "panes"
 // Dynamic Island "style" for DankMaterialShell — minimalist rounded-rectangle.
 // Inherits all DMS features (Theme, services, menus). Compact at rest so it
 // stays out of the way; springy, modern morph between states.
-PanelWindow {
+//
+// One Scope per monitor owning FOUR independent layer surfaces (pill strip,
+// banners, scrim, edge glow) instead of one permanent full-screen overlay —
+// an output with nothing to show maps NOTHING, so fullscreen video keeps
+// direct scanout and the compositor stops compositing a dead transparent layer.
+Scope {
     id: root
 
     property var modelData
-    screen: modelData
 
     readonly property string monitorName: (modelData && modelData.name) ? modelData.name : ""
     // primary screen acts as the fallback "focused" monitor when the compositor
@@ -435,60 +439,114 @@ PanelWindow {
     // radius of the concave flare where the notch meets the screen's top edge
     readonly property real notchCornerR: 13
 
-    // ---------- window ----------
-    WlrLayershell.namespace: "dms:dynamic-island"
-    WlrLayershell.layer: WlrLayershell.Overlay
-    WlrLayershell.exclusiveZone: -1
-    // keyboard focus for the keyboard-driven drill views: the search ones (Spotlight
-    // / clipboard / emoji) need it to type, the wallpaper grid needs it for arrow
-    // navigation. Everything else stays focus-free (click-through).
-    // Exclusive (modal) grab: reliable and engages immediately on open, whereas
-    // Hyprland's OnDemand focus-grab only kicks in on a pointer click. Released the
-    // instant panelView leaves these views; Esc / click-outside scrim / back all exit.
+    // keyboard-driven drill views (the controller-level list; the pill window
+    // derives its keyboardFocus from it)
     readonly property var _kbViews: ["apps", "clipboard", "emoji", "wallpaper"]
     // the Wi-Fi view grabs the keyboard only while an inline password prompt is
     // open (set by WifiPanel) — without it the field can never receive input
     property bool wifiNeedsKeyboard: false
-    WlrLayershell.keyboardFocus: {
-        if (mode !== "expanded")
+
+    // ---------- windows ----------
+
+    // click-outside-to-dismiss scrim (macOS): a SEPARATE fullscreen surface
+    // mapped only while the panel is expanded. Layer-shell puts a freshly
+    // mapped surface on top of its layer, so the pill and the banner stack are
+    // SUBTRACTED from its input region — clicks on them fall through to their
+    // own windows, clicks anywhere else dismiss.
+    PanelWindow {
+        id: scrimWindow
+        screen: root.modelData
+        visible: root.mode === "expanded"
+        WlrLayershell.namespace: "dms:dynamic-island-scrim"
+        WlrLayershell.layer: WlrLayershell.Overlay
+        WlrLayershell.exclusiveZone: -1
+        color: "transparent"
+        anchors { top: true; bottom: true; left: true; right: true }
+        mask: Region {
+            x: 0; y: 0
+            width: scrimWindow.width; height: scrimWindow.height
+            Region { x: pill.x; y: pill.y; width: pill.width; height: pill.height; intersection: Intersection.Subtract }
+            Region { x: scrimWindow.width - notifBanners.width - 16; y: 0; width: notifBanners.width + 16; height: notifBanners.height + 24; intersection: Intersection.Subtract }
+        }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: { root.pinned = false; root.settle() }
+        }
+    }
+
+    // ambient screen-edge glow on a new notification: fullscreen but VISUAL
+    // ONLY (empty input mask = fully click-through), mapped just for the ~2s
+    // pulse. Lives on the Top layer so it never paints OVER the island/banners
+    // (Overlay) and stays beneath fullscreen apps.
+    PanelWindow {
+        id: glowWindow
+        screen: root.modelData
+        visible: edgeGlow.pulse > 0
+        WlrLayershell.namespace: "dms:dynamic-island-glow"
+        WlrLayershell.layer: WlrLayershell.Top
+        WlrLayershell.exclusiveZone: -1
+        color: "transparent"
+        anchors { top: true; bottom: true; left: true; right: true }
+        mask: Region {}
+        NotificationEdgeGlow { id: edgeGlow; island: root; anchors.fill: parent }
+    }
+
+    // macOS-style notification banners: a fixed top-right strip mapped only
+    // while popups exist; input limited to the actual banner stack
+    PanelWindow {
+        id: bannerWindow
+        screen: root.modelData
+        visible: root.isFocusedScreen && root.popups.length > 0
+        WlrLayershell.namespace: "dms:dynamic-island-banners"
+        WlrLayershell.layer: WlrLayershell.Overlay
+        WlrLayershell.exclusiveZone: -1
+        color: "transparent"
+        anchors { top: true; right: true }
+        implicitWidth: 440
+        implicitHeight: 720
+        mask: Region { item: notifBanners }
+        NotificationBanners { id: notifBanners; island: root }
+    }
+
+    // the island itself: a top strip tall enough for the largest expanded
+    // state (fixed height — resizing a layer surface every spring frame would
+    // hammer the compositor with configures). Input is masked to the pill;
+    // the strip is otherwise click-through. Unmapped entirely while hidden
+    // for a fullscreen window.
+    PanelWindow {
+        id: pillWindow
+        screen: root.modelData
+        visible: pill.opacity > 0
+        WlrLayershell.namespace: "dms:dynamic-island"
+        WlrLayershell.layer: WlrLayershell.Overlay
+        WlrLayershell.exclusiveZone: -1
+        color: "transparent"
+        anchors { top: true; left: true; right: true }
+        implicitHeight: 620
+        // keyboard focus for the keyboard-driven drill views: the search ones
+        // (Spotlight / clipboard / emoji) need it to type, the wallpaper grid for
+        // arrow navigation, Wi-Fi while a password prompt is open. Exclusive
+        // (modal) grab: engages immediately on open, whereas Hyprland's OnDemand
+        // only kicks in on a pointer click. Released the instant panelView leaves.
+        WlrLayershell.keyboardFocus: {
+            if (root.mode !== "expanded")
+                return WlrKeyboardFocus.None
+            if (root._kbViews.indexOf(root.panelView) !== -1)
+                return WlrKeyboardFocus.Exclusive
+            if (root.panelView === "wifi" && root.wifiNeedsKeyboard)
+                return WlrKeyboardFocus.Exclusive
             return WlrKeyboardFocus.None
-        if (_kbViews.indexOf(panelView) !== -1)
-            return WlrKeyboardFocus.Exclusive
-        if (panelView === "wifi" && wifiNeedsKeyboard)
-            return WlrKeyboardFocus.Exclusive
-        return WlrKeyboardFocus.None
-    }
-    color: "transparent"
-
-    // full-screen overlay: input is masked to just the pill (everything else is
-    // click-through), EXCEPT while the panel is expanded — then the whole screen
-    // is captured so a click anywhere outside the pill dismisses it (macOS style).
-    anchors { top: true; bottom: true; left: true; right: true }
-    WlrLayershell.margins { top: 0; left: 0; right: 0; bottom: 0 }
-
-    // input region = pill (or full screen when expanded) UNION the banner stack,
-    // so banner buttons/swipe are clickable while the rest stays click-through
-    mask: Region {
-        // drop the pill from the input region while it's hidden for fullscreen, so
-        // clicks at the top-center reach the fullscreen app underneath
-        Region { item: root.mode === "expanded" ? stage : (root.pillSuppressed ? null : pill) }
-        Region { item: notifBanners }
-    }
+        }
+        mask: Region {
+            // drop the pill from the input region while it's hidden for
+            // fullscreen, so top-center clicks reach the app underneath
+            Region { item: root.pillSuppressed ? null : pill }
+        }
 
     Item {
         id: stage
         anchors.fill: parent
         readonly property real cx: width / 2
-
-        // click-outside-to-dismiss scrim (macOS): only live while expanded, sits
-        // behind the pill so clicks ON the pill reach its controls
-        MouseArea {
-            anchors.fill: parent
-            z: -5
-            enabled: root.mode === "expanded"
-            visible: enabled
-            onClicked: { root.pinned = false; root.settle() }
-        }
 
         // album-art ambient glow: a heavily-blurred copy of the cover art behind the
         // pill → a soft color bloom in the album's real colors (Apple Music vibe).
@@ -511,9 +569,6 @@ PanelWindow {
                 cache: true; asynchronous: true
             }
         }
-
-        // ambient screen-edge glow pulse on a new notification (passthrough)
-        NotificationEdgeGlow { id: edgeGlow; island: root }
 
         // unified island body: fill + border + glow drawn as ONE silhouette so
         // every effect traces the true shape (incl. the concave macOS notch
@@ -702,14 +757,13 @@ PanelWindow {
             }
         }
 
-        // macOS-style notification banners (independent, island-styled)
-        NotificationBanners { id: notifBanners; island: root }
+    }
     }
 
     // native popup menu for system-tray items (anchored under the icon)
     QsMenuAnchor {
         id: trayMenu
-        anchor.window: root
+        anchor.window: pillWindow
     }
 
     // subtle "bump" feedback (replaces the old liquid droplet)

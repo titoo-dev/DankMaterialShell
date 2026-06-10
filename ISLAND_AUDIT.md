@@ -4,8 +4,10 @@
 > (OSD interactif segmenté, états transitoires Wi-Fi/BT, transport statique) sont **implémentés
 > et vérifiés live** (journal propre, smoke tests IPC, notifs, OSD). Détail dans
 > `ISLAND_HANDOFF.md` § « Audit complet + Phase 0/2 ». Les findings C1-C3, C5, H1-H3, H6 (partiel),
-> H7 (partiel), H9, H11, H15 et 2.1/2.2 sont donc **réglés** ; C4 (défaut `dynamicIslandEnabled`)
-> est conservé volontairement sur ce fork personnel (concerne une éventuelle distribution).
+> H7 (partiel), H8, H9, H11, **H13 (fenêtre plein écran éclatée en 4 surfaces — vérifié par
+> `hyprctl layers`)**, H14 (12 panels lazy via registre+Loader), H15, H17, H18 et 2.1/2.2 sont
+> donc **réglés** ; C4 (défaut `dynamicIslandEnabled`) est conservé volontairement sur ce fork
+> personnel (concerne une éventuelle distribution).
 
 Audit d'ingénierie de `Modules/DynamicIsland/` (branche `feat/dynamic-island`, ~5 080 lignes,
 30 fichiers) : correctness, performance, architecture, UX, accessibilité — avec gap-analysis
