@@ -238,7 +238,7 @@ import qs.Widgets
                                     }
                                     StyledText {
                                         width: parent.width; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
-                                        text: bWrap.topNotif ? (bWrap.topNotif.body || "") : ""
+                                        text: bWrap.topNotif ? (bWrap.topNotif.plainBody || "") : ""
                                         visible: text.length > 0; color: island.subText
                                         font.pixelSize: Theme.fontSizeSmall; lineHeight: 1.15
                                     }

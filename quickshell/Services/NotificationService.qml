@@ -846,6 +846,8 @@ Singleton {
         readonly property string summary: (notification?.summary ?? "").replace(/<img\b[^>]*>/gi, "")
         readonly property string body: (notification?.body ?? "").replace(/<img\b[^>]*>/gi, "")
         readonly property string htmlBody: root._resolveHtmlBody(body)
+        // Strip tags BEFORE decoding entities so escaped markup (&lt;b&gt;) stays literal text
+        readonly property string plainBody: root._decodeEntities(body.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim()
         readonly property string appIcon: notification?.appIcon ?? ""
         readonly property string appName: {
             if (!notification)
@@ -1029,6 +1031,22 @@ Singleton {
         }
     }
 
+    // Latin-1 named entities (accented letters + currency/typography) not covered
+    // by the switch in _decodeEntities — codepoints, resolved via String.fromCodePoint
+    readonly property var _latin1Entities: ({
+        "Agrave": 0xC0, "Aacute": 0xC1, "Acirc": 0xC2, "Atilde": 0xC3, "Auml": 0xC4, "Aring": 0xC5, "AElig": 0xC6, "Ccedil": 0xC7,
+        "Egrave": 0xC8, "Eacute": 0xC9, "Ecirc": 0xCA, "Euml": 0xCB, "Igrave": 0xCC, "Iacute": 0xCD, "Icirc": 0xCE, "Iuml": 0xCF,
+        "ETH": 0xD0, "Ntilde": 0xD1, "Ograve": 0xD2, "Oacute": 0xD3, "Ocirc": 0xD4, "Otilde": 0xD5, "Ouml": 0xD6, "Oslash": 0xD8,
+        "Ugrave": 0xD9, "Uacute": 0xDA, "Ucirc": 0xDB, "Uuml": 0xDC, "Yacute": 0xDD, "THORN": 0xDE, "szlig": 0xDF,
+        "agrave": 0xE0, "aacute": 0xE1, "acirc": 0xE2, "atilde": 0xE3, "auml": 0xE4, "aring": 0xE5, "aelig": 0xE6, "ccedil": 0xE7,
+        "egrave": 0xE8, "eacute": 0xE9, "ecirc": 0xEA, "euml": 0xEB, "igrave": 0xEC, "iacute": 0xED, "icirc": 0xEE, "iuml": 0xEF,
+        "eth": 0xF0, "ntilde": 0xF1, "ograve": 0xF2, "oacute": 0xF3, "ocirc": 0xF4, "otilde": 0xF5, "ouml": 0xF6, "oslash": 0xF8,
+        "ugrave": 0xF9, "uacute": 0xFA, "ucirc": 0xFB, "uuml": 0xFC, "yacute": 0xFD, "thorn": 0xFE, "yuml": 0xFF,
+        "OElig": 0x152, "oelig": 0x153, "Yuml": 0x178, "euro": 0x20AC,
+        "cent": 0xA2, "pound": 0xA3, "yen": 0xA5, "sect": 0xA7, "iexcl": 0xA1, "iquest": 0xBF,
+        "ordf": 0xAA, "ordm": 0xBA, "sup1": 0xB9, "sup2": 0xB2, "sup3": 0xB3, "frac14": 0xBC, "frac12": 0xBD, "frac34": 0xBE
+    })
+
     function _decodeEntities(s) {
         s = s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)));
         s = s.replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCodePoint(parseInt(n, 16)));
@@ -1092,8 +1110,10 @@ Singleton {
                 return "\u2191";
             case "darr":
                 return "\u2193";
-            default:
-                return match;
+            default: {
+                const cp = root._latin1Entities[name];
+                return cp !== undefined ? String.fromCodePoint(cp) : match;
+            }
             }
         });
     }

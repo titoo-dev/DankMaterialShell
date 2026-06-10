@@ -99,7 +99,7 @@ Column {
                             StyledText { text: (modelData.timeStr || ""); color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2 }
                         }
                         StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: (modelData.summary || modelData.appName || ""); color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true }
-                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: (modelData.body || ""); visible: text.length > 0; color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1 }
+                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: (modelData.plainBody || ""); visible: text.length > 0; color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1 }
                     }
                     Rectangle {  // per-row dismiss
                         id: nRowRight

@@ -645,10 +645,7 @@ Item {
 
                                         StyledText {
                                             width: parent.width
-                                            text: {
-                                                const body = modelData.body || "";
-                                                return body.replace(/<[^>]*>/g, '').replace(/\n/g, ' ');
-                                            }
+                                            text: modelData.plainBody || ""
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: "white"
                                             opacity: 0.8
