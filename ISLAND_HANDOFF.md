@@ -775,6 +775,25 @@ désormais), et le champ mot de passe Wi-Fi.
     dispatcher **`hl.dsp.focus` répond `ok`**. Chaîne complète : Wayland natif = wtype direct,
     XWayland = wl-copy + Ctrl+V manuel (par design, cf. saga §emoji).
 
+## RÉGRESSION auto-paste corrigée (2026-06-10, 8e commit) — fenêtre cible
+
+Symptôme user : emoji choisi → rien ne s'affiche (ghostty/Chrome/Discord).
+**Cause** : le script d'insertion lisait `hyprctl activewindow` AU MOMENT de l'exécution
+(~300 ms après fermeture). Tant que l'île était une fenêtre PLEIN ÉCRAN, l'activewindow
+restait stable pendant tout le flux ; depuis l'éclatement des fenêtres, l'île ne couvre
+plus l'écran → **focus-follows-mouse reprend la main dès la fermeture** et « activewindow »
+devient la fenêtre sous le curseur (souvent pas celle où l'on tapait). Diagnostiqué par
+log /tmp/island-emoji.log : ADDR=Chrome alors que la cible était ghostty.
+**Fix** (= le design de la saga d'origine, perdu dans une simplification) : le contrôleur
+**capture en continu `_typeAddr`** (match `Hyprland.toplevels.values[i].wayland ===
+ToplevelManager.activeToplevel` → `.address`) tant que `mode !== "expanded"` — donc la
+dernière vraie fenêtre AVANT l'ouverture du picker — et la passe en `$2` au script, qui
+refocalise CETTE adresse et détecte son xwayland via `hyprctl clients | grep -A 30`.
+Fallback : `$2` vide (niri…) → ancien comportement. Vérifié par repro IPC : capture =
+fenêtre pré-île, refocus ok, wtype ok.
+- **Nouvel IPC `dms ipc call island type "<texte>"`** : injecte du texte par le même chemin
+  (debug + scripting). Log d'une ligne par insertion dans `/tmp/island-emoji.log`.
+
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
 NotchVisual en Shape CurveRenderer, recherche de fichiers Spotlight (si dsearch installé),
 a11y/Échap universel, dataset emoji complet (génération emojibase), accent adaptatif pochette.

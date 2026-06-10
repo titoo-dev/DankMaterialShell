@@ -260,6 +260,24 @@ Scope {
     //     clipboard and the user presses Ctrl+V (their manual paste always works).
     // Close the island first, then re-focus the previously active window (Lua: hl.dsp.focus).
     property string _typePending: ""
+    // address of the window to type into, captured CONTINUOUSLY while the
+    // island is at rest — i.e. the app the user was working in BEFORE opening
+    // the picker. Querying `hyprctl activewindow` at insert time is wrong:
+    // since the window split the island no longer covers the screen, so by
+    // then focus-follows-mouse has made "active" whatever sits under the
+    // cursor (often nothing useful right after clicking the island).
+    property string _typeAddr: ""
+    onActiveWinChanged: if (mode !== "expanded") _captureTypeTarget()
+    function _captureTypeTarget() {
+        if (CompositorService.isNiri) { _typeAddr = ""; return }
+        const tls = Hyprland.toplevels ? Hyprland.toplevels.values : []
+        for (var i = 0; i < tls.length; i++) {
+            if (tls[i] && tls[i].wayland === activeWin) {
+                _typeAddr = tls[i].address ?? ""
+                return
+            }
+        }
+    }
     function insertText(text) {
         if (!text || text.length === 0) return
         _typePending = text
@@ -273,13 +291,18 @@ Scope {
             if (root._typePending.length === 0) return
             const e = root._typePending
             root._typePending = ""
+            // $1 = text, $2 = target window address captured BEFORE the island
+            // opened (may be empty → fall back to whatever is active now)
             Quickshell.execDetached(["sh", "-c",
-                "info=$(hyprctl activewindow); a=$(echo \"$info\" | awk 'NR==1{print $2}'); "
+                "a=\"$2\"; "
+                + "if [ -z \"$a\" ]; then a=$(hyprctl activewindow | awk 'NR==1{print $2}'); fi; "
                 + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
                 + "sleep 0.12; "
-                + "if ! echo \"$info\" | grep -q 'xwayland: 1' && command -v wtype >/dev/null 2>&1; then wtype \"$1\"; "
+                + "xwl=0; [ -n \"$a\" ] && hyprctl clients | grep -A 30 \"Window $a \" | grep -m1 -q 'xwayland: 1' && xwl=1; "
+                + "echo \"$(date +%T) addr=$a xwl=$xwl\" >> /tmp/island-emoji.log; "
+                + "if [ \"$xwl\" = \"0\" ] && command -v wtype >/dev/null 2>&1; then wtype \"$1\"; "
                 + "else printf %s \"$1\" | wl-copy; fi",
-                "island-emoji", e])
+                "island-emoji", e, root._typeAddr])
         }
     }
 
@@ -447,6 +470,12 @@ Scope {
             } else {
                 root.openPanel(view)
             }
+        }
+        // inject text through the emoji-picker insertion path (debug/scripting)
+        function onTypeRequested(text) {
+            if (!root.isFocusedScreen)
+                return
+            root.insertText(text)
         }
     }
 

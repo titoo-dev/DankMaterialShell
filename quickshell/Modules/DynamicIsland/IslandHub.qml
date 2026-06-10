@@ -28,6 +28,7 @@ Singleton {
     signal closeRequested
     signal backRequested
     signal openViewRequested(string view)
+    signal typeRequested(string text)
 
     IpcHandler {
         target: "island"
@@ -58,6 +59,14 @@ Singleton {
                 return "ISLAND_ERROR:unknown-view:" + v + " (valid: " + hub.views.join("|") + ")";
             hub.openViewRequested(v);
             return "ISLAND_OPEN:" + v;
+        }
+        // inject text into the focused app through the same path the emoji
+        // picker uses (wtype / clipboard) — also handy for scripting
+        function type(text: string): string {
+            if (!text || text.length === 0)
+                return "ISLAND_ERROR:empty-text";
+            hub.typeRequested(text);
+            return "ISLAND_TYPE:" + text;
         }
     }
 }
