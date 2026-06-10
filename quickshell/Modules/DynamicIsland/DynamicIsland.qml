@@ -272,12 +272,16 @@ Scope {
     onPlayingChanged: if (!hovered && !pinned && mode !== "presenter" && mode !== "expanded") mode = restMode()
 
     // ---------- insert the emoji into the focused app (emoji picker) ----------
-    // Wayland vs XWayland reality on this setup:
-    //   - native Wayland apps: wtype types the emoji directly → true auto-insert.
-    //   - XWayland apps (Discord, ...): wtype can't reach them, ydotool can't type
-    //     emoji or send a working modifier combo, and a synthetic Ctrl+V right after
-    //     the island's keyboard grab is unreliable. So we just put the emoji on the
-    //     clipboard and the user presses Ctrl+V (their manual paste always works).
+    // Insertion reality on this setup, by target window:
+    //   - native Wayland TERMINALS (ghostty, ...): wtype types the emoji directly
+    //     → true auto-insert. (Ctrl+V wouldn't paste in a terminal anyway.)
+    //   - native Wayland GUI apps (Chrome, Discord — all Ozone/Electron, so NOT
+    //     XWayland): wtype "types" with rc=0 but the app silently drops it, because
+    //     wtype emits unicode by hot-swapping the virtual-keyboard keymap and
+    //     Chromium/GTK ignore that. So we wl-copy the emoji and fire a synthetic
+    //     Ctrl+V (plain keysyms, which they DO accept) → true auto-paste.
+    //   - XWayland apps: wtype can't reach them and there's no ydotool/xdotool here,
+    //     so we just put the emoji on the clipboard and the user presses Ctrl+V.
     // Close the island first, then re-focus the previously active window (Lua: hl.dsp.focus).
     property string _typePending: ""
     // address of the window to type into, captured CONTINUOUSLY while the
@@ -318,10 +322,22 @@ Scope {
                 + "if [ -z \"$a\" ]; then a=$(hyprctl activewindow | awk 'NR==1{print $2}'); fi; "
                 + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
                 + "sleep 0.12; "
-                + "xwl=0; [ -n \"$a\" ] && hyprctl clients | grep -A 30 \"Window $a \" | grep -m1 -q 'xwayland: 1' && xwl=1; "
-                + "if [ \"$xwl\" = \"0\" ] && command -v wtype >/dev/null 2>&1; then out=$(wtype \"$1\" 2>&1); rc=$?; "
-                + "else out=$(printf %s \"$1\" | wl-copy 2>&1); rc=copy:$?; fi; "
-                + "echo \"$(date +%T) addr=$a xwl=$xwl rc=$rc out=$out\" >> /tmp/island-emoji.log",
+                + "info=$([ -n \"$a\" ] && hyprctl clients | grep -A 30 \"Window $a \"); "
+                + "xwl=0; printf %s \"$info\" | grep -m1 -q 'xwayland: 1' && xwl=1; "
+                + "cls=$(printf %s \"$info\" | grep -m1 'class:' | awk '{print $2}'); "
+                + "isterm=0; printf %s \"$cls\" | grep -qiE 'ghostty|kitty|foot|alacritty|wezterm|konsole|xterm|urxvt|tilix|terminal' && isterm=1; "
+                // XWayland: wtype can't reach it, no ydotool/xdotool here → clipboard only (manual paste).
+                + "if [ \"$xwl\" = \"1\" ]; then out=$(printf %s \"$1\" | wl-copy 2>&1); rc=xwl-copy:$?; "
+                // native Wayland terminal: direct type works (and Ctrl+V isn't paste in a terminal).
+                + "elif [ \"$isterm\" = \"1\" ] && command -v wtype >/dev/null 2>&1; then out=$(wtype \"$1\" 2>&1); rc=type:$?; "
+                // native Wayland GUI (Chromium/Electron/GTK drop wtype's unicode keymap swap):
+                // copy then fire a synthetic Ctrl+V — standard keysyms they DO accept.
+                // Chrome reads the clipboard ASYNC, so the Ctrl+V frame paints before the
+                // emoji lands and (thinking it's unfocused) it schedules no redraw → blank
+                // until a focus change. A caret nudge (Left+Right, net-zero) AFTER the paste
+                // forces a fresh frame so the emoji shows immediately.
+                + "else printf %s \"$1\" | wl-copy; sleep 0.1; wtype -M ctrl -k v -m ctrl; rc=paste:$?; sleep 0.1; out=$(wtype -k Left -k Right 2>&1); fi; "
+                + "echo \"$(date +%T) addr=$a xwl=$xwl cls=$cls term=$isterm rc=$rc out=$out\" >> /tmp/island-emoji.log",
                 "island-emoji", e, root._typeAddr])
         }
     }
