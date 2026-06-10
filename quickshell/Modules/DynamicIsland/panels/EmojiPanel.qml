@@ -79,6 +79,11 @@ Column {
         activeCat = recents.length > 0 ? "recent" : "smileys"
         searchField.forceActiveFocus()
     }
+    // lazily loaded: the panel is born visible, so onVisibleChanged never fires
+    Component.onCompleted: if (visible) {
+        activeCat = recents.length > 0 ? "recent" : "smileys"
+        searchField.forceActiveFocus()
+    }
     transform: Translate { x: island.panelView === "emoji" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 

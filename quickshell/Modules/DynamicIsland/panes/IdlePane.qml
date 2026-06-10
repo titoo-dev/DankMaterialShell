@@ -10,6 +10,28 @@ Item {
     property var island: null
     readonly property real wsWidth: wsRow.implicitWidth
     readonly property real clusterWidth: rightCluster.implicitWidth
+
+    // SNI icons of Electron apps (Spotify, Discord, …) arrive as "name?path=/dir"
+    // and need rewriting to a file URL (same logic as the DankBar tray widget)
+    function trayIconSourceFor(trayItem) {
+        let icon = trayItem && trayItem.icon
+        if (typeof icon === 'string' || icon instanceof String) {
+            if (icon === "") return ""
+            if (icon.includes("?path=")) {
+                const split = icon.split("?path=")
+                if (split.length !== 2) return icon
+                const name = split[0], path = split[1]
+                let fileName = name.substring(name.lastIndexOf("/") + 1)
+                if (fileName.startsWith("dropboxstatus"))
+                    fileName = `hicolor/16x16/status/${fileName}`
+                return `file://${path}/${fileName}`
+            }
+            if (icon.startsWith("/") && !icon.startsWith("file://"))
+                return `file://${icon}`
+            return icon
+        }
+        return ""
+    }
     anchors.fill: parent
     anchors.leftMargin: Theme.spacingL; anchors.rightMargin: Theme.spacingL
     opacity: island.mode === "idle" ? 1 : 0
@@ -23,7 +45,9 @@ Item {
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.spacingXS
         Repeater {
-            model: island.wsList
+            // gated by visibility: wsList rebuilds on every compositor event, and
+            // an ungated Repeater would churn delegates even while the pane rests
+            model: idlePane.visible ? island.wsList : []
             Rectangle {
                 readonly property bool active: modelData.focused
                 width: 30; height: 30; radius: 10
@@ -106,15 +130,22 @@ Item {
         Row {
             spacing: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
             Repeater {
-                model: island.trayItems
+                // gated like the workspaces; tray models churn on every SNI update
+                model: idlePane.visible ? island.trayItems : []
                 Item {
                     width: 22; height: 22; anchors.verticalCenter: parent.verticalCenter
                     scale: trayArea.pressed ? 0.82 : (trayArea.containsMouse ? 1.12 : 1.0)
                     Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                     Image {
+                        id: trayImg
                         anchors.centerIn: parent; width: 17; height: 17
-                        source: modelData.icon ?? ""
+                        source: idlePane.trayIconSourceFor(modelData)
                         sourceSize.width: 17; sourceSize.height: 17
+                        asynchronous: true
+                    }
+                    DankIcon {  // fallback when the SNI icon fails to resolve
+                        anchors.centerIn: parent; name: "widgets"; size: 15; color: island.subText
+                        visible: trayImg.status !== Image.Ready
                     }
                     MouseArea {
                         id: trayArea

@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -72,7 +73,17 @@ Column {
                         Image {
                             id: nRowImg
                             anchors.fill: parent; anchors.margins: 5
-                            source: (modelData.cleanImage || modelData.appIcon || "")
+                            // appIcon is often a THEME ICON NAME, not a URL — resolve it,
+                            // and never hand a bare name to Image (silent failure)
+                            source: {
+                                if (modelData.cleanImage) return modelData.cleanImage
+                                const icon = modelData.appIcon || ""
+                                if (!icon) return ""
+                                if (icon.startsWith("file://") || icon.startsWith("http://") || icon.startsWith("https://") || icon.includes("/"))
+                                    return icon
+                                return Quickshell.iconPath(icon, true)
+                            }
+                            sourceSize.width: 76; sourceSize.height: 76   // decode at 2× box, not full size
                             fillMode: Image.PreserveAspectFit; cache: false; asynchronous: true
                             visible: status === Image.Ready
                         }
@@ -103,8 +114,16 @@ Column {
                     MouseArea {
                         id: nRowArea; anchors.fill: parent; hoverEnabled: true; z: -1
                         onClicked: {
-                            const a = (modelData.actions && modelData.actions.length > 0) ? modelData.actions[0] : null
-                            if (a && a.invoke) { a.invoke(); NotificationService.dismissNotification(modelData) }
+                            // invoke the notification's DEFAULT action (body click), never
+                            // an arbitrary actions[0] which may be "Delete"/"Archive"
+                            var def = null
+                            if (modelData.actions) {
+                                for (var i = 0; i < modelData.actions.length; i++) {
+                                    const a = modelData.actions[i]
+                                    if (a && a.identifier === "default") { def = a; break }
+                                }
+                            }
+                            if (def && def.invoke) { def.invoke(); NotificationService.dismissNotification(modelData) }
                         }
                     }
                 }

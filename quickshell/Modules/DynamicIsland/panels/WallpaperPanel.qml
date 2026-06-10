@@ -81,7 +81,13 @@ Column {
         return p.substring(p.lastIndexOf('/') + 1)
     }
 
-    Component.onCompleted: loadWallpaperDirectory()
+    // lazily loaded: created on first open (no longer enumerating the wallpaper
+    // dir at shell boot for every monitor), and born visible — onVisibleChanged
+    // won't fire for the initial state, so activate here too
+    Component.onCompleted: {
+        loadWallpaperDirectory()
+        if (visible) { syncSelToCurrent(); wpGrid.forceActiveFocus() }
+    }
     onVisibleChanged: if (visible) {
         loadWallpaperDirectory()
         syncSelToCurrent()

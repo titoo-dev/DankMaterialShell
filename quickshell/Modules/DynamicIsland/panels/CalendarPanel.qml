@@ -46,6 +46,8 @@ Column {
     opacity: island.panelView === "calendar" ? 1 : 0
     visible: opacity > 0
     onVisibleChanged: if (visible) reset()
+    // lazily loaded: the panel is born visible, so onVisibleChanged never fires
+    Component.onCompleted: if (visible) reset()
     transform: Translate { x: island.panelView === "calendar" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 

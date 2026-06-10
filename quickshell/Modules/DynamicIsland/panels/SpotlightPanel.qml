@@ -98,6 +98,8 @@ Column {
     opacity: island.panelView === "apps" ? 1 : 0
     visible: opacity > 0
     onVisibleChanged: if (visible) { searchField.text = ""; refresh(); searchField.forceActiveFocus() }
+    // lazily loaded: the panel is born visible, so onVisibleChanged never fires
+    Component.onCompleted: if (visible) { refresh(); searchField.forceActiveFocus() }
     transform: Translate { x: island.panelView === "apps" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 

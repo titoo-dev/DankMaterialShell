@@ -20,6 +20,8 @@ Column {
     opacity: island.panelView === "clipboard" ? 1 : 0
     visible: opacity > 0
     onVisibleChanged: if (visible) { clipSearch.text = ""; ClipboardService.refresh(); clipSearch.forceActiveFocus() }
+    // lazily loaded: the panel is born visible, so onVisibleChanged never fires
+    Component.onCompleted: if (visible) { ClipboardService.refresh(); clipSearch.forceActiveFocus() }
     transform: Translate { x: island.panelView === "clipboard" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
@@ -31,8 +33,32 @@ Column {
         island.settle()
     }
 
+    // ---- keyboard navigation (the view holds an Exclusive grab — it must be
+    // fully drivable from the keyboard, like Spotlight/Emoji) ----
+    property int selIndex: 0
+    readonly property int rowH: 52
+    readonly property int rowGap: 3
+    onEntriesChanged: { selIndex = 0; clipFlick.contentY = 0 }
+    function move(delta) {
+        const visCount = Math.min(entries.length, 50)
+        if (visCount === 0) return
+        selIndex = Math.max(0, Math.min(visCount - 1, selIndex + delta))
+        ensureVisible()
+    }
+    function ensureVisible() {
+        const step = rowH + rowGap
+        const y = selIndex * step
+        if (y < clipFlick.contentY)
+            clipFlick.contentY = y
+        else if (y + rowH > clipFlick.contentY + clipFlick.height)
+            clipFlick.contentY = y + rowH - clipFlick.height
+    }
+    function copySel() { if (entries.length > selIndex) copy(entries[selIndex]) }
+
     Item {
         id: escHandler
+        Keys.onUpPressed: clipCol.move(-1)
+        Keys.onDownPressed: clipCol.move(1)
         Keys.onEscapePressed: island.panelView = "controls"
     }
 
@@ -56,12 +82,15 @@ Column {
             height: 36
             leftIconName: "content_paste"
             placeholderText: I18n.tr("Search clipboard")
+            ignoreUpDownKeys: true   // ↑/↓ drive the list selection, not the caret
             keyForwardTargets: [escHandler]
+            onAccepted: clipCol.copySel()
         }
     }
 
     // entries list — adaptive height, capped
     Flickable {
+        id: clipFlick
         width: parent.width; height: Math.min(clipList.height, 296); clip: true
         contentHeight: clipList.height; boundsBehavior: Flickable.StopAtBounds
         Column {
@@ -77,8 +106,11 @@ Column {
                 model: clipCol.entries.slice(0, 50)
                 Rectangle {
                     id: clipRow
+                    readonly property bool sel: index === clipCol.selIndex
                     width: clipList.width; height: 52; radius: 12
-                    color: clipRowArea.containsMouse ? Theme.surfaceLight : Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4)
+                    color: (sel || clipRowArea.containsMouse) ? Theme.surfaceLight : Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4)
+                    border.width: sel ? 1 : 0
+                    border.color: Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.5)
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
 
                     Rectangle {
@@ -108,6 +140,7 @@ Column {
                     }
                     MouseArea {
                         id: clipRowArea; anchors.fill: parent; hoverEnabled: true; z: -1; cursorShape: Qt.PointingHandCursor
+                        onContainsMouseChanged: if (containsMouse) clipCol.selIndex = index
                         onClicked: clipCol.copy(modelData)
                     }
                 }

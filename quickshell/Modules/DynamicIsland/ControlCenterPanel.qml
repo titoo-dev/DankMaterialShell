@@ -11,8 +11,11 @@ import "panels"
             Item {
                 id: ccPanel
                 property var island: null
-                // active view height (drives the pill height in the controller)
-                readonly property real viewHeight: !island ? 0 : (island.panelView === "wifi" ? wifiCol.implicitHeight : island.panelView === "bluetooth" ? btCol.implicitHeight : island.panelView === "audio" ? audioCol.implicitHeight : island.panelView === "input" ? inputCol.implicitHeight : island.panelView === "notifications" ? notifCol.implicitHeight : island.panelView === "calendar" ? calCol.implicitHeight : island.panelView === "apps" ? appCol.implicitHeight : island.panelView === "clipboard" ? clipCol.implicitHeight : island.panelView === "emoji" ? emojiCol.implicitHeight : island.panelView === "power" ? powerCol.implicitHeight : island.panelView === "monitor" ? monCol.implicitHeight : island.panelView === "wallpaper" ? wpCol.implicitHeight : ccColumn.implicitHeight)
+                // active view height (drives the pill height in the controller):
+                // the hub when showing "controls", else whatever the loader holds
+                readonly property real viewHeight: !island ? 0
+                    : island.panelView === "controls" ? ccColumn.implicitHeight
+                    : (drillLoader.item ? drillLoader.item.implicitHeight : ccColumn.implicitHeight)
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 opacity: island.mode === "expanded" ? 1 : 0
@@ -276,17 +279,42 @@ import "panels"
                     }
                 }
 
-                // ---- drill-down detail views (extracted into panels/) ----
-                WifiPanel          { id: wifiCol;  island: ccPanel.island }
-                NotificationsPanel { id: notifCol; island: ccPanel.island }
-                BluetoothPanel     { id: btCol;    island: ccPanel.island }
-                AudioPanel         { id: audioCol; island: ccPanel.island }
-                InputPanel         { id: inputCol; island: ccPanel.island }
-                CalendarPanel      { id: calCol;   island: ccPanel.island }
-                SpotlightPanel     { id: appCol;   island: ccPanel.island }
-                ClipboardPanel     { id: clipCol;  island: ccPanel.island }
-                EmojiPanel         { id: emojiCol; island: ccPanel.island }
-                PowerPanel         { id: powerCol; island: ccPanel.island }
-                SystemMonitorPanel { id: monCol;   island: ccPanel.island }
-                WallpaperPanel     { id: wpCol;    island: ccPanel.island }
+                // ---- drill-down detail views, LAZY (panels/) ----
+                // Only the ACTIVE view exists; previously all 12 panels were
+                // instantiated eagerly per monitor, their Repeaters/bindings live
+                // even while the island rested. The registry is the single source
+                // of truth mapping panelView -> component.
+                readonly property var viewRegistry: ({
+                    "wifi": wifiComp, "bluetooth": btComp, "audio": audioComp,
+                    "input": inputComp, "notifications": notifComp, "calendar": calComp,
+                    "apps": appsComp, "clipboard": clipComp, "emoji": emojiComp,
+                    "power": powerComp, "monitor": monComp, "wallpaper": wpComp
+                })
+                Component { id: wifiComp;  WifiPanel          { island: ccPanel.island } }
+                Component { id: btComp;    BluetoothPanel     { island: ccPanel.island } }
+                Component { id: audioComp; AudioPanel         { island: ccPanel.island } }
+                Component { id: inputComp; InputPanel         { island: ccPanel.island } }
+                Component { id: notifComp; NotificationsPanel { island: ccPanel.island } }
+                Component { id: calComp;   CalendarPanel      { island: ccPanel.island } }
+                Component { id: appsComp;  SpotlightPanel     { island: ccPanel.island } }
+                Component { id: clipComp;  ClipboardPanel     { island: ccPanel.island } }
+                Component { id: emojiComp; EmojiPanel         { island: ccPanel.island } }
+                Component { id: powerComp; PowerPanel         { island: ccPanel.island } }
+                Component { id: monComp;   SystemMonitorPanel { island: ccPanel.island } }
+                Component { id: wpComp;    WallpaperPanel     { island: ccPanel.island } }
+
+                Loader {
+                    id: drillLoader
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                    sourceComponent: (ccPanel.island && ccPanel.viewRegistry[ccPanel.island.panelView]) || null
+                    transform: Translate { id: drillSlide; x: 0 }
+                    onLoaded: drillEnter.restart()
+                }
+                // generic drill-in transition (the outgoing view is torn down, the
+                // hub's own fade keeps the visual continuity)
+                ParallelAnimation {
+                    id: drillEnter
+                    NumberAnimation { target: drillLoader; property: "opacity"; from: 0; to: 1; duration: Theme.shortDuration }
+                    NumberAnimation { target: drillSlide; property: "x"; from: 24; to: 0; duration: Theme.shortDuration; easing.type: Easing.OutQuad }
+                }
             }

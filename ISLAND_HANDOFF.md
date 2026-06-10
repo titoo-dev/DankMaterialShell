@@ -630,8 +630,36 @@ live** (restart + journal propre + smoke tests IPC + notifs gdbus + OSD wpctl) :
     timestamps `visible: opacity>0` ; `Theme.getBatteryIcon` (presenter + compact) ; mic **orange** /
     caméra **verte** (langage iOS) ; horloge idle cliquable → drill calendar ; `I18n.tr("Unknown")`.
 
-Restent dans la roadmap (ISLAND_AUDIT.md §7) : Phase 1 (éclatement de la fenêtre plein écran,
-registre de vues + Loaders, IslandState typé, virtualisation des listes, NotchVisual en Shape),
+**Phase 1 (même jour, 2e commit) — lazy-loading & modèles stables** :
+14. **Les 12 drill-views sont LAZY** : `ControlCenterPanel` remplace les 12 instances eager par un
+    **registre** `viewRegistry` (panelView → Component) + un **Loader unique** (`drillLoader`).
+    `viewHeight` = ternaire à 3 branches (hub / loader.item / fallback). Transition d'entrée
+    générique (fade + slide 24px) via `drillEnter` — l'animation d'entrée interne des panels ne
+    joue plus (ils naissent avec leur binding déjà actif). ⚠️ **GOTCHA Loader** : la propriété par
+    défaut d'un Loader est `sourceComponent` → ne JAMAIS déclarer un enfant (animation…) dans le
+    Loader ; le `ParallelAnimation` vit à côté. ⚠️ **GOTCHA activation** : un panel chargé naît
+    `visible: true` → `onVisibleChanged` ne tire PAS ; chaque panel à hook d'activation
+    (Spotlight/Clipboard/Emoji/Wallpaper/Calendar) a maintenant un `Component.onCompleted: if
+    (visible) …` équivalent (refresh/focus/reset). WallpaperPanel n'énumère plus le dossier au
+    boot (c'était par moniteur !). BluetoothPanel stoppe la discovery en `Component.onDestruction`.
+15. **Modèles stables** : listes BT paired/available en **`ScriptModel { objectProp: "address" }`**
+    (les ticks RSSI mettent à jour les délégués EN PLACE) ; Repeaters workspaces/tray de l'IdlePane
+    **gated par `visible`** (zéro churn au repos) ; icônes tray **réparées** (helper
+    `trayIconSourceFor` répliqué de SystemTrayBar : réécriture `?path=` des SNI Electron/Spotify)
+    + fallback `DankIcon` sur le status réel.
+16. **Clipboard pilotable au clavier** (il tient un grab Exclusive !) : ↑/↓ + Enter copie + Esc,
+    surlignage de sélection (bord accent), hover synchronise `selIndex` — motif Spotlight.
+17. **NotificationsPanel** : clic = action **`default`** (plus jamais `actions[0]` aveugle) ;
+    `appIcon` nom-de-thème résolu via `Quickshell.iconPath` (au lieu d'échouer en silence dans
+    `Image.source`) ; `sourceSize 76×76` (plus de décodage 4K pour une case de 38px).
+
+Vérifié live : cycle IPC des 12 vues ×2 restarts, notifs, journal 100% propre.
+⚠️ À sanity-checker à la main (non testable headless) : la saisie clavier dans apps/clipboard/
+emoji/wallpaper après le passage au Loader (le `forceActiveFocus` part de `Component.onCompleted`
+désormais), et le champ mot de passe Wi-Fi.
+
+Restent dans la roadmap (ISLAND_AUDIT.md §7) : Phase 1 fin (éclatement de la fenêtre plein écran,
+IslandState typé, virtualisation ListView/GridView, NotchVisual en Shape CurveRenderer),
 Phase 2 suite (groupement notifs + inline reply, Spotlight providers, a11y/Échap universel),
 Phase 3 (Live Activities, mixer par app, emoji v2, squircle/accent adaptatif).
 

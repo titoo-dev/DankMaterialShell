@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Bluetooth
 import qs.Common
 import qs.Services
@@ -39,6 +40,9 @@ Column {
     }
     onBtActiveChanged: ensureDiscovery()
     Connections { target: BluetoothService; function onEnabledChanged() { btCol.ensureDiscovery() } }
+    // lazily loaded: stop the discovery we started if the view is torn down
+    // before the btActive binding had a chance to flip
+    Component.onDestruction: if (BluetoothService.adapter && BluetoothService.adapter.discovering) BluetoothService.adapter.discovering = false
 
     function pairNew(device) {
         if (!device)
@@ -126,7 +130,9 @@ Column {
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
             }
             Repeater {
-                model: BluetoothService.enabled ? (BluetoothService.pairedDevices || []) : []
+                // keyed by address: device property changes (RSSI, battery) update
+                // delegates IN PLACE instead of destroying/recreating the whole list
+                model: ScriptModel { values: BluetoothService.enabled ? (BluetoothService.pairedDevices || []) : []; objectProp: "address" }
                 Rectangle {
                     readonly property bool isConn: modelData.connected
                     readonly property bool isBusy: modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting
@@ -184,7 +190,9 @@ Column {
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
             }
             Repeater {
-                model: BluetoothService.enabled ? btCol.availableDevices : []
+                // keyed model: the available list re-sorts on every RSSI tick during
+                // discovery — without identity-diffing every delegate would churn
+                model: ScriptModel { values: BluetoothService.enabled ? btCol.availableDevices : []; objectProp: "address" }
                 Rectangle {
                     readonly property bool isPairing: modelData.pairing || (btCol.pairingAddrs[modelData.address] === true)
                     width: btList.width; height: 46; radius: 12
