@@ -300,16 +300,52 @@ Scope {
     // keep the OSD up while the user is interacting with it (drag / mute click)
     function holdPresenter() { if (mode === "presenter") presenterTimer.restart() }
     Timer { id: presenterTimer; interval: 1500; onTriggered: root.settle() }
-    // glanceable splash (Bluetooth connected, …) — icon + label, lingers a bit longer
-    function showSplash(icon, label) {
-        if (!ready || !isFocusedScreen) return
-        splashIcon = icon; splashLabel = label
+    // ---- Live Activities: a priority queue of glanceable splashes ----
+    // (charging, BT connect, focus, screen recording, …). Priority 2 preempts
+    // whatever splash is showing; lower priorities queue behind it and play in
+    // order. Nothing shows (or queues) over the expanded panel — the user is
+    // busy there — which also fixes the old showSplash stomping the hub.
+    property var _activities: []
+    function pushActivity(icon, label, opts) {
+        if (!ready || !isFocusedScreen || mode === "expanded") return
+        const a = {
+            icon: icon, label: label,
+            priority: (opts && opts.priority !== undefined) ? opts.priority : 1,
+            duration: (opts && opts.duration) ? opts.duration : 2600
+        }
+        if (mode === "presenter" && presenterKind === "splash" && splashTimer.running) {
+            if (a.priority >= 2) { _showActivity(a); return }
+            const q = _activities
+            q.push(a)
+            q.sort((x, y) => y.priority - x.priority)
+            _activities = q
+            return
+        }
+        _showActivity(a)
+    }
+    function _showActivity(a) {
+        splashIcon = a.icon; splashLabel = a.label
         presenterKind = "splash"
-        mode = "presenter"
-        bump()
+        if (mode !== "presenter") { mode = "presenter"; bump() }
+        splashTimer.interval = a.duration
         splashTimer.restart()
     }
-    Timer { id: splashTimer; interval: 2600; onTriggered: root.settle() }
+    // back-compat shim for the existing call sites
+    function showSplash(icon, label) { pushActivity(icon, label) }
+    Timer {
+        id: splashTimer
+        interval: 2600
+        onTriggered: {
+            if (root._activities.length > 0) {
+                const q = root._activities
+                const next = q.shift()
+                root._activities = q
+                root._showActivity(next)
+            } else {
+                root.settle()
+            }
+        }
+    }
 
     // Live-Activity splash when a Bluetooth device connects
     property bool btConnected: BluetoothService.connected
@@ -338,8 +374,17 @@ Scope {
     // Live Activity: power adapter plugged / unplugged
     onChargingChanged: {
         if (!ready) return
-        showSplash(charging ? "battery_charging_full" : "battery_full",
-                   (charging ? I18n.tr("Charging") : I18n.tr("On battery")) + " • " + batPct + "%")
+        pushActivity(charging ? "battery_charging_full" : "battery_full",
+                     (charging ? I18n.tr("Charging") : I18n.tr("On battery")) + " • " + batPct + "%")
+    }
+    // Live Activity: screen recording / sharing started or ended (high priority —
+    // the user should always notice their screen being captured)
+    property bool _screenshare: PrivacyService.screensharingActive
+    on_ScreenshareChanged: {
+        if (!ready) return
+        pushActivity(_screenshare ? "screen_share" : "stop_screen_share",
+                     _screenshare ? I18n.tr("Screen sharing started") : I18n.tr("Screen sharing ended"),
+                     { priority: 2 })
     }
     // Live Activity: Focus (Do Not Disturb) toggled
     Connections {

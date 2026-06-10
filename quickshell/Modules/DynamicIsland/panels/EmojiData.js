@@ -499,13 +499,36 @@ function byCategory(cat) {
 }
 
 function search(query) {
+    // tokenized AND search: every word must match somewhere in name+keywords
+    // ("heart red" now finds the red heart; single-token behaves as before)
     var q = (query || "").toLowerCase().trim()
     if (q.length === 0) return []
+    var tokens = q.split(/\s+/)
     var out = []
     for (var i = 0; i < EMOJI.length; i++) {
         var em = EMOJI[i]
         var hay = em.n + " " + (em.k || "")
-        if (hay.indexOf(q) !== -1) out.push(em)
+        var ok = true
+        for (var t = 0; t < tokens.length; t++) {
+            if (hay.indexOf(tokens[t]) === -1) { ok = false; break }
+        }
+        if (ok) out.push(em)
     }
     return out
+}
+
+// ---- skin tones ----
+// modifier bases present in this dataset (hands & gestures); the panel shows
+// a 6-variant strip on right-click / long-press for these
+var TONEABLE = {
+    "👋": 1, "🤚": 1, "✋": 1, "🖐️": 1, "👌": 1, "🤌": 1, "🤏": 1, "✌️": 1, "🤞": 1, "🤟": 1,
+    "🤘": 1, "🤙": 1, "👈": 1, "👉": 1, "👆": 1, "👇": 1, "☝️": 1, "👍": 1, "👎": 1, "✊": 1,
+    "👊": 1, "🤛": 1, "🤜": 1, "👏": 1, "🙌": 1, "👐": 1, "🤲": 1, "🤝": 1, "🙏": 1, "✍️": 1, "💪": 1
+}
+var TONES = ["", "\u{1F3FB}", "\u{1F3FC}", "\u{1F3FD}", "\u{1F3FE}", "\u{1F3FF}"]
+function toneable(e) { return TONEABLE[e] === 1 }
+function withTone(e, tone) {
+    if (!tone) return e
+    // the skin-tone modifier replaces any emoji variation selector (✌️ -> ✌🏽)
+    return e.replace(/️/g, "") + tone
 }

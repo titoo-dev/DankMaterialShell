@@ -734,9 +734,30 @@ désormais), et le champ mot de passe Wi-Fi.
     l'œil : la calculatrice (`=2*3` + Enter), une action d'app (« private »), le mixer avec un
     média en lecture.
 
+**Phase 3 (même jour, 6e commit) — Live Activities, Emoji v2, squircle** :
+25. **Framework Live Activities** : `showSplash` ad hoc remplacé par
+    **`pushActivity(icon, label, {priority, duration})`** + file `_activities` triée par priorité.
+    Priorité ≥2 **préempte** le splash courant ; ≤1 se met en file et joue à la suite
+    (`splashTimer.onTriggered` dépile avant de `settle()`). **Rien ne s'affiche ni ne s'empile
+    en mode expanded** (corrige au passage le vieux bug : brancher le chargeur fermait le
+    Control Center). `showSplash` reste en shim de compat (BT/charge/DND). Nouvelle source :
+    **screenshare start/stop** (priorité 2, icônes screen_share/stop_screen_share).
+26. **Emoji v2** : recherche **tokenisée AND** (« heart red » marche) ; **skin tones** —
+    `TONEABLE` (31 bases mains/gestes), `TONES` (6), `withTone()` (⚠️ le modificateur REMPLACE
+    le VS16 : `✌️`→`✌🏽` ; le regex contient le caractère U+FE0F littéral, invisible).
+    UI : **clic droit ou appui long** sur une cellule modifiable → bandeau de 6 variantes entre
+    les onglets et la grille ; clic = insertion de la variante ; Esc ferme le bandeau d'abord,
+    puis revient au hub. Dataset complet (~3800, emojibase) toujours non fait : nécessite une
+    étape de génération réseau/build — assumé hors scope.
+27. **Squircle** (`NotchVisual._trace`) : les coins **convexes** passent des arcs circulaires à
+    **un Bézier cubique à courbure continue** par coin (run-in `d = 1.28r`, poignées `0.484d`,
+    clampés) — le « kick » de courbure au raccord arc/droite disparaît (coin iOS). Les **flares
+    concaves du notch restent circulaires** (c'est la signature MacBook). Toggle de revert : non
+    (c'est le nouveau look) ; pour comparer, l'ancien `_arc` 90° est dans l'historique git.
+
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
 NotchVisual en Shape CurveRenderer, recherche de fichiers Spotlight (si dsearch installé),
-a11y/Échap universel, Phase 3 (Live Activities, emoji v2, squircle/accent adaptatif).
+a11y/Échap universel, dataset emoji complet (génération emojibase), accent adaptatif pochette.
 
 ## Backlog restant (priorité basse)
 

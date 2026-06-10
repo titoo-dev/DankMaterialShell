@@ -20,6 +20,8 @@ Column {
     property string activeCat: "smileys"
     property var recents: []
     property int selIndex: 0
+    // emoji whose skin-tone variants are showing in the strip ("" = closed)
+    property string toneBase: ""
     readonly property int columns: Math.max(1, Math.floor(gridFlick.width / cell))
 
     // active model: search results, recents, or the active category
@@ -29,7 +31,7 @@ Column {
         if (activeCat === "recent") return recents
         return EmojiData.byCategory(activeCat)
     }
-    onItemsChanged: { selIndex = 0; gridFlick.contentY = 0 }
+    onItemsChanged: { selIndex = 0; gridFlick.contentY = 0; toneBase = "" }
 
     function emojiOf(it) { return (typeof it === "string") ? it : (it ? it.e : "") }
     // type the emoji straight into the focused input (Windows-emoji-picker style)
@@ -93,7 +95,10 @@ Column {
         Keys.onRightPressed: emojiCol.move(1, 0)
         Keys.onUpPressed: emojiCol.move(0, -1)
         Keys.onDownPressed: emojiCol.move(0, 1)
-        Keys.onEscapePressed: island.panelView = "controls"
+        Keys.onEscapePressed: {
+            if (emojiCol.toneBase !== "") emojiCol.toneBase = ""
+            else island.panelView = "controls"
+        }
     }
 
     // header: back · search field
@@ -150,6 +155,37 @@ Column {
     // count of currently-visible category tabs (recent only when non-empty)
     readonly property int _visibleCats: EmojiData.CATEGORIES.length - (recents.length > 0 ? 0 : 1)
 
+    // skin-tone variant strip (right-click / long-press a hand emoji to open)
+    Rectangle {
+        width: parent.width; height: visible ? 46 : 0; radius: 12
+        visible: emojiCol.toneBase !== ""
+        color: Theme.surfaceLight
+        Row {
+            anchors.centerIn: parent; spacing: Theme.spacingXS
+            Repeater {
+                model: emojiCol.toneBase !== "" ? EmojiData.TONES : []
+                Rectangle {
+                    width: 40; height: 40; radius: 10
+                    color: toneArea.containsMouse ? Theme.primarySelected : "transparent"
+                    Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                    StyledText {
+                        anchors.centerIn: parent
+                        text: EmojiData.withTone(emojiCol.toneBase, modelData)
+                        font.pixelSize: 22
+                    }
+                    MouseArea {
+                        id: toneArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            const v = EmojiData.withTone(emojiCol.toneBase, modelData)
+                            emojiCol.toneBase = ""
+                            emojiCol.pick(v)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // emoji grid
     Flickable {
         id: gridFlick
@@ -179,8 +215,21 @@ Column {
                     }
                     MouseArea {
                         id: cellArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onPositionChanged: emojiCol.selIndex = index
-                        onClicked: emojiCol.pick(modelData)
+                        onClicked: mouse => {
+                            const e = emojiCol.emojiOf(modelData)
+                            if (mouse.button === Qt.RightButton && EmojiData.toneable(e)) {
+                                emojiCol.toneBase = e   // right-click = skin-tone variants
+                                return
+                            }
+                            emojiCol.pick(modelData)
+                        }
+                        // long-press = skin tones too (touch has no right-click)
+                        onPressAndHold: {
+                            const e = emojiCol.emojiOf(modelData)
+                            if (EmojiData.toneable(e)) emojiCol.toneBase = e
+                        }
                     }
                 }
             }
