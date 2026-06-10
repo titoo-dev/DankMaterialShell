@@ -682,10 +682,32 @@ désormais), et le champ mot de passe Wi-Fi.
     mappés ~5 s puis démappés ; **fullscreen → le pill de l'écran passe de mappé à DÉMAPPÉ** puis
     revient. Zéro erreur QML.
 
+**Phase 2 suite (même jour, 4e commit) — bannières GROUPÉES par app + INLINE REPLY** :
+19. `NotificationBanners` consomme **`NotificationService.groupedPopups`** (une carte par app,
+    `ScriptModel { objectProp: "key" }`) : la carte montre `latestNotification` + **badge « ×N »**
+    dans l'eyebrow ; ✕ et swipe-droite **effacent le groupe entier** ; tap = action default de la
+    plus récente. ⚠️ `groupedPopups` est trié **newest-first** → le rang du deck est `r = index`
+    (les popups bruts étaient oldest-first avec `r = n-1-index`).
+20. **Inline reply** (le DMS natif ne l'implémente NULLE PART — l'île le dépasse ici) : chip
+    « Reply » quand `topNotif.notification.hasInlineReply` (le serveur déclare
+    `inlineReplySupported: true`) → champ inline dans la carte → Enter/bouton =
+    `notification.sendInlineReply(text)` + dismiss. **Grab clavier** : `bannerWindow` passe
+    `keyboardFocus: Exclusive` tant que `notifBanners.needsKeyboard` (replyKey ≠ "") ; Esc ferme
+    (keyForwardTargets). Pendant la saisie : timers du groupe stoppés, deck maintenu déplié
+    (`expanded` inclut `replyKey !== ""`), et `onReplyKeyChanged` relance les timers si le pointeur
+    est déjà dehors. `syncTimers(stop)` factorise hover-pause/resume sur TOUTES les notifs des
+    groupes.
+21. ⚠️ **GOTCHA z-order corrigé** : `bArea` (tap/swipe plein-carte) était déclaré APRÈS `bCol` →
+    au-dessus → il volait les clics des chips/du champ. Passé `z: -1` : les enfants interactifs
+    (chips, reply, send) reçoivent leurs clics, le corps inerte tombe sur tap/swipe.
+    + icônes bannières : résolution `Quickshell.iconPath` des noms de thème + `sourceSize 92`.
+    Testé : 2 notifs « Messages » groupées + 1 « Mail », zéro erreur QML, fenêtre bannières
+    mappée/démappée proprement. ⚠️ Rendu visuel du badge ×N et du champ reply à sanity-checker
+    à l'œil (pas de capture possible headless).
+
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
-NotchVisual en Shape CurveRenderer, Phase 2 suite (groupement notifs + inline reply, Spotlight
-providers, a11y/Échap universel), Phase 3 (Live Activities, mixer par app, emoji v2,
-squircle/accent adaptatif).
+NotchVisual en Shape CurveRenderer, Spotlight providers riches, a11y/Échap universel,
+Phase 3 (Live Activities, mixer par app, emoji v2, squircle/accent adaptatif).
 
 ## Backlog restant (priorité basse)
 

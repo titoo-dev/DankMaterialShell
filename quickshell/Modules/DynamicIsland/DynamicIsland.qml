@@ -500,6 +500,8 @@ Scope {
         WlrLayershell.namespace: "dms:dynamic-island-banners"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.exclusiveZone: -1
+        // grab the keyboard only while an inline reply field is open
+        WlrLayershell.keyboardFocus: notifBanners.needsKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         color: "transparent"
         anchors { top: true; right: true }
         implicitWidth: 440
