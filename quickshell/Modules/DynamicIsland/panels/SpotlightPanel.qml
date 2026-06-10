@@ -69,8 +69,11 @@ Column {
         appFlick.contentY = 0
     }
     function move(delta) {
-        if (results.length === 0) return
-        selIndex = Math.max(0, Math.min(results.length - 1, selIndex + delta))
+        // clamp to what is actually RENDERED (the list shows the first 24), so
+        // the selection can never scroll past the visible rows
+        const visCount = Math.min(results.length, 24)
+        if (visCount === 0) return
+        selIndex = Math.max(0, Math.min(visCount - 1, selIndex + delta))
         ensureVisible()
     }
     function ensureVisible() {

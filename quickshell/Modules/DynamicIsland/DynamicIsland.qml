@@ -31,7 +31,7 @@ PanelWindow {
         return Hyprland.focusedMonitor ? (Hyprland.focusedMonitor.name === monitorName) : isPrimaryScreen
     }
     readonly property bool privacyActive: PrivacyService.microphoneActive || PrivacyService.cameraActive || PrivacyService.screensharingActive
-    readonly property bool glowActive: mode === "media" || mode === "chip" || mode === "notif"
+    readonly property bool glowActive: mode === "media" || mode === "chip"
 
     // focused window (wlr foreign-toplevel; works on Hyprland/niri/sway/...)
     readonly property var activeWin: ToplevelManager.activeToplevel
@@ -120,8 +120,6 @@ PanelWindow {
     readonly property var trayItems: SystemTray.items ? SystemTray.items.values : []
 
     readonly property var popups: NotificationService.popups ?? []
-    // NotificationService appends new popups, so the freshest is the LAST element
-    readonly property var latestPopup: popups.length > 0 ? popups[popups.length - 1] : null
     // ambient screen-edge glow pulse whenever a NEW popup arrives (focused screen only)
     property int _popupCount: 0
     onPopupsChanged: {
@@ -132,30 +130,8 @@ PanelWindow {
         }
         _popupCount = popups.length
     }
-    // named actions for the active notif, minus the implicit "default" (body click), capped to keep the pill compact
-    readonly property var notifActions: {
-        if (!latestPopup || !latestPopup.actions) return []
-        var out = []
-        for (var i = 0; i < latestPopup.actions.length && out.length < 2; i++) {
-            var a = latestPopup.actions[i]
-            if (a && a.identifier !== "default" && (a.text || "").length > 0)
-                out.push(a)
-        }
-        return out
-    }
-    // critical notifications must not auto-dismiss (battery dead, link lost, ...)
-    readonly property bool notifCritical: latestPopup ? (latestPopup.urgency === NotificationUrgency.Critical) : false
-    // the implicit "default" action (invoked by clicking the notification body)
-    function defaultAction() {
-        if (!latestPopup || !latestPopup.actions) return null
-        for (var i = 0; i < latestPopup.actions.length; i++) {
-            var a = latestPopup.actions[i]
-            if (a && a.identifier === "default") return a
-        }
-        return null
-    }
-    // macOS model: notifications are independent top-right banners (see bannerList),
-    // they NEVER take over the island. The pill's old "notif" mode is retired.
+    // macOS model: notifications are independent top-right banners (NotificationBanners),
+    // they NEVER take over the island.
 
     readonly property var audioNode: AudioService.sink && AudioService.sink.audio ? AudioService.sink.audio : null
     readonly property int volPct: audioNode ? Math.round(audioNode.volume * 100) : 0
@@ -202,7 +178,7 @@ PanelWindow {
 
     // ---------- state machine ----------
     // "compact"(rest) | "chip"(rest+media) | "idle" | "media" | "expanded"
-    // | "notif" | "presenter"
+    // | "presenter"
     property string mode: "compact"
     property bool hovered: false
     property bool pinned: false
@@ -231,6 +207,7 @@ PanelWindow {
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
     property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
+    onPanelViewChanged: if (panelView !== "wifi") wifiNeedsKeyboard = false
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
 
@@ -248,7 +225,7 @@ PanelWindow {
     }
     readonly property string presenterIcon: {
         if (presenterKind === "splash") return splashIcon
-        if (presenterKind === "battery") return charging ? "battery_charging_full" : "battery_full"
+        if (presenterKind === "battery") return Theme.getBatteryIcon(batPct, charging, batAvailable)
         if (presenterKind === "brightness") return "brightness_6"
         if (muted) return "volume_off"   // volume
         if (volPct === 0) return "volume_mute"
@@ -264,7 +241,9 @@ PanelWindow {
     // fully collapse the island from a panel action (lock/power/settings):
     // drop the pin and force a rest mode even while the pointer is over it.
     function closeIsland() { panelView = "controls"; pinned = false; mode = restMode() }
-    onPlayingChanged: if (!hovered && !pinned && mode !== "notif" && mode !== "presenter") mode = restMode()
+    // never yank the expanded control center (or an active OSD) away just because
+    // playback started/stopped — only the rest modes follow the player
+    onPlayingChanged: if (!hovered && !pinned && mode !== "presenter" && mode !== "expanded") mode = restMode()
 
     // ---------- insert the emoji into the focused app (emoji picker) ----------
     // Wayland vs XWayland reality on this setup:
@@ -298,42 +277,26 @@ PanelWindow {
         }
     }
 
-    function showNotif() {
-        pendingPopup = null
-        mode = "notif"; bump()
-        // read straight off latestPopup: the derived notifCritical/notifActions
-        // bindings haven't recomputed yet in this same tick (would be stale)
-        const p = latestPopup
-        const crit = p ? (p.urgency === NotificationUrgency.Critical) : false
-        var actionable = false
-        if (p && p.actions) {
-            for (var i = 0; i < p.actions.length; i++) {
-                const a = p.actions[i]
-                if (a && a.identifier !== "default" && (a.text || "").length > 0) { actionable = true; break }
-            }
-        }
-        // critical stays until dismissed; an actionable notif already under the
-        // cursor keeps its buttons (hover transition won't refire to pause it)
-        if (crit || (hovered && actionable)) { notifTimer.stop(); return }
-        notifTimer.restart()
-    }
-    Timer { id: notifTimer; interval: 4000; onTriggered: root.settle() }
     // idle/media linger after pointer-leave; the expanded panel is dismissed by a
     // click outside (scrim), not by this timer (macOS behaviour).
     Timer { id: hideTimer; interval: 1800; onTriggered: root.settle() }
 
     function showPresenter(kind) {
         if (!ready || !isFocusedScreen) return
-        if (mode === "notif" || mode === "expanded") return   // don't stomp a notif / the inline control center
+        if (mode === "expanded") return   // don't stomp the inline control center
         presenterKind = kind   // value/icon follow reactively from here
-        mode = "presenter"
-        bump()
+        if (mode !== "presenter") {
+            mode = "presenter"
+            bump()   // pop once on appearance, not on every step while showing
+        }
         presenterTimer.restart()
     }
+    // keep the OSD up while the user is interacting with it (drag / mute click)
+    function holdPresenter() { if (mode === "presenter") presenterTimer.restart() }
     Timer { id: presenterTimer; interval: 1500; onTriggered: root.settle() }
     // glanceable splash (Bluetooth connected, …) — icon + label, lingers a bit longer
     function showSplash(icon, label) {
-        if (!ready || !isFocusedScreen || mode === "notif") return
+        if (!ready || !isFocusedScreen) return
         splashIcon = icon; splashLabel = label
         presenterKind = "splash"
         mode = "presenter"
@@ -452,7 +415,6 @@ PanelWindow {
             const need = idlePane.wsWidth + idlePane.clusterWidth + 90 + Theme.spacingL * 2 + Theme.spacingM * 2
             return Math.max(480, Math.min(need, screenW - 40))
         }
-        case "notif":     return notifActions.length > 0 ? 524 : 464
         case "presenter": return 320
         default:          return Math.max(92, compactPane.contentWidth + Theme.spacingL * 2)  // compact
         }
@@ -462,7 +424,6 @@ PanelWindow {
         case "media":     return 78
         case "expanded":  return controlPanel.viewHeight + Theme.spacingM * 2
         case "idle":      return 50
-        case "notif":     return 80
         case "presenter": return 48
         case "chip":      return 34
         default:          return 28   // compact
@@ -485,10 +446,17 @@ PanelWindow {
     // Hyprland's OnDemand focus-grab only kicks in on a pointer click. Released the
     // instant panelView leaves these views; Esc / click-outside scrim / back all exit.
     readonly property var _kbViews: ["apps", "clipboard", "emoji", "wallpaper"]
+    // the Wi-Fi view grabs the keyboard only while an inline password prompt is
+    // open (set by WifiPanel) — without it the field can never receive input
+    property bool wifiNeedsKeyboard: false
     WlrLayershell.keyboardFocus: {
-        if (mode !== "expanded" || _kbViews.indexOf(panelView) === -1)
+        if (mode !== "expanded")
             return WlrKeyboardFocus.None
-        return WlrKeyboardFocus.Exclusive
+        if (_kbViews.indexOf(panelView) !== -1)
+            return WlrKeyboardFocus.Exclusive
+        if (panelView === "wifi" && wifiNeedsKeyboard)
+            return WlrKeyboardFocus.Exclusive
+        return WlrKeyboardFocus.None
     }
     color: "transparent"
 
@@ -601,7 +569,7 @@ PanelWindow {
             // silhouette); the pill itself is just the transparent, clipped
             // host for the content panes + interaction handlers.
             color: "transparent"
-            readonly property bool alertBorder: root.privacyActive || (root.mode === "notif" && root.notifCritical)
+            readonly property bool alertBorder: root.privacyActive
             antialiasing: true
             clip: true
 
@@ -685,17 +653,11 @@ PanelWindow {
                     root.hovered = hovered
                     if (hovered) {
                         hideTimer.stop()
-                        // keep an actionable notif up while the pointer is on it, so its buttons stay clickable
-                        if (root.mode === "notif" && root.notifActions.length > 0)
-                            notifTimer.stop()
                         if (root.mode === "compact" || root.mode === "chip") {
                             root.mode = root.playing ? "media" : "idle"
                             root.bump()   // tactile pop as the island unfolds under the pointer
                         }
                     } else if (!root.pinned) {
-                        // critical notifs never auto-dismiss; others resume their timer
-                        if (root.mode === "notif" && !root.notifCritical)
-                            notifTimer.restart()
                         // expanded panel = macOS: stays open until a click outside (scrim),
                         // the back button, or Super+I — NOT on pointer-leave
                         if (root.mode !== "expanded")

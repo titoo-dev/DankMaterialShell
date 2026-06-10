@@ -26,15 +26,19 @@ Item {
         anchors.left: parent.left; anchors.top: parent.top
         color: Theme.primaryBackground
         Image {
+            id: mArtImg
             anchors.fill: parent
             source: island.player ? (island.player.trackArtUrl ?? "") : ""
             fillMode: Image.PreserveAspectCrop
+            cache: false; asynchronous: true
             visible: status === Image.Ready
         }
         DankIcon {
             anchors.centerIn: parent; name: "music_note"
             size: 22; color: island.accent
-            visible: !(island.player && island.player.trackArtUrl)
+            // fall back on the REAL load status (art URLs are often transient
+            // tmp files that vanish) — never leave an empty box
+            visible: mArtImg.status !== Image.Ready
         }
     }
     Column {
@@ -52,7 +56,7 @@ Item {
         StyledText {
             id: mTitle
             width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-            text: island.player ? (island.player.trackTitle || "Unknown") : ""
+            text: island.player ? (island.player.trackTitle || I18n.tr("Unknown")) : ""
             color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
         }
         StyledText {
@@ -67,26 +71,38 @@ Item {
         anchors.right: parent.right; anchors.verticalCenter: art.verticalCenter
         spacing: 0
         Repeater {
-            model: [
-                { icon: "skip_previous", label: I18n.tr("Previous"), big: false, en: island.player && island.player.canGoPrevious, act: () => { if (island.player) island.player.previous() } },
-                { icon: island.playing ? "pause" : "play_arrow", label: island.playing ? I18n.tr("Pause") : I18n.tr("Play"), big: true, en: !!island.player, act: () => { if (island.player) island.player.togglePlaying() } },
-                { icon: "skip_next", label: I18n.tr("Next"), big: false, en: island.player && island.player.canGoNext, act: () => { if (island.player) island.player.next() } }
-            ]
+            // STATIC model: the buttons live across play/pause/track changes (a
+            // computed array model would destroy+recreate them on every change)
+            model: ["prev", "play", "next"]
             Rectangle {
+                readonly property bool big: modelData === "play"
+                readonly property bool en: modelData === "play" ? !!island.player
+                                         : modelData === "prev" ? !!(island.player && island.player.canGoPrevious)
+                                         : !!(island.player && island.player.canGoNext)
+                readonly property string glyph: modelData === "play" ? (island.playing ? "pause" : "play_arrow")
+                                              : modelData === "prev" ? "skip_previous" : "skip_next"
+                readonly property string label: modelData === "play" ? (island.playing ? I18n.tr("Pause") : I18n.tr("Play"))
+                                              : modelData === "prev" ? I18n.tr("Previous") : I18n.tr("Next")
+                function act() {
+                    if (!island.player) return
+                    if (modelData === "play") island.player.togglePlaying()
+                    else if (modelData === "prev") island.player.previous()
+                    else island.player.next()
+                }
                 width: 36; height: 36; radius: 12
-                color: cArea.containsMouse && modelData.en ? Theme.primaryHover : "transparent"
-                opacity: modelData.en ? 1 : 0.35
+                color: cArea.containsMouse && en ? Theme.primaryHover : "transparent"
+                opacity: en ? 1 : 0.35
                 Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                scale: cArea.pressed && modelData.en ? 0.86 : 1.0
+                scale: cArea.pressed && en ? 0.86 : 1.0
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                DankIcon { anchors.centerIn: parent; name: modelData.icon; size: modelData.big ? 26 : 20; color: island.accent }
-                ToolTip.visible: cArea.containsMouse && modelData.en
-                ToolTip.text: modelData.label
+                DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 26 : 20; color: island.accent }
+                ToolTip.visible: cArea.containsMouse && en
+                ToolTip.text: label
                 ToolTip.delay: 400
                 MouseArea {
                     id: cArea; anchors.fill: parent; hoverEnabled: true
-                    enabled: modelData.en; cursorShape: Qt.PointingHandCursor
-                    onClicked: modelData.act()
+                    enabled: parent.en; cursorShape: Qt.PointingHandCursor
+                    onClicked: parent.act()
                 }
             }
         }
@@ -98,6 +114,8 @@ Item {
         anchors.bottom: parent.bottom
         height: 4; radius: 2
         color: Theme.surfaceVariant
+        // streams without a duration (radio, some browsers) get no scrubber (macOS)
+        visible: island.mediaLen > 0
         property int tick: 0
         property bool seeking: false
         property real seekFrac: 0
@@ -146,6 +164,7 @@ Item {
             text: { island.mediaTick; return island.fmtTime(trackBar.seeking ? trackBar.seekFrac * island.mediaLen : (island.player ? island.player.position : 0)) }
             color: island.subText; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true
             opacity: trackBar.timesShown ? 0.9 : 0
+            visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
         }
         StyledText {
@@ -153,6 +172,7 @@ Item {
             text: { island.mediaTick; return "-" + island.fmtTime(Math.max(0, island.mediaLen - (trackBar.seeking ? trackBar.seekFrac * island.mediaLen : (island.player ? island.player.position : 0)))) }
             color: island.subText; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true
             opacity: trackBar.timesShown ? 0.9 : 0
+            visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
         }
     }

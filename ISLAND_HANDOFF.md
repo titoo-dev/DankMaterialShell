@@ -584,6 +584,57 @@ Intégrés dans le **hub** (mode expanded) avec un design « title bar » macOS 
   La fonction `openMenu()` du contrôleur — devenue **sans aucun appelant** — est supprimée (le seul
   popout DMS restant accessible depuis l'île est désormais la **modal Réglages** via l'orbe Settings).
 
+## Audit complet + Phase 0/2 (fait 2026-06-10)
+
+Audit d'ingénierie complet dans **`ISLAND_AUDIT.md`** (~70 findings cités fichier:ligne,
+scorecard, gap-analysis macOS/Win11, roadmap 4 phases). Correctifs appliqués et **vérifiés
+live** (restart + journal propre + smoke tests IPC + notifs gdbus + OSD wpctl) :
+
+**Phase 0 (bugs)** :
+1. **Wi-Fi mot de passe ENFIN saisissable** : `island.wifiNeedsKeyboard` (posé par WifiPanel quand
+   un prompt est ouvert via `pwSsid`) étend le grab `keyboardFocus` — "wifi" manquait dans `_kbViews`.
+   + Enter submit (`onAccepted`), `forceActiveFocus()`, champ vidé au repli, prompt exclusif (1 SSID).
+2. **PowerPanel** : logout/reboot/poweroff = **2e clic de confirmation** (3 s, ligne rouge « Click
+   again to confirm ») respectant `SettingsData.powerActionConfirm`. Lock/Sleep restent directs.
+3. **Bannières** : Timer local 5000 ms SUPPRIMÉ → le **timer du service** (respecte
+   `notificationTimeout*`, critique persistant) est pausé/relancé au hover du deck.
+   Modèle **`ScriptModel`** (diff par identité → délégués stables, fin du ReferenceError modelData
+   du journal). ⚠️ `values` exige un **vrai tableau JS** (pas une QQmlListReference) → `items`
+   matérialisé via boucle. Fix binding `expanded` écrasé → `pinnedOpen` séparé (réinit à n=0).
+4. **État mort "notif" purgé** du contrôleur (showNotif/notifTimer/notifActions/notifCritical/
+   defaultAction + branches pillW/pillH/glowActive/alertBorder/hover). `onPlayingChanged` n'éjecte
+   plus le mode **expanded**.
+5. **IPC `open` whitelisté** (`IslandHub.views`, source unique) → `ISLAND_ERROR:unknown-view:…`.
+6. Spotlight : `move()` clampé aux **24 lignes rendues** (sélection ne sort plus de l'écran).
+7. EmojiData : cricket 🏏 (chaîne Unicode invalide U+FFFD+surrogate) réparé, doublon 😅 retiré.
+8. Art « Now Playing » (hub + MediaPane) : fallback lié à `Image.status` (plus de boîte vide sur
+   tmp file Chrome disparu — erreur vue au journal), `cache:false; asynchronous:true`.
+
+**Phase 2 (parité macOS, batch 1)** :
+9. **OSD interactif segmenté** : PresenterPane = **16 crans** macOS ; **clic icône = mute** (volume) ;
+   **drag sur la barre** règle volume/luminosité (`DisplayService.setBrightness(v,"",true)`) ;
+   `island.holdPresenter()` maintient l'OSD pendant l'interaction ; `bump()` seulement à la
+   1re apparition (plus de pulse à chaque cran) ; volume muted affiche **« Muted »** (plus « 0% »).
+10. **Wi-Fi états transitoires** : spinner `sync` rotatif + « Connecting… » par ligne
+    (`connectingSSID`), **erreur inline** rouge sur le réseau qui a échoué (`lastConnectionError`
+    attribué via `lastTriedSsid`), réouverture du prompt sur `passwordDialogShouldReopen` (plus de
+    modal global par-dessus l'île), garde anti double-clic, `NetworkService.addRef()/removeRef()`
+    + scan à l'activation (le chemin IPC `open wifi` scanne enfin).
+11. **Bluetooth** : sous-titre **« Connecting…/Disconnecting… »** (`BluetoothDeviceState`, import
+    `Quickshell.Bluetooth`), icône sync rotative, ligne désactivée pendant la transition ;
+    « Available » vidée quand `!discovering` (fin des appareils fantômes).
+12. **Transport média statique** (MediaPane + hub) : `model: ["prev","play","next"]` + bindings
+    dans le délégué — les boutons survivent au play/pause (fin du churn destroy/recreate).
+13. Quick wins : calendrier **localisé** (premier jour + noms de jours `Qt.locale()`, init
+    `new Date()`, `isToday` réactif à minuit via `clockShort`) ; trackBar masquée si flux sans durée ;
+    timestamps `visible: opacity>0` ; `Theme.getBatteryIcon` (presenter + compact) ; mic **orange** /
+    caméra **verte** (langage iOS) ; horloge idle cliquable → drill calendar ; `I18n.tr("Unknown")`.
+
+Restent dans la roadmap (ISLAND_AUDIT.md §7) : Phase 1 (éclatement de la fenêtre plein écran,
+registre de vues + Loaders, IslandState typé, virtualisation des listes, NotchVisual en Shape),
+Phase 2 suite (groupement notifs + inline reply, Spotlight providers, a11y/Échap universel),
+Phase 3 (Live Activities, mixer par app, emoji v2, squircle/accent adaptatif).
+
 ## Backlog restant (priorité basse)
 
 - Keyboard-layout sur Hyprland (DMS n'expose pas la source ; OK sur niri/dwl).

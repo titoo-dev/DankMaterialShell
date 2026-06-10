@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Bluetooth
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -18,9 +19,11 @@ Column {
     // wholesale so QML re-evaluates the bindings that read it.
     property var pairingAddrs: ({})
 
-    // discovered, not-yet-paired devices (same filter the native DMS UI uses)
+    // discovered, not-yet-paired devices (same filter the native DMS UI uses).
+    // Once discovery stops the RSSI is no longer refreshed, so long-gone devices
+    // would linger forever — show the list only while actually discovering.
     readonly property var availableDevices: {
-        if (!BluetoothService.enabled || !BluetoothService.devices)
+        if (!BluetoothService.enabled || !BluetoothService.devices || !BluetoothService.discovering)
             return []
         const list = BluetoothService.devices.values.filter(d => d && !d.paired && !d.pairing && !d.blocked && (d.signalStrength === undefined || d.signalStrength > 0))
         return BluetoothService.sortDevices(list)
@@ -126,6 +129,7 @@ Column {
                 model: BluetoothService.enabled ? (BluetoothService.pairedDevices || []) : []
                 Rectangle {
                     readonly property bool isConn: modelData.connected
+                    readonly property bool isBusy: modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting
                     width: btList.width; height: 46; radius: 12
                     color: (btRowA.containsMouse || isConn) ? Theme.surfaceLight : "transparent"
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
@@ -139,11 +143,27 @@ Column {
                         anchors.right: btSpin.left; anchors.rightMargin: Theme.spacingS
                         anchors.verticalCenter: parent.verticalCenter; spacing: 0
                         StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: modelData.name || modelData.deviceName || I18n.tr("Unknown Device"); color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: parent.parent.isConn }
-                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: (parent.parent.isConn ? I18n.tr("Connected") : I18n.tr("Disconnected")) + ((modelData.batteryAvailable && modelData.battery > 0) ? ("  •  " + Math.round(modelData.battery * 100) + "%") : ""); color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2 }
+                        StyledText {
+                            width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                            text: {
+                                if (modelData.state === BluetoothDeviceState.Connecting) return I18n.tr("Connecting…")
+                                if (modelData.state === BluetoothDeviceState.Disconnecting) return I18n.tr("Disconnecting…")
+                                return (parent.parent.isConn ? I18n.tr("Connected") : I18n.tr("Disconnected")) + ((modelData.batteryAvailable && modelData.battery > 0) ? ("  •  " + Math.round(modelData.battery * 100) + "%") : "")
+                            }
+                            color: parent.parent.isBusy ? island.accent : island.subText
+                            font.pixelSize: Theme.fontSizeSmall - 2
+                        }
                     }
-                    DankIcon { id: btSpin; anchors.right: parent.right; anchors.rightMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter; name: parent.isConn ? "check_circle" : "add_circle"; size: 16; color: parent.isConn ? island.accent : island.subText }
+                    DankIcon {
+                        id: btSpin
+                        anchors.right: parent.right; anchors.rightMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter
+                        name: parent.isBusy ? "sync" : (parent.isConn ? "check_circle" : "add_circle"); size: 16
+                        color: parent.isBusy || parent.isConn ? island.accent : island.subText
+                        RotationAnimation on rotation { running: btSpin.parent.isBusy; from: 0; to: 360; duration: 900; loops: Animation.Infinite; onRunningChanged: if (!running) btSpin.rotation = 0 }
+                    }
                     MouseArea {
                         id: btRowA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        enabled: !parent.isBusy   // no double-fire while a transition is in flight
                         onClicked: { if (modelData.connected) modelData.disconnect(); else BluetoothService.connectDeviceWithTrust(modelData) }
                     }
                 }

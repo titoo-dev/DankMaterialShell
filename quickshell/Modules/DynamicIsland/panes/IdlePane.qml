@@ -77,8 +77,16 @@ Item {
         spacing: Theme.spacingS
         StyledText {
             text: island.clockShort
-            color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true
+            color: clockArea.containsMouse ? island.accent : island.textColor
+            font.pixelSize: Theme.fontSizeSmall; font.bold: true
             anchors.verticalCenter: parent.verticalCenter
+            // menu-bar-clock affordance: click straight into the calendar drill
+            MouseArea {
+                id: clockArea
+                anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.openPanel("calendar")
+            }
         }
         Row {  // weather
             spacing: 3; visible: island.weatherReady; anchors.verticalCenter: parent.verticalCenter

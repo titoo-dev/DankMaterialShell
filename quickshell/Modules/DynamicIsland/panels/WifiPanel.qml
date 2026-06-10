@@ -14,6 +14,38 @@ Column {
     transform: Translate { x: island.panelView === "wifi" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
+    // SSID whose inline password prompt is open (one at a time); the island
+    // grabs the keyboard only while a prompt is showing
+    property string pwSsid: ""
+    onPwSsidChanged: if (island) island.wifiNeedsKeyboard = (pwSsid !== "")
+    // SSID of the most recent connect attempt, for inline error attribution
+    property string lastTriedSsid: ""
+
+    // ref-count the service while the view is open so the network list stays
+    // fresh, and kick a scan on entry (covers the direct IPC `open wifi` path)
+    readonly property bool wifiActive: island && island.mode === "expanded" && island.panelView === "wifi"
+    onWifiActiveChanged: {
+        if (wifiActive) {
+            NetworkService.addRef()
+            if (NetworkService.wifiEnabled) NetworkService.scanWifiNetworks()
+        } else {
+            NetworkService.removeRef()
+            pwSsid = ""
+            lastTriedSsid = ""
+        }
+    }
+    Component.onDestruction: if (wifiActive) NetworkService.removeRef()
+
+    // wrong password → the service asks for credentials again: reopen the
+    // inline prompt instead of letting the global modal pop over the island
+    Connections {
+        target: NetworkService
+        function onPasswordDialogShouldReopenChanged() {
+            if (NetworkService.passwordDialogShouldReopen && wifiCol.wifiActive && wifiCol.lastTriedSsid.length > 0)
+                wifiCol.pwSsid = wifiCol.lastTriedSsid
+        }
+    }
+
     // header: back · title · radio toggle
     Item {
         width: parent.width; height: 34
@@ -91,8 +123,11 @@ Column {
                 Rectangle {
                     id: netRow
                     readonly property bool isConnected: modelData.ssid === NetworkService.currentWifiSSID
+                    readonly property bool isConnecting: NetworkService.isConnecting && NetworkService.connectingSSID === modelData.ssid
                     readonly property bool needsPw: modelData.secured && !modelData.saved && !isConnected
-                    property bool pwOpen: false
+                    readonly property bool pwOpen: wifiCol.pwSsid === modelData.ssid
+                    // show the last connection error inline, on the network that failed
+                    readonly property bool showError: !isConnected && !isConnecting && wifiCol.lastTriedSsid === modelData.ssid && (NetworkService.lastConnectionError || "").length > 0
                     width: netCol.width
                     height: pwOpen ? 84 : 46
                     radius: 12
@@ -111,29 +146,56 @@ Column {
                         anchors.right: rowRight.left; anchors.rightMargin: Theme.spacingS
                         anchors.top: parent.top; anchors.topMargin: 6; spacing: 0
                         StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: modelData.ssid || I18n.tr("Unknown"); color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: netRow.isConnected }
-                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: netRow.isConnected ? I18n.tr("Connected") : (modelData.secured ? I18n.tr("Secured") : I18n.tr("Open")); color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2 }
+                        StyledText {
+                            width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                            text: netRow.isConnecting ? I18n.tr("Connecting…")
+                                : netRow.showError ? NetworkService.lastConnectionError
+                                : netRow.isConnected ? I18n.tr("Connected")
+                                : (modelData.secured ? I18n.tr("Secured") : I18n.tr("Open"))
+                            color: netRow.showError ? Theme.error : (netRow.isConnecting ? island.accent : island.subText)
+                            font.pixelSize: Theme.fontSizeSmall - 2
+                        }
                     }
                     Row {
                         id: rowRight
                         anchors.right: parent.right; anchors.rightMargin: Theme.spacingM; anchors.top: parent.top; anchors.topMargin: 13; spacing: Theme.spacingXS
-                        DankIcon { visible: modelData.secured; name: "lock"; size: 14; color: island.subText; anchors.verticalCenter: parent.verticalCenter }
-                        DankIcon { visible: netRow.isConnected; name: "check_circle"; size: 16; color: island.accent; anchors.verticalCenter: parent.verticalCenter }
+                        DankIcon { visible: modelData.secured && !netRow.isConnecting; name: "lock"; size: 14; color: island.subText; anchors.verticalCenter: parent.verticalCenter }
+                        DankIcon { visible: netRow.isConnected && !netRow.isConnecting; name: "check_circle"; size: 16; color: island.accent; anchors.verticalCenter: parent.verticalCenter }
+                        DankIcon {  // connection-in-progress spinner
+                            visible: netRow.isConnecting; name: "sync"; size: 16; color: island.accent
+                            anchors.verticalCenter: parent.verticalCenter
+                            RotationAnimation on rotation { running: netRow.isConnecting; from: 0; to: 360; duration: 900; loops: Animation.Infinite }
+                        }
                     }
                     MouseArea {
                         id: rowArea; anchors.fill: parent; anchors.bottomMargin: netRow.pwOpen ? 40 : 0
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (netRow.isConnected) return
-                            if (netRow.needsPw) netRow.pwOpen = !netRow.pwOpen
-                            else NetworkService.connectToWifi(modelData.ssid)
+                            if (netRow.isConnected || netRow.isConnecting) return
+                            if (netRow.needsPw) {
+                                wifiCol.pwSsid = netRow.pwOpen ? "" : modelData.ssid
+                            } else {
+                                wifiCol.lastTriedSsid = modelData.ssid
+                                NetworkService.connectToWifi(modelData.ssid)
+                            }
                         }
                     }
                     // inline password entry for secured & unsaved networks
                     Row {
                         visible: netRow.pwOpen
+                        // focus the field as soon as the prompt opens (the island's
+                        // keyboard grab engages via island.wifiNeedsKeyboard)
+                        onVisibleChanged: { if (visible) { pwField.text = ""; pwField.forceActiveFocus() } else { pwField.text = "" } }
                         anchors.left: parent.left; anchors.right: parent.right; anchors.margins: Theme.spacingM
                         anchors.bottom: parent.bottom; anchors.bottomMargin: 6
                         spacing: Theme.spacingS
+                        function submit() {
+                            if (pwField.text.length === 0) return
+                            wifiCol.lastTriedSsid = modelData.ssid
+                            NetworkService.connectToWifi(modelData.ssid, pwField.text)
+                            pwField.text = ""
+                            wifiCol.pwSsid = ""
+                        }
                         DankTextField {
                             id: pwField
                             width: parent.width - 40
@@ -141,6 +203,7 @@ Column {
                             echoMode: TextInput.Password
                             placeholderText: I18n.tr("Password")
                             leftIconName: "lock"
+                            onAccepted: parent.submit()
                         }
                         Rectangle {
                             width: 32; height: 30; radius: 9
@@ -149,7 +212,7 @@ Column {
                             DankIcon { anchors.centerIn: parent; name: "arrow_forward"; size: 16; color: goArea.containsMouse ? Theme.primaryText : island.textColor }
                             MouseArea {
                                 id: goArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: { NetworkService.connectToWifi(modelData.ssid, pwField.text); netRow.pwOpen = false }
+                                onClicked: parent.parent.submit()
                             }
                         }
                     }

@@ -10,18 +10,20 @@ Column {
     id: calCol
     property var island: null
     // shown month + selected day, as plain ints (avoids date-binding churn)
-    property int viewYear: 2026
-    property int viewMonth: 0      // 0-11
-    property int selYear: 2026
-    property int selMonth: 0
-    property int selDay: 1
+    property int viewYear: new Date().getFullYear()
+    property int viewMonth: new Date().getMonth()      // 0-11
+    property int selYear: new Date().getFullYear()
+    property int selMonth: new Date().getMonth()
+    property int selDay: new Date().getDate()
+    // JS weekday (0=Sun..6=Sat) the user's locale starts its week on
+    readonly property int firstDowJs: Qt.locale().firstDayOfWeek % 7
     // bump to force event lookups to re-read after CalendarService updates
     property int eventsRev: CalendarService.eventsByDate ? Object.keys(CalendarService.eventsByDate).length : 0
 
     function todayDate() { return new Date() }
     function cellDate(i) {
         const first = new Date(viewYear, viewMonth, 1)
-        const offset = (first.getDay() + 6) % 7   // Monday-first column offset
+        const offset = (first.getDay() - firstDowJs + 7) % 7   // locale-first column offset
         return new Date(viewYear, viewMonth, 1 - offset + i)
     }
     function sameYMD(d, y, m, day) { return d.getFullYear() === y && d.getMonth() === m && d.getDate() === day }
@@ -104,14 +106,18 @@ Column {
         }
     }
 
-    // weekday header (Monday-first)
+    // weekday header (localized names AND first day of week)
     Row {
         width: parent.width
         Repeater {
-            model: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+            model: 7
             Item {
                 width: parent.width / 7; height: 18
-                StyledText { anchors.centerIn: parent; text: modelData; color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2; font.bold: true }
+                StyledText {
+                    anchors.centerIn: parent
+                    text: { const js = (calCol.firstDowJs + index) % 7; return Qt.locale().dayName(js === 0 ? 7 : js, Locale.ShortFormat) }
+                    color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2; font.bold: true
+                }
             }
         }
     }
@@ -127,7 +133,7 @@ Column {
                 width: parent.cell; height: parent.cell
                 readonly property var d: calCol.cellDate(index)
                 readonly property bool inMonth: d.getMonth() === calCol.viewMonth
-                readonly property bool isToday: { const t = calCol.todayDate(); return calCol.sameYMD(d, t.getFullYear(), t.getMonth(), t.getDate()) }
+                readonly property bool isToday: { island.clockShort; const t = calCol.todayDate(); return calCol.sameYMD(d, t.getFullYear(), t.getMonth(), t.getDate()) }   // clockShort dep → re-evaluates past midnight
                 readonly property bool isSel: calCol.sameYMD(d, calCol.selYear, calCol.selMonth, calCol.selDay)
                 readonly property bool hasEv: { calCol.eventsRev; return CalendarService.hasEventsForDate(d) }
                 Rectangle {

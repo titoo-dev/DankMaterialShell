@@ -18,9 +18,21 @@ import qs.Widgets
             anchors.rightMargin: 16
             visible: island.isFocusedScreen && n > 0
 
-            readonly property var items: island.isFocusedScreen ? island.popups : []
+            // materialize as a JS array: ScriptModel.values is a QVariantList and
+            // can't take a QQmlListReference; the wrapper objects keep their
+            // identity so the model still diffs instead of rebuilding
+            readonly property var items: {
+                if (!island.isFocusedScreen) return []
+                const src = island.popups, out = []
+                for (var i = 0; i < src.length; i++) out.push(src[i])
+                return out
+            }
             readonly property int n: items.length
-            property bool expanded: areaHover.hovered
+            // expanded follows hover; a tap on the collapsed deck pins it open
+            // (a separate flag — assigning to `expanded` would destroy the binding)
+            property bool pinnedOpen: false
+            readonly property bool expanded: areaHover.hovered || pinnedOpen
+            onNChanged: if (n === 0) pinnedOpen = false
             readonly property bool collapsed: n > 1 && !expanded
             readonly property real gap: 10
             readonly property real peek: 9   // visible sliver per stacked card when collapsed
@@ -35,10 +47,26 @@ import qs.Widgets
             height: n === 0 ? 0 : ((expanded || n === 1) ? expandedH : collapsedH)
             Behavior on height { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
 
-            HoverHandler { id: areaHover }
+            // pause every popup's SERVICE timer while the deck is hovered (the
+            // timers honour the user's notificationTimeout* settings; interval 0
+            // and critical notifications are persistent and never restarted)
+            HoverHandler {
+                id: areaHover
+                onHoveredChanged: {
+                    for (var i = 0; i < bannerArea.items.length; i++) {
+                        const w = bannerArea.items[i]
+                        if (!w || !w.timer) continue
+                        if (hovered) w.timer.stop()
+                        else if (w.popup && w.timer.interval > 0 && !w.timer.running) w.timer.restart()
+                    }
+                }
+            }
 
             Repeater {
-                model: bannerArea.items
+                // ScriptModel diffs by object identity, so existing delegates are
+                // KEPT when a popup is added/removed (no animation restarts, no
+                // handlers firing on dead modelData)
+                model: ScriptModel { values: bannerArea.items }
                 delegate: Item {
                     id: bWrap
                     width: bannerArea.width
@@ -51,6 +79,10 @@ import qs.Widgets
 
                     onHeightChanged: bannerArea.setH(index, height)
                     Component.onCompleted: bannerArea.setH(index, height)
+                    // indices shift when a middle card is dismissed — re-publish
+                    // this card's height under its new rank
+                    readonly property int idx: index
+                    onIdxChanged: bannerArea.setH(idx, height)
 
                     // ---- placement: spread vs collapsed deck ----
                     readonly property real spreadY: {
@@ -194,11 +226,9 @@ import qs.Widgets
                             }
                         }
 
-                        // auto-dismiss; critical stays; paused while the deck is hovered
-                        Timer {
-                            interval: 5000; running: !bCard.crit && !areaHover.hovered && modelData !== null
-                            onTriggered: if (modelData) modelData.popup = false
-                        }
+                        // auto-dismiss is owned by the SERVICE timer (started in
+                        // NotificationService, honours notificationTimeout* settings,
+                        // interval 0 / critical = persistent); hover-pause above.
                         // tap = default action; swipe right = dismiss (only the active/top card)
                         MouseArea {
                             id: bArea
@@ -215,7 +245,7 @@ import qs.Widgets
                                 dragging = false
                                 if (bCard.swipe > 90) { if (modelData) modelData.popup = false }
                                 else if (bCard.swipe < 6) {
-                                    if (bannerArea.collapsed) { bannerArea.expanded = true }
+                                    if (bannerArea.collapsed) { bannerArea.pinnedOpen = true }
                                     else {
                                         var def = null
                                         if (modelData && modelData.actions) for (var i = 0; i < modelData.actions.length; i++) { if (modelData.actions[i] && modelData.actions[i].identifier === "default") { def = modelData.actions[i]; break } }

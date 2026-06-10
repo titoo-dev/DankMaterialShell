@@ -20,6 +20,9 @@ import Quickshell.Io
 Singleton {
     id: hub
 
+    // single source of truth for the drill views reachable over IPC
+    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power"]
+
     signal toggleRequested
     signal expandRequested
     signal closeRequested
@@ -47,11 +50,14 @@ Singleton {
             return "ISLAND_BACK";
         }
         // open the expanded panel straight to a drill view (toggles it shut if
-        // already showing): controls | wifi | bluetooth | audio | notifications |
-        // calendar | monitor | wallpaper | apps | clipboard | emoji | power
+        // already showing); unknown views are rejected instead of opening an
+        // empty island
         function open(view: string): string {
-            hub.openViewRequested(view && view.length > 0 ? view : "controls");
-            return "ISLAND_OPEN:" + view;
+            const v = (view && view.length > 0) ? view : "controls";
+            if (hub.views.indexOf(v) === -1)
+                return "ISLAND_ERROR:unknown-view:" + v + " (valid: " + hub.views.join("|") + ")";
+            hub.openViewRequested(v);
+            return "ISLAND_OPEN:" + v;
         }
     }
 }

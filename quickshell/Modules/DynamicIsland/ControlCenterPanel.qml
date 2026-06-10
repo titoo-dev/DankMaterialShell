@@ -199,14 +199,15 @@ import "panels"
                             width: 34; height: 34; radius: 9; clip: true
                             anchors.left: parent.left; anchors.leftMargin: Theme.spacingS; anchors.verticalCenter: parent.verticalCenter
                             color: Theme.primaryBackground
-                            Image { anchors.fill: parent; source: island.player ? (island.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; cache: false; visible: status === Image.Ready }
-                            DankIcon { anchors.centerIn: parent; name: "music_note"; size: 16; color: island.accent; visible: !(island.player && island.player.trackArtUrl) }
+                            Image { id: ccArtImg; anchors.fill: parent; source: island.player ? (island.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; cache: false; asynchronous: true; visible: status === Image.Ready }
+                            // fall back on the real load status — art URLs are often transient tmp files that vanish
+                            DankIcon { anchors.centerIn: parent; name: "music_note"; size: 16; color: island.accent; visible: ccArtImg.status !== Image.Ready }
                         }
                         Column {
                             anchors.left: ccArt.right; anchors.leftMargin: Theme.spacingS
                             anchors.right: ccTransport.left; anchors.rightMargin: Theme.spacingS
                             anchors.verticalCenter: parent.verticalCenter; spacing: 0
-                            StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: island.player ? (island.player.trackTitle || "Unknown") : ""; color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true }
+                            StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: island.player ? (island.player.trackTitle || I18n.tr("Unknown")) : ""; color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true }
                             StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: island.player ? (island.player.trackArtist || "") : ""; color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1 }
                         }
                         Row {
@@ -214,19 +215,28 @@ import "panels"
                             anchors.right: parent.right; anchors.rightMargin: Theme.spacingS; anchors.verticalCenter: parent.verticalCenter
                             spacing: 0
                             Repeater {
-                                model: [
-                                    { icon: "skip_previous", big: false, en: island.player && island.player.canGoPrevious, act: () => { if (island.player) island.player.previous() } },
-                                    { icon: island.playing ? "pause" : "play_arrow", big: true, en: !!island.player, act: () => { if (island.player) island.player.togglePlaying() } },
-                                    { icon: "skip_next", big: false, en: island.player && island.player.canGoNext, act: () => { if (island.player) island.player.next() } }
-                                ]
+                                // STATIC model — see MediaPane: keeps the buttons alive across play/pause
+                                model: ["prev", "play", "next"]
                                 Rectangle {
+                                    readonly property bool big: modelData === "play"
+                                    readonly property bool en: modelData === "play" ? !!island.player
+                                                             : modelData === "prev" ? !!(island.player && island.player.canGoPrevious)
+                                                             : !!(island.player && island.player.canGoNext)
+                                    readonly property string glyph: modelData === "play" ? (island.playing ? "pause" : "play_arrow")
+                                                                  : modelData === "prev" ? "skip_previous" : "skip_next"
+                                    function act() {
+                                        if (!island.player) return
+                                        if (modelData === "play") island.player.togglePlaying()
+                                        else if (modelData === "prev") island.player.previous()
+                                        else island.player.next()
+                                    }
                                     width: 32; height: 32; radius: 10
-                                    color: ccBtn.containsMouse && modelData.en ? Theme.primaryHover : "transparent"
-                                    opacity: modelData.en ? 1 : 0.35
-                                    scale: ccBtn.pressed && modelData.en ? 0.86 : 1.0
+                                    color: ccBtn.containsMouse && en ? Theme.primaryHover : "transparent"
+                                    opacity: en ? 1 : 0.35
+                                    scale: ccBtn.pressed && en ? 0.86 : 1.0
                                     Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                                    DankIcon { anchors.centerIn: parent; name: modelData.icon; size: modelData.big ? 22 : 18; color: island.accent }
-                                    MouseArea { id: ccBtn; anchors.fill: parent; hoverEnabled: true; enabled: modelData.en; cursorShape: Qt.PointingHandCursor; onClicked: modelData.act() }
+                                    DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 22 : 18; color: island.accent }
+                                    MouseArea { id: ccBtn; anchors.fill: parent; hoverEnabled: true; enabled: parent.en; cursorShape: Qt.PointingHandCursor; onClicked: parent.act() }
                                 }
                             }
                         }

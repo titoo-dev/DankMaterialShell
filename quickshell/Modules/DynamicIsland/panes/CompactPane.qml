@@ -23,10 +23,11 @@ Row {
         spacing: Theme.spacingXS
         anchors.verticalCenter: parent.verticalCenter
         visible: island.privacyActive || (island.batAvailable && island.batPct <= 20 && !island.charging)
-        DankIcon { visible: PrivacyService.microphoneActive; name: "mic"; size: 14; color: Theme.error; filled: true; anchors.verticalCenter: parent.verticalCenter }
-        DankIcon { visible: PrivacyService.cameraActive; name: "videocam"; size: 14; color: Theme.error; filled: true; anchors.verticalCenter: parent.verticalCenter }
+        // iOS colour language: orange = microphone, green = camera
+        DankIcon { visible: PrivacyService.microphoneActive; name: "mic"; size: 14; color: Theme.warning; filled: true; anchors.verticalCenter: parent.verticalCenter }
+        DankIcon { visible: PrivacyService.cameraActive; name: "videocam"; size: 14; color: Theme.success; filled: true; anchors.verticalCenter: parent.verticalCenter }
         DankIcon { visible: PrivacyService.screensharingActive; name: "screen_share"; size: 14; color: Theme.warning; filled: true; anchors.verticalCenter: parent.verticalCenter }
-        DankIcon { visible: island.batAvailable && island.batPct <= 20 && !island.charging; name: "battery_alert"; size: 14; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
+        DankIcon { visible: island.batAvailable && island.batPct <= 20 && !island.charging; name: Theme.getBatteryIcon(island.batPct, island.charging, island.batAvailable); size: 14; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
     }
     // central "notch" gap — only present when the leading cluster has content
     Item { width: Theme.spacingL; height: 1; anchors.verticalCenter: parent.verticalCenter; visible: cStatus.visible }
