@@ -590,16 +590,23 @@ Scope {
     // even an external `wtype` delivered nothing until the surface went away).
     // The only universally-honoured release is an UNMAP, so blink the pill
     // window for two frames when the grab ends; the collapse morph hides it.
+    //
+    // `_kbBlink` is a pure declarative GATE folded into the pill window's
+    // `visible` binding (never an imperative `visible = false`), so the surface
+    // re-maps the instant the blink clears — no `Qt.binding` restore to lose.
+    // The restore itself is made reliable by kbBlinkKeeper below: see its note
+    // for why a bare Timer would otherwise freeze mid-blink and strand the pill.
+    property bool _kbBlink: false
     onKbGrabActiveChanged: {
         if (!kbGrabActive) {
-            pillWindow.visible = false
+            _kbBlink = true
             kbRemapTimer.restart()
         }
     }
     Timer {
         id: kbRemapTimer
         interval: 32
-        onTriggered: pillWindow.visible = Qt.binding(() => pill.opacity > 0)
+        onTriggered: root._kbBlink = false
     }
 
     // ---------- windows ----------
@@ -629,6 +636,38 @@ Scope {
         MouseArea {
             anchors.fill: parent
             onClicked: { root.pinned = false; root.settle() }
+        }
+    }
+
+    // ---- keyboard-grab-release frame keeper ----
+    // The grab-release blink (see kbGrabActive) unmaps the pill for ~2 frames.
+    // If the island ALSO leaves "expanded" in the same tick (e.g. picking an
+    // emoji, or `island close` straight from the wallpaper/clipboard view) then
+    // EVERY island surface unmaps at once — and with nothing mapped, QtQuick's
+    // frame clock stops, so kbRemapTimer is left "running" but never ticks and
+    // the pill stays unmapped for good. This 1px, fully click-through surface
+    // maps only for the blink and runs a perpetual micro-animation, keeping a
+    // surface on-screen so the clock keeps ticking and the remap timer fires.
+    PanelWindow {
+        id: kbBlinkKeeper
+        screen: root.modelData
+        visible: root._kbBlink
+        WlrLayershell.namespace: "dms:dynamic-island-kbblink"
+        WlrLayershell.layer: WlrLayershell.Background
+        WlrLayershell.exclusiveZone: -1
+        color: "transparent"
+        anchors { top: true; left: true }
+        implicitWidth: 1; implicitHeight: 1
+        mask: Region {}
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            // animating opacity dirties the scene every frame → the window keeps
+            // rendering → the QML animation driver (hence kbRemapTimer) advances
+            NumberAnimation on opacity {
+                running: root._kbBlink
+                from: 0; to: 1; duration: 16; loops: Animation.Infinite
+            }
         }
     }
 
@@ -676,7 +715,10 @@ Scope {
     PanelWindow {
         id: pillWindow
         screen: root.modelData
-        visible: pill.opacity > 0
+        // `_kbBlink` unmaps the pill for ~2 frames to drop a stale keyboard grab
+        // (see kbGrabActive); folding it in here keeps `visible` a live binding
+        // that always re-maps once the blink clears.
+        visible: pill.opacity > 0 && !root._kbBlink
         WlrLayershell.namespace: "dms:dynamic-island"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.exclusiveZone: -1
