@@ -247,8 +247,13 @@ Scope {
     readonly property int presenterValue: {
         if (presenterKind === "battery") return batPct
         if (presenterKind === "brightness") return DisplayService.brightnessLevel
-        return muted ? 0 : volPct   // volume
+        return muted ? 0 : Math.min(AudioService.sinkMaxVolume, volPct)   // volume, capped to the device max like VolumeOSD
     }
+    // Denominator for the presenter bar fill. Volume must scale against the
+    // device max (AudioService.sinkMaxVolume) exactly like the system VolumeOSD
+    // slider (maximum: sinkMaxVolume) — otherwise the island bar and the OSD bar
+    // would show a different fill for the same level. Brightness/battery are 0..100.
+    readonly property int presenterMax: presenterKind === "volume" ? AudioService.sinkMaxVolume : 100
     readonly property string presenterIcon: {
         if (presenterKind === "splash") return splashIcon
         if (presenterKind === "battery") return Theme.getBatteryIcon(batPct, charging, batAvailable)

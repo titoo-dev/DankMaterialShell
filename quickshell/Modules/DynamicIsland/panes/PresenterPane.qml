@@ -45,7 +45,10 @@ Item {
         readonly property int segs: 16
         readonly property real segGap: 2
         readonly property bool adjustable: island.presenterKind === "volume" || island.presenterKind === "brightness"
-        readonly property real frac: Math.max(0, Math.min(1, island.presenterValue / 100))
+        // Scale against the same denominator the system VolumeOSD uses
+        // (island.presenterMax == AudioService.sinkMaxVolume for volume, else 100)
+        // so this bar and the OSD bar fill identically for the same level.
+        readonly property real frac: Math.max(0, Math.min(1, island.presenterValue / island.presenterMax))
         Row {
             anchors.fill: parent
             spacing: segBar.segGap
