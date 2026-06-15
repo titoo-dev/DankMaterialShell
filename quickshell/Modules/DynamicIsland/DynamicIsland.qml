@@ -247,13 +247,8 @@ Scope {
     readonly property int presenterValue: {
         if (presenterKind === "battery") return batPct
         if (presenterKind === "brightness") return DisplayService.brightnessLevel
-        return muted ? 0 : Math.min(AudioService.sinkMaxVolume, volPct)   // volume, capped to the device max like VolumeOSD
+        return muted ? 0 : volPct   // volume
     }
-    // Denominator for the presenter bar fill. Volume must scale against the
-    // device max (AudioService.sinkMaxVolume) exactly like the system VolumeOSD
-    // slider (maximum: sinkMaxVolume) — otherwise the island bar and the OSD bar
-    // would show a different fill for the same level. Brightness/battery are 0..100.
-    readonly property int presenterMax: presenterKind === "volume" ? AudioService.sinkMaxVolume : 100
     readonly property string presenterIcon: {
         if (presenterKind === "splash") return splashIcon
         if (presenterKind === "battery") return Theme.getBatteryIcon(batPct, charging, batAvailable)
@@ -581,32 +576,21 @@ Scope {
     // the Wi-Fi view grabs the keyboard only while an inline password prompt is
     // open (set by WifiPanel) — without it the field can never receive input
     property bool wifiNeedsKeyboard: false
-    // single source of truth for "the pill window holds the Exclusive grab"
+    // single source of truth for "the pill window holds the keyboard"
     readonly property bool kbGrabActive: mode === "expanded"
         && (_kbViews.indexOf(panelView) !== -1 || (panelView === "wifi" && wifiNeedsKeyboard))
-    // ⚠️ Hyprland does NOT release an Exclusive keyboard grab when the property
-    // flips back to None on a still-mapped layer surface — the seat keyboard
-    // stays dead for every toplevel (diagnosed live: after closing the picker,
-    // even an external `wtype` delivered nothing until the surface went away).
-    // The only universally-honoured release is an UNMAP, so blink the pill
-    // window for two frames when the grab ends; the collapse morph hides it.
-    //
-    // `_kbBlink` is a pure declarative GATE folded into the pill window's
-    // `visible` binding (never an imperative `visible = false`), so the surface
-    // re-maps the instant the blink clears — no `Qt.binding` restore to lose.
-    // The restore itself is made reliable by kbBlinkKeeper below: see its note
-    // for why a bare Timer would otherwise freeze mid-blink and strand the pill.
-    property bool _kbBlink: false
-    onKbGrabActiveChanged: {
-        if (!kbGrabActive) {
-            _kbBlink = true
-            kbRemapTimer.restart()
-        }
-    }
-    Timer {
-        id: kbRemapTimer
-        interval: 32
-        onTriggered: root._kbBlink = false
+    // On Hyprland, keyboard focus comes from the hyprland-focus-grab protocol
+    // (same pattern as DankModal): OnDemand + HyprlandFocusGrab engages
+    // immediately on open and releases cleanly on close while the pill window
+    // STAYS MAPPED. An Exclusive grab is unusable here: Hyprland only honours
+    // its release on UNMAP, and blinking the pill window (unmap → remap a few
+    // frames later) races Quickshell's surface state — the remap is silently
+    // lost and the island never comes back (the old wallpaper/emoji toggle-off
+    // bug). Exclusive remains as the non-Hyprland fallback, where flipping
+    // back to None on a mapped surface is honoured.
+    HyprlandFocusGrab {
+        windows: [pillWindow]
+        active: CompositorService.useHyprlandFocusGrab && root.kbGrabActive
     }
 
     // ---------- windows ----------
@@ -639,38 +623,6 @@ Scope {
         }
     }
 
-    // ---- keyboard-grab-release frame keeper ----
-    // The grab-release blink (see kbGrabActive) unmaps the pill for ~2 frames.
-    // If the island ALSO leaves "expanded" in the same tick (e.g. picking an
-    // emoji, or `island close` straight from the wallpaper/clipboard view) then
-    // EVERY island surface unmaps at once — and with nothing mapped, QtQuick's
-    // frame clock stops, so kbRemapTimer is left "running" but never ticks and
-    // the pill stays unmapped for good. This 1px, fully click-through surface
-    // maps only for the blink and runs a perpetual micro-animation, keeping a
-    // surface on-screen so the clock keeps ticking and the remap timer fires.
-    PanelWindow {
-        id: kbBlinkKeeper
-        screen: root.modelData
-        visible: root._kbBlink
-        WlrLayershell.namespace: "dms:dynamic-island-kbblink"
-        WlrLayershell.layer: WlrLayershell.Background
-        WlrLayershell.exclusiveZone: -1
-        color: "transparent"
-        anchors { top: true; left: true }
-        implicitWidth: 1; implicitHeight: 1
-        mask: Region {}
-        Rectangle {
-            anchors.fill: parent
-            color: "transparent"
-            // animating opacity dirties the scene every frame → the window keeps
-            // rendering → the QML animation driver (hence kbRemapTimer) advances
-            NumberAnimation on opacity {
-                running: root._kbBlink
-                from: 0; to: 1; duration: 16; loops: Animation.Infinite
-            }
-        }
-    }
-
     // ambient screen-edge glow on a new notification: fullscreen but VISUAL
     // ONLY (empty input mask = fully click-through), mapped just for the ~2s
     // pulse. Lives on the Top layer so it never paints OVER the island/banners
@@ -697,14 +649,22 @@ Scope {
         WlrLayershell.namespace: "dms:dynamic-island-banners"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.exclusiveZone: -1
-        // grab the keyboard only while an inline reply field is open
-        WlrLayershell.keyboardFocus: notifBanners.needsKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        // grab the keyboard only while an inline reply field is open. Same
+        // strategy as the pill window: on Hyprland an Exclusive grab on a
+        // still-mapped surface never releases, so use the focus-grab protocol.
+        WlrLayershell.keyboardFocus: notifBanners.needsKeyboard
+            ? (CompositorService.useHyprlandFocusGrab ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
+            : WlrKeyboardFocus.None
         color: "transparent"
         anchors { top: true; right: true }
         implicitWidth: 440
         implicitHeight: 720
         mask: Region { item: notifBanners }
         NotificationBanners { id: notifBanners; island: root }
+    }
+    HyprlandFocusGrab {
+        windows: [bannerWindow]
+        active: CompositorService.useHyprlandFocusGrab && bannerWindow.visible && notifBanners.needsKeyboard
     }
 
     // the island itself: a top strip tall enough for the largest expanded
@@ -715,10 +675,7 @@ Scope {
     PanelWindow {
         id: pillWindow
         screen: root.modelData
-        // `_kbBlink` unmaps the pill for ~2 frames to drop a stale keyboard grab
-        // (see kbGrabActive); folding it in here keeps `visible` a live binding
-        // that always re-maps once the blink clears.
-        visible: pill.opacity > 0 && !root._kbBlink
+        visible: pill.opacity > 0
         WlrLayershell.namespace: "dms:dynamic-island"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.exclusiveZone: -1
@@ -727,10 +684,13 @@ Scope {
         implicitHeight: 620
         // keyboard focus for the keyboard-driven drill views: the search ones
         // (Spotlight / clipboard / emoji) need it to type, the wallpaper grid for
-        // arrow navigation, Wi-Fi while a password prompt is open. Exclusive
-        // (modal) grab: engages immediately on open, whereas Hyprland's OnDemand
-        // only kicks in on a pointer click. Released the instant panelView leaves.
-        WlrLayershell.keyboardFocus: root.kbGrabActive ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        // arrow navigation, Wi-Fi while a password prompt is open. On Hyprland
+        // the HyprlandFocusGrab above provides the immediate engage/release;
+        // OnDemand just lets the surface accept the focus it hands us. Elsewhere
+        // fall back to an Exclusive (modal) grab, released when panelView leaves.
+        WlrLayershell.keyboardFocus: root.kbGrabActive
+            ? (CompositorService.useHyprlandFocusGrab ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
+            : WlrKeyboardFocus.None
         mask: Region {
             // drop the pill from the input region while it's hidden for
             // fullscreen, so top-center clicks reach the app underneath
