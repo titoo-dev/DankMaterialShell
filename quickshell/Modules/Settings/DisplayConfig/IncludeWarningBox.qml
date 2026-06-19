@@ -67,7 +67,7 @@ StyledRect {
                         if (root.showSetup)
                             return I18n.tr("Click 'Setup' to create the outputs config and add include to your compositor config.");
                         if (root.showError)
-                            return I18n.tr("dms/outputs config exists but is not included in your compositor config. Display changes won't persist.");
+                            return I18n.tr("dms/outputs config exists but is not included in your compositor config, so display changes won't apply. Click 'Fix Now' to add the include.");
                         return "";
                     }
                     font.pixelSize: Theme.fontSizeSmall

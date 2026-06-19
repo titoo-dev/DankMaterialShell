@@ -7,7 +7,15 @@ import (
 	"strings"
 )
 
+// Direct call: require("mod") / require 'mod' wrapped in parens.
 var luaRequireRE = regexp.MustCompile(`(?i)\brequire\s*\(\s*["']([^"']+)["']\s*\)`)
+
+// Crash-safe idiom: pcall(require, "mod") — require is passed as a function
+// value, so it is NOT a require(...) call and luaRequireRE never sees it. This
+// is a common way to make an optional include not abort the whole config when
+// the target file is missing (e.g. on a fresh machine), so it must count as an
+// include or the Display/window-rule "not included" warnings fire incorrectly.
+var luaPcallRequireRE = regexp.MustCompile(`(?i)\bpcall\s*\(\s*require\s*,\s*["']([^"']+)["']`)
 
 func ModuleToRelPath(module string) string {
 	module = strings.TrimSpace(module)
@@ -31,14 +39,12 @@ func Requires(line string) []string {
 	if strings.TrimSpace(line) == "" {
 		return nil
 	}
-	matches := luaRequireRE.FindAllStringSubmatch(line, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-	modules := make([]string, 0, len(matches))
-	for _, match := range matches {
-		if len(match) > 1 && strings.TrimSpace(match[1]) != "" {
-			modules = append(modules, strings.TrimSpace(match[1]))
+	var modules []string
+	for _, re := range []*regexp.Regexp{luaRequireRE, luaPcallRequireRE} {
+		for _, match := range re.FindAllStringSubmatch(line, -1) {
+			if len(match) > 1 && strings.TrimSpace(match[1]) != "" {
+				modules = append(modules, strings.TrimSpace(match[1]))
+			}
 		}
 	}
 	return modules

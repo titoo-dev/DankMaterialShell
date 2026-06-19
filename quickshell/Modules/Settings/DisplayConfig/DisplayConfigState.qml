@@ -535,12 +535,12 @@ Singleton {
                 break;
             }
         case "hyprland":
-            HyprlandService.generateOutputsConfig(outputsData, getHyprlandSettingsFromConfig(configEntry), success => {
+            ensureOutputsIncluded(() => HyprlandService.generateOutputsConfig(outputsData, getHyprlandSettingsFromConfig(configEntry), success => {
                 if (success)
                     onWriteSuccess();
                 else
                     onWriteFailed();
-            });
+            }));
             break;
         case "dwl":
             DwlService.generateOutputsConfig(outputsData, success => {
@@ -1471,6 +1471,37 @@ Singleton {
         });
     }
 
+    // Make sure the compositor config actually includes dms/outputs before we
+    // write+reload it. On Hyprland, generateOutputsConfig() writes outputs.lua
+    // and runs `hyprctl reload`, but if hyprland.lua never require()s the file
+    // the reload ignores it and the apply is a SILENT no-op. Self-heal by
+    // injecting the include line first (idempotent — buildRepairScript skips it
+    // when already present), then proceed. Early-returns when already included
+    // or read-only, so a correctly wired config is unaffected.
+    function ensureOutputsIncluded(done) {
+        if (!CompositorService.isHyprland || readOnly || includeStatus.included) {
+            done();
+            return;
+        }
+        const paths = getConfigPaths();
+        if (!paths) {
+            done();
+            return;
+        }
+        const backupFile = paths.configFile + ".backup" + Math.floor(Date.now() / 1000);
+        const script = ConfigIncludeResolve.buildRepairScript({
+            configFile: paths.configFile,
+            backupFile: backupFile,
+            fragmentFile: paths.outputsFile,
+            grepPattern: paths.grepPattern,
+            includeLine: paths.includeLine
+        });
+        Proc.runCommand("ensure-outputs-include", ["sh", "-c", script], (output, exitCode) => {
+            checkIncludeStatus();
+            done();
+        });
+    }
+
     function showHyprlandReadOnlyWarning() {
         ToastService.showWarning(I18n.tr("Hyprland conf mode"), I18n.tr("This install is still using hyprland.conf. Run dms setup to migrate before editing display settings."), "dms setup", "display-config");
     }
@@ -1567,7 +1598,7 @@ Singleton {
                 showHyprlandReadOnlyWarning();
                 return false;
             }
-            HyprlandService.generateOutputsConfig(outputsData, buildMergedHyprlandSettings());
+            ensureOutputsIncluded(() => HyprlandService.generateOutputsConfig(outputsData, buildMergedHyprlandSettings()));
             break;
         case "dwl":
             DwlService.generateOutputsConfig(outputsData);

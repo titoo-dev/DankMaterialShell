@@ -33,6 +33,33 @@ func TestRequiresSkipsComments(t *testing.T) {
 	}
 }
 
+func TestRequiresPcallIdiom(t *testing.T) {
+	cases := map[string][]string{
+		`pcall(require, "dms.outputs")`:              {"dms.outputs"},
+		`pcall(require, 'dms.windowrules')`:          {"dms.windowrules"},
+		`pcall ( require , "dms.cursor" )`:           {"dms.cursor"},
+		`pcall(function() require("dms.binds") end)`: {"dms.binds"},
+		`-- pcall(require, "dms.ignored")`:           nil,
+		`pcall(require, "dms.a") require("dms.b")`:   {"dms.a", "dms.b"},
+	}
+	for line, want := range cases {
+		got := Requires(line)
+		// Order is irrelevant — RequiresTarget checks every module — so compare as sets.
+		gotSet := map[string]bool{}
+		for _, m := range got {
+			gotSet[m] = true
+		}
+		if len(gotSet) != len(want) {
+			t.Fatalf("Requires(%q) = %#v, want %#v", line, got, want)
+		}
+		for _, m := range want {
+			if !gotSet[m] {
+				t.Fatalf("Requires(%q) = %#v, missing %q", line, got, m)
+			}
+		}
+	}
+}
+
 func TestRequiresTargetRecurses(t *testing.T) {
 	tmpDir := t.TempDir()
 	dmsDir := filepath.Join(tmpDir, "dms")
