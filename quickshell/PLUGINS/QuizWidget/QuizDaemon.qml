@@ -67,6 +67,19 @@ PluginComponent {
         }
     }
 
+    // Relance : si la quiz reste en attente (pastille non ouverte), régénère un message
+    // toutes les 5 min pour réinciter. S'arrête dès que la carte est ouverte/fermée.
+    Timer {
+        id: renudgeTimer
+        interval: 5 * 60 * 1000
+        repeat: true
+        running: overlay.mode === "pending"
+        onTriggered: {
+            root.fetchNudge();
+            console.info("QuizDaemon: re-nudge (quiz ignorée)");
+        }
+    }
+
     function snooze(ms) {
         root.pendingQuestion = null;
         snoozeTimer.interval = Math.max(1, ms);
