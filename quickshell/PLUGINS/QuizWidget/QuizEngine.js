@@ -82,13 +82,21 @@ function parseAiQuestion(stdout) {
 
 var LOCAL_NUDGES = [
     "Coucou 👋",
-    "Je suis là !",
     "Clique-moi 👀",
     "Apprenons un truc !",
-    "Petit quiz ? 🧠",
-    "On révise ?",
-    "Hé, par ici !",
-    "Une question pour toi !"
+    "Trop facile pour toi ? 😏",
+    "T'as peur d'un quiz ? 😎",
+    "Petit génie, par ici 🧠",
+    "Allez, juste une 🙃",
+    "On parie que tu sèches ? 🤭",
+    "Hop, un quiz fun ! 🎉",
+    "Réveille ce cerveau 🧠⚡",
+    "Même pas cap 😜",
+    "Une pause maligne ?",
+    "Psst… par ici 🤫",
+    "Le savoir t'attend 📚",
+    "Tu vas adorer (ou pas) 😈",
+    "Prouve que t'es chaud 🔥"
 ];
 
 function randomNudge(rng) {
@@ -110,15 +118,22 @@ function randomEmoji(rng) {
     return NUDGE_EMOJIS[idx];
 }
 
+// Styles/tons de communication — variété demandée : cool, sarcasme, blague, clash, fun…
 var NUDGE_ANGLES = [
+    "cool et décontracté",
+    "un petit sarcasme taquin",
+    "une mini-blague ou un jeu de mots",
+    "un petit clash amical / une provoc joueuse",
+    "fun et déjanté",
+    "complice, entre potes",
     "une salutation chaleureuse",
-    "« je suis là, ne m'oublie pas »",
-    "« clique-moi »",
-    "« apprenons un truc ensemble »",
     "piquer la curiosité",
-    "un défi joueur",
+    "un défi joueur (« même pas cap »)",
     "un encouragement bienveillant",
-    "un brin d'humour"
+    "un brin d'humour absurde",
+    "façon coach survolté",
+    "faussement blasé / ironique",
+    "mystérieux et intrigant"
 ];
 
 function randomNudgeAngle(rng) {
@@ -129,12 +144,14 @@ function randomNudgeAngle(rng) {
     return NUDGE_ANGLES[idx];
 }
 
-// Prompt pour `claude -p` : une accroche courte et variée. L'angle aléatoire force la variété.
+// Prompt pour `claude -p` : une accroche courte, le style/ton aléatoire force la variété.
 function nudgePrompt(angle) {
     var a = angle || randomNudgeAngle();
-    return "Génère UN court message ludique en français (max 5 mots, style Duolingo, "
-         + "un emoji bienvenu) pour inciter à cliquer sur un mini-quiz qui vient d'apparaître. "
-         + "Angle à adopter : " + a + ". "
+    return "Génère UN court message en français (max 7 mots, un emoji bienvenu) "
+         + "pour inciter l'utilisateur à cliquer sur un mini-quiz qui vient d'apparaître. "
+         + "Style/ton de communication à adopter : " + a + ". "
+         + "Tu peux être cool, taquin, drôle, légèrement sarcastique ou lancer un petit clash amical "
+         + "— mais reste bienveillant, jamais blessant ni vulgaire. "
          + "Réponds UNIQUEMENT le message, sans guillemets ni ponctuation finale superflue.";
 }
 
