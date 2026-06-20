@@ -14,14 +14,16 @@ PanelWindow {
     readonly property int animCount: 14
     signal dismissed()
     signal snoozeRequested(int ms)
+    signal onboardingComplete(var ids)
 
-    property string mode: "hidden" // "hidden"|"pending"|"open"|"feedback"
+    property string mode: "hidden" // "hidden"|"pending"|"open"|"feedback"|"onboarding"
     property int selected: -1
 
     onAnimIndexChanged: pill.resetPillTransforms()
     onModeChanged: if (overlay.mode === "pending") pill.resetPillTransforms()
 
     function showPending() { overlay.selected = -1; overlay.mode = "pending"; overlay.visible = true; }
+    function showOnboarding() { overlay.mode = "onboarding"; overlay.visible = true; }
     function reset() { overlay.mode = "hidden"; overlay.selected = -1; overlay.visible = false; overlay.dismissed(); }
 
     color: "transparent"
@@ -45,8 +47,8 @@ PanelWindow {
         id: content
         anchors.fill: parent
         anchors.margins: overlay.shadowPad
-        implicitWidth: card.visible ? card.implicitWidth : pill.implicitWidth
-        implicitHeight: card.visible ? card.implicitHeight : pill.implicitHeight
+        implicitWidth: onboardingCard.visible ? onboardingCard.implicitWidth : (card.visible ? card.implicitWidth : pill.implicitWidth)
+        implicitHeight: onboardingCard.visible ? onboardingCard.implicitHeight : (card.visible ? card.implicitHeight : pill.implicitHeight)
         opacity: overlay.mode === "hidden" ? 0 : 1
         scale: overlay.mode === "hidden" ? 0.9 : 1
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -328,6 +330,18 @@ PanelWindow {
             onSubmit: overlay.mode = "feedback"
             onClose: overlay.reset()
             onSnooze: (ms) => { overlay.snoozeRequested(ms); overlay.reset(); }
+        }
+
+        QuizOnboardingCard { // setup au 1er lancement
+            id: onboardingCard
+            visible: overlay.mode === "onboarding"
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            onStart: (ids) => {
+                overlay.onboardingComplete(ids);
+                overlay.mode = "hidden";
+                overlay.visible = false;
+            }
         }
     }
 }
