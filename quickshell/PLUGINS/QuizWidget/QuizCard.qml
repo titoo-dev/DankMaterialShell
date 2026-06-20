@@ -35,15 +35,44 @@ StyledRect {
         shadowEnabled: Theme.elevationEnabled && SettingsData.popoutElevationEnabled
     }
 
+    // Bouton fermer (×) — disponible à tout moment, en haut-droite
+    StyledRect {
+        id: closeButton
+        z: 1
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: Theme.spacingS
+        anchors.rightMargin: Theme.spacingS
+        width: 28
+        height: 28
+        radius: width / 2
+        color: closeBtnArea.containsMouse ? Theme.surfaceContainerHighest : "transparent"
+
+        DankIcon {
+            anchors.centerIn: parent
+            name: "close"
+            size: Theme.iconSizeSmall
+            color: Theme.surfaceText
+        }
+
+        MouseArea {
+            id: closeBtnArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: card.close()
+        }
+    }
+
     Column {
         id: col
         anchors.fill: parent
         anchors.margins: Theme.spacingL
         spacing: Theme.spacingM
 
-        // Question
+        // Question (largeur réduite pour ne pas passer sous le bouton ×)
         StyledText {
-            width: parent.width
+            width: parent.width - Theme.iconSize
             text: card.question ? card.question.question : ""
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontSizeLarge
