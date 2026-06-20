@@ -1037,3 +1037,17 @@ git commit -m "test(quiz-widget): end-to-end verification adjustments"
 - **Timer pomodoro jamais gelé :** il vit dans le `PluginComponent` (composant de fond toujours mappé), pas dans l'overlay — ne pas déplacer la logique de timing dans l'overlay (les Timers gèlent quand toutes les surfaces d'un scope se démappent).
 - **Clé API dans les args de process :** visible via `ps`. Acceptable pour un plugin desktop personnel ; ne pas logger la clé.
 - **APIs Wayland incertaines :** en cas d'erreur de surface/propriété sur l'overlay, s'aligner sur `quickshell/Modules/OSD/DankOSD.qml` (référence réelle du pattern) — `LazyLoader`, `WlrLayershell.margins`, etc.
+
+## Corrections appliquées pendant l'exécution (harness node)
+
+Deux ajustements du harness de test (vs le code des Tasks 1-3) ont été nécessaires et sont déjà dans `tests/quizEngine.test.mjs` :
+
+1. **Loader robuste aux fonctions absentes :** la ligne d'injection doit garder chaque fonction par `typeof` (les T1/T2 n'ont pas encore défini toutes les fonctions, sinon `ReferenceError`) :
+   ```js
+   src + "\n;globalThis.__api = {"
+       + " validate: typeof validate !== 'undefined' ? validate : undefined,"
+       + " pickQuestion: typeof pickQuestion !== 'undefined' ? pickQuestion : undefined,"
+       + " buildAiRequestBody: typeof buildAiRequestBody !== 'undefined' ? buildAiRequestBody : undefined,"
+       + " parseAiQuestion: typeof parseAiQuestion !== 'undefined' ? parseAiQuestion : undefined };"
+   ```
+2. **Comparaison de tableaux cross-realm :** les tableaux créés dans le contexte `vm` ont un `Array.prototype` d'un autre realm → `deepStrictEqual` échoue. Utiliser un helper `const arrEq = (a, b) => assert.deepEqual(Array.from(a), b);` pour toute comparaison de `r.seen` / `schema.required`.
