@@ -71,3 +71,29 @@ test("pickQuestion ignore les questions invalides", () => {
 test("pickQuestion retourne null sur banque vide/invalide", () => {
     assert.equal(E.pickQuestion([], [], () => 0), null);
 });
+
+test("buildAiRequestBody produit un corps valide pour Claude", () => {
+    const body = JSON.parse(E.buildAiRequestBody("algorithmes"));
+    assert.equal(body.model, "claude-haiku-4-5");
+    assert.equal(body.output_config.format.type, "json_schema");
+    arrEq(body.output_config.format.schema.required, ["question", "choices", "answer", "explanation"]);
+    assert.match(JSON.stringify(body.messages), /algorithmes/);
+});
+
+const apiOk = JSON.stringify({
+    content: [{ type: "text", text: JSON.stringify({ question: "Qx ?", choices: ["1", "2", "3", "4"], answer: 2, explanation: "ex" }) }]
+});
+
+test("parseAiQuestion extrait et valide une question", () => {
+    const q = E.parseAiQuestion(apiOk);
+    assert.equal(q.question, "Qx ?");
+    assert.equal(q.answer, 2);
+    assert.ok(q.id.startsWith("ai-"));
+});
+test("parseAiQuestion retourne null sur stdout non-JSON", () => {
+    assert.equal(E.parseAiQuestion("curl: (6) could not resolve host"), null);
+});
+test("parseAiQuestion retourne null si le texte n'est pas une question valide", () => {
+    const bad = JSON.stringify({ content: [{ type: "text", text: JSON.stringify({ question: "Q", choices: ["x"], answer: 0, explanation: "" }) }] });
+    assert.equal(E.parseAiQuestion(bad), null);
+});

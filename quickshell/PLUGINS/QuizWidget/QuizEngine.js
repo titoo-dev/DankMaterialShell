@@ -28,3 +28,52 @@ function pickQuestion(bank, seen, rng) {
     nextSeen.push(chosen.id);
     return { question: chosen, seen: nextSeen };
 }
+
+function hashString(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+    return Math.abs(h);
+}
+
+function buildAiRequestBody(subject) {
+    return JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 1024,
+        system: "Tu es un générateur de QCM. Génère UNE question à choix unique, claire et factuelle, "
+              + "avec 4 propositions dont une seule correcte, et une explication courte. "
+              + "Réponds uniquement via le format structuré.",
+        messages: [{ role: "user", content: "Sujet : " + subject + ". Génère une question QCM." }],
+        output_config: {
+            format: {
+                type: "json_schema",
+                schema: {
+                    type: "object",
+                    properties: {
+                        question: { type: "string" },
+                        choices: { type: "array", items: { type: "string" } },
+                        answer: { type: "integer" },
+                        explanation: { type: "string" }
+                    },
+                    required: ["question", "choices", "answer", "explanation"],
+                    additionalProperties: false
+                }
+            }
+        }
+    });
+}
+
+function parseAiQuestion(stdout) {
+    var resp;
+    try { resp = JSON.parse(stdout); } catch (e) { return null; }
+    if (!resp || !Array.isArray(resp.content)) return null;
+    var textBlock = null;
+    for (var i = 0; i < resp.content.length; i++) {
+        if (resp.content[i] && resp.content[i].type === "text") { textBlock = resp.content[i]; break; }
+    }
+    if (!textBlock || typeof textBlock.text !== "string") return null;
+    var q;
+    try { q = JSON.parse(textBlock.text); } catch (e2) { return null; }
+    if (!validate(q)) return null;
+    if (!q.id) q.id = "ai-" + hashString(q.question);
+    return q;
+}
