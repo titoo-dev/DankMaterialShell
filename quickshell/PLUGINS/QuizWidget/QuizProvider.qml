@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Io
 import qs.Common
 import "QuizEngine.js" as QuizEngine
 
@@ -25,26 +26,44 @@ Item {
     }
 
     function _fetchLocal(subject, seen, callback) {
-        var bank = _loadBank(subject);
-        var res = QuizEngine.pickQuestion(bank, seen);
-        if (res)
-            callback(res.question, res.seen);
-        else
-            callback(null, seen || []);
+        _loadBank(subject, function (bank) {
+            var res = QuizEngine.pickQuestion(bank, seen);
+            if (res)
+                callback(res.question, res.seen);
+            else
+                callback(null, seen || []);
+        });
     }
 
-    function _loadBank(subject) {
-        var path = Qt.resolvedUrl("banks/" + subject + ".json");
-        var xhr = new XMLHttpRequest();
-        try {
-            xhr.open("GET", path, false);
-            xhr.send();
-            if (xhr.status === 200 || xhr.status === 0)
-                return JSON.parse(xhr.responseText);
-        } catch (e) {
-            console.warn("QuizProvider: cannot load bank", subject, e);
+    // Lecture asynchrone de banks/<subject>.json via FileView (pattern prouvé du repo).
+    function _loadBank(subject, cb) {
+        var url = Qt.resolvedUrl("banks/" + subject + ".json").toString();
+        var path = url.indexOf("file://") === 0 ? url.substring(7) : url;
+        bankFvComp.createObject(provider, { "path": path, "cb": cb });
+    }
+
+    Component {
+        id: bankFvComp
+        FileView {
+            property var cb: null
+            onLoaded: {
+                var bank = [];
+                try {
+                    bank = JSON.parse(text());
+                } catch (e) {
+                    console.warn("QuizProvider: parse bank failed", path, e);
+                }
+                if (cb)
+                    cb(bank);
+                destroy();
+            }
+            onLoadFailed: err => {
+                console.warn("QuizProvider: bank load failed", path, err);
+                if (cb)
+                    cb([]);
+                destroy();
+            }
         }
-        return [];
     }
 
     function _fetchAi(subject, callback) {
