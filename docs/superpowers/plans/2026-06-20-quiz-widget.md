@@ -1051,3 +1051,20 @@ Deux ajustements du harness de test (vs le code des Tasks 1-3) ont été nécess
        + " parseAiQuestion: typeof parseAiQuestion !== 'undefined' ? parseAiQuestion : undefined };"
    ```
 2. **Comparaison de tableaux cross-realm :** les tableaux créés dans le contexte `vm` ont un `Array.prototype` d'un autre realm → `deepStrictEqual` échoue. Utiliser un helper `const arrEq = (a, b) => assert.deepEqual(Array.from(a), b);` pour toute comparaison de `r.seen` / `schema.required`.
+
+## Corrections appliquées pendant l'exécution (QML, vérif live)
+
+Vérifié sur le shell vivant (Hyprland) via `dms ipc plugins enable/reload` + `dms restart` + `journalctl`. Bugs corrigés :
+
+1. **`THEME_REFERENCE.md` est partiellement faux** vs `Common/Theme.qml` : `Theme.cornerRadiusLarge` n'existe pas (utiliser `Theme.cornerRadius`) ; `DankIcon` expose `size` (pas `font.pixelSize`).
+2. **Signal `closed()` interdit sur `PanelWindow`** (collision avec `QWindow.closed`) → renommé `dismissed()` (+ handler `onDismissed`).
+3. **PanelWindow margins** : utiliser `WlrLayershell.margins { }` (pas un `margins {}` top-level), comme `Modules/OSD/DankOSD.qml`.
+4. **`required property index`** dans un délégué Repeater : retiré au profit des `index`/`modelData` implicites.
+5. **Collision de clé `"enabled"`** : `PluginService.enablePlugin` écrit `setPluginSetting(id, "enabled", true)` dans le même store que `PluginSettings` → retirer la `ToggleSetting "enabled"` (l'activation du plugin via l'onglet Plugins fait foi).
+6. **Course de chargement des réglages** : lire les réglages via `Qt.callLater(loadSettings)` ET re-lire dans `requestQuiz()` (sinon `subjects` vaut `[]` car `pluginSettings` finit de charger après `Component.onCompleted`). Bonus : réglages pris en compte à chaud.
+7. **Lecture de banque** : `XMLHttpRequest` synchrone lève « Invalid state » sous Quickshell → utiliser `FileView` (`Quickshell.Io`), pattern prouvé du repo (`PluginService.loadPluginManifestFile`).
+
+## Déploiement & découverte (à connaître)
+
+- Le `FolderListModel userWatcher` de `PluginService` **ne détecte pas un symlink** ajouté à chaud (et un dossier ajouté à chaud n'est pas re-scanné en live de façon fiable). Déployer une **vraie copie** dans `~/.config/DankMaterialShell/plugins/QuizWidget/` puis **redémarrer le shell** (`dms restart`) pour la découverte initiale, ou ouvrir l'onglet Réglages → Plugins (qui appelle `scanPlugins()`).
+- Activation/rechargement à chaud sans restart : `dms ipc plugins enable|reload|disable|status quizWidget`. ⚠️ `reload` cache-bust seulement le composant principal ; les composants QML importés (overlay/card) restent en cache → après modif d'un composant importé, **restart** pour vider le cache de l'engine.
