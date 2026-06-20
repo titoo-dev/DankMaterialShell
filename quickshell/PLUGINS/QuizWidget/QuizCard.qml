@@ -10,6 +10,7 @@ StyledRect {
     signal select(int index)
     signal submit()
     signal close()
+    signal snooze(int ms)
 
     readonly property bool correct: question && selected === question.answer
 
@@ -206,6 +207,52 @@ StyledRect {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     onClicked: card.close()
+                }
+            }
+        }
+
+        // Reporter (snooze) — décale la prochaine quiz de X s/min/h
+        Row {
+            spacing: Theme.spacingXS
+
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Reporter :"
+                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.surfaceVariantText
+            }
+
+            Repeater {
+                model: [
+                    { label: "30 s", ms: 30000 },
+                    { label: "5 min", ms: 300000 },
+                    { label: "15 min", ms: 900000 },
+                    { label: "1 h", ms: 3600000 }
+                ]
+
+                StyledRect {
+                    radius: Theme.cornerRadius
+                    color: snoozeArea.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainer
+                    border.width: 1
+                    border.color: card.insetBorderSoft
+                    implicitWidth: snoozeLabel.implicitWidth + Theme.spacingM * 2
+                    implicitHeight: snoozeLabel.implicitHeight + Theme.spacingXS * 2
+
+                    StyledText {
+                        id: snoozeLabel
+                        anchors.centerIn: parent
+                        text: modelData.label
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.surfaceText
+                    }
+
+                    MouseArea {
+                        id: snoozeArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: card.snooze(modelData.ms)
+                    }
                 }
             }
         }

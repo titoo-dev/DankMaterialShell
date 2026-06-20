@@ -9,6 +9,7 @@ PanelWindow {
 
     property var question: null
     signal dismissed()
+    signal snoozeRequested(int ms)
 
     property string mode: "hidden" // "hidden"|"pending"|"open"|"feedback"
     property int selected: -1
@@ -93,6 +94,7 @@ PanelWindow {
             onSelect: (i) => overlay.selected = i
             onSubmit: overlay.mode = "feedback"
             onClose: overlay.reset()
+            onSnooze: (ms) => { overlay.snoozeRequested(ms); overlay.reset(); }
         }
     }
 }

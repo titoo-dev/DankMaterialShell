@@ -11,6 +11,7 @@ PluginComponent {
     // Note: l'activation/désactivation du plugin (flag "enabled" géré par PluginService)
     // gouverne déjà le chargement du daemon — pas de toggle "enabled" propre ici.
     property bool paused: false
+    property bool snoozing: false
     property int workMinutes: 25
     property var subjects: []
     property bool aiEnabled: false
@@ -30,14 +31,33 @@ PluginComponent {
         id: overlay
         question: root.pendingQuestion
         onDismissed: root.pendingQuestion = null
+        onSnoozeRequested: (ms) => root.snooze(ms)
     }
 
     Timer {
         id: workTimer
         interval: Math.max(1, root.workMinutes) * 60 * 1000
         repeat: true
-        running: !root.paused
+        running: !root.paused && !root.snoozing
         onTriggered: root.requestQuiz()
+    }
+
+    // Report (snooze) : pause la cadence pomodoro pendant `ms`, puis montre une quiz et reprend.
+    Timer {
+        id: snoozeTimer
+        repeat: false
+        onTriggered: {
+            root.snoozing = false; // réactive workTimer (binding running)
+            root.requestQuiz();
+        }
+    }
+
+    function snooze(ms) {
+        root.pendingQuestion = null;
+        snoozeTimer.interval = Math.max(1, ms);
+        root.snoozing = true; // stoppe workTimer
+        snoozeTimer.restart();
+        console.info("QuizDaemon: snooze", ms, "ms");
     }
 
     function seenFor(subject) {
