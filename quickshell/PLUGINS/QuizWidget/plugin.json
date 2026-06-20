@@ -1,0 +1,13 @@
+{
+  "id": "quizWidget",
+  "name": "Quiz Widget",
+  "description": "Quiz QCM pomodoro pour continuer à apprendre activement",
+  "version": "0.1.0",
+  "author": "Titosy",
+  "type": "daemon",
+  "capabilities": ["learning", "pomodoro"],
+  "component": "./QuizDaemon.qml",
+  "settings": "./QuizSettings.qml",
+  "icon": "quiz",
+  "permissions": ["settings_read", "settings_write", "process", "network"]
+}
