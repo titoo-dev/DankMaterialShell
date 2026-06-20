@@ -99,6 +99,17 @@ function randomNudge(rng) {
     return LOCAL_NUDGES[idx];
 }
 
+// Emoji expressif en tête de pastille (varie à chaque message).
+var NUDGE_EMOJIS = ["🦉", "🧠", "✨", "🤓", "💡", "🎯", "🔥", "🚀", "📚", "⚡", "🌟", "🎓", "👀", "💫", "🤔"];
+
+function randomEmoji(rng) {
+    rng = rng || Math.random;
+    var idx = Math.floor(rng() * NUDGE_EMOJIS.length);
+    if (idx < 0) idx = 0;
+    if (idx >= NUDGE_EMOJIS.length) idx = NUDGE_EMOJIS.length - 1;
+    return NUDGE_EMOJIS[idx];
+}
+
 var NUDGE_ANGLES = [
     "une salutation chaleureuse",
     "« je suis là, ne m'oublie pas »",

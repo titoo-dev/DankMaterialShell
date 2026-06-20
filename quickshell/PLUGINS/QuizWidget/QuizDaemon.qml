@@ -22,6 +22,7 @@ PluginComponent {
     property var pendingQuestion: null
     property var sessionSeen: ({})
     property string nudgeText: "Quiz dispo"
+    property string nudgeEmoji: "🦉"
 
     QuizProvider {
         id: provider
@@ -33,6 +34,7 @@ PluginComponent {
         id: overlay
         question: root.pendingQuestion
         nudge: root.nudgeText
+        emoji: root.nudgeEmoji
         onDismissed: root.pendingQuestion = null
         onSnoozeRequested: (ms) => root.snooze(ms)
     }
@@ -40,6 +42,7 @@ PluginComponent {
     // Accroche affichée sur la pastille : preset local immédiat, puis enrichie via `claude -p`.
     function fetchNudge() {
         root.nudgeText = QuizEngine.randomNudge();
+        root.nudgeEmoji = QuizEngine.randomEmoji();
         Proc.runCommand("quizWidget.nudge", ["claude", "-p", QuizEngine.nudgePrompt()], function (stdout, exitCode) {
             if (exitCode === 0) {
                 var n = QuizEngine.cleanNudge(stdout);

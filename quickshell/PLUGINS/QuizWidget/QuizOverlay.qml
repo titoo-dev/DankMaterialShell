@@ -9,6 +9,7 @@ PanelWindow {
 
     property var question: null
     property string nudge: "Quiz dispo"
+    property string emoji: "🦉"
     signal dismissed()
     signal snoozeRequested(int ms)
 
@@ -83,8 +84,8 @@ PanelWindow {
                 id: pillRow
                 anchors.centerIn: parent
                 spacing: Theme.spacingXS
-                DankIcon { name: "quiz"; color: Theme.primary; size: Theme.iconSizeSmall }
-                StyledText { text: overlay.nudge; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
+                StyledText { text: overlay.emoji; font.pixelSize: Theme.fontSizeLarge; anchors.verticalCenter: parent.verticalCenter }
+                StyledText { text: overlay.nudge; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText; anchors.verticalCenter: parent.verticalCenter }
             }
 
             MouseArea {

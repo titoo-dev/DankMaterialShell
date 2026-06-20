@@ -17,6 +17,7 @@ function loadEngine() {
         + " buildAiRequestBody: typeof buildAiRequestBody !== 'undefined' ? buildAiRequestBody : undefined,"
         + " parseAiQuestion: typeof parseAiQuestion !== 'undefined' ? parseAiQuestion : undefined,"
         + " randomNudge: typeof randomNudge !== 'undefined' ? randomNudge : undefined,"
+        + " randomEmoji: typeof randomEmoji !== 'undefined' ? randomEmoji : undefined,"
         + " randomNudgeAngle: typeof randomNudgeAngle !== 'undefined' ? randomNudgeAngle : undefined,"
         + " nudgePrompt: typeof nudgePrompt !== 'undefined' ? nudgePrompt : undefined,"
         + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
@@ -129,4 +130,8 @@ test("randomNudgeAngle renvoie un angle non vide", () => {
 });
 test("nudgePrompt inclut l'angle fourni", () => {
     assert.match(E.nudgePrompt("MON_ANGLE_TEST"), /MON_ANGLE_TEST/);
+});
+test("randomEmoji renvoie un emoji non vide", () => {
+    const e = E.randomEmoji(() => 0);
+    assert.ok(typeof e === "string" && e.length > 0);
 });
