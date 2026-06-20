@@ -9,5 +9,5 @@
   "component": "./QuizDaemon.qml",
   "settings": "./QuizSettings.qml",
   "icon": "quiz",
-  "permissions": ["settings_read", "settings_write", "process", "network"]
+  "permissions": ["settings_read", "settings_write", "process"]
 }
