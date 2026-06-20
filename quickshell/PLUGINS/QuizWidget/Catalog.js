@@ -65,3 +65,37 @@ function categoriesWithTopics() {
     }
     return out;
 }
+
+// --- sujets libres (en plus du catalogue curaté) ---
+
+// Ajoute un sujet libre trimmé à la liste (immuable), en ignorant le vide et les doublons (casse insensible).
+function addCustom(list, label) {
+    var v = (typeof label === "string") ? label.trim() : "";
+    var out = (list || []).slice();
+    if (!v)
+        return out;
+    for (var i = 0; i < out.length; i++) {
+        if (typeof out[i] === "string" && out[i].toLowerCase() === v.toLowerCase())
+            return out; // doublon : garde la casse existante
+    }
+    out.push(v);
+    return out;
+}
+
+// Pool de sélection unifié : sujets catalogue résolus + sujets libres (catégorie « Sujet libre »).
+function buildTopicPool(selectedIds, customTopics) {
+    var pool = [];
+    var ids = selectedIds || [];
+    for (var i = 0; i < ids.length; i++) {
+        var t = topicById(ids[i]);
+        if (t)
+            pool.push(t);
+    }
+    var customs = customTopics || [];
+    for (var j = 0; j < customs.length; j++) {
+        var label = (typeof customs[j] === "string") ? customs[j].trim() : "";
+        if (label)
+            pool.push({ id: "custom:" + label, label: label, category: "Sujet libre" });
+    }
+    return pool;
+}
