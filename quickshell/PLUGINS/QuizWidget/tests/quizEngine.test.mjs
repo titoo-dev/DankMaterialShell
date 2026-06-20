@@ -14,8 +14,8 @@ function loadEngine() {
         src + "\n;globalThis.__api = {"
         + " validate: typeof validate !== 'undefined' ? validate : undefined,"
         + " pickQuestion: typeof pickQuestion !== 'undefined' ? pickQuestion : undefined,"
-        + " buildAiRequestBody: typeof buildAiRequestBody !== 'undefined' ? buildAiRequestBody : undefined,"
-        + " parseAiQuestion: typeof parseAiQuestion !== 'undefined' ? parseAiQuestion : undefined,"
+        + " buildQuestionPrompt: typeof buildQuestionPrompt !== 'undefined' ? buildQuestionPrompt : undefined,"
+        + " extractQuestionJson: typeof extractQuestionJson !== 'undefined' ? extractQuestionJson : undefined,"
         + " randomNudge: typeof randomNudge !== 'undefined' ? randomNudge : undefined,"
         + " randomEmoji: typeof randomEmoji !== 'undefined' ? randomEmoji : undefined,"
         + " randomNudgeAngle: typeof randomNudgeAngle !== 'undefined' ? randomNudgeAngle : undefined,"
@@ -77,30 +77,44 @@ test("pickQuestion retourne null sur banque vide/invalide", () => {
     assert.equal(E.pickQuestion([], [], () => 0), null);
 });
 
-test("buildAiRequestBody produit un corps valide pour Claude", () => {
-    const body = JSON.parse(E.buildAiRequestBody("algorithmes"));
-    assert.equal(body.model, "claude-haiku-4-5");
-    assert.equal(body.output_config.format.type, "json_schema");
-    arrEq(body.output_config.format.schema.required, ["question", "choices", "answer", "explanation"]);
-    assert.match(JSON.stringify(body.messages), /algorithmes/);
+test("buildQuestionPrompt inclut le label et la catégorie et exige du JSON", () => {
+    const p = E.buildQuestionPrompt("Docker", "Technologies");
+    assert.match(p, /Docker/);
+    assert.match(p, /Technologies/);
+    assert.match(p, /JSON/);
+    assert.match(p, /4 propositions/);
 });
 
-const apiOk = JSON.stringify({
-    content: [{ type: "text", text: JSON.stringify({ question: "Qx ?", choices: ["1", "2", "3", "4"], answer: 2, explanation: "ex" }) }]
-});
+const cliJson = JSON.stringify({ question: "Qx ?", choices: ["1", "2", "3", "4"], answer: 2, explanation: "ex" });
 
-test("parseAiQuestion extrait et valide une question", () => {
-    const q = E.parseAiQuestion(apiOk);
+test("extractQuestionJson parse du JSON brut", () => {
+    const q = E.extractQuestionJson(cliJson);
     assert.equal(q.question, "Qx ?");
     assert.equal(q.answer, 2);
     assert.ok(q.id.startsWith("ai-"));
 });
-test("parseAiQuestion retourne null sur stdout non-JSON", () => {
-    assert.equal(E.parseAiQuestion("curl: (6) could not resolve host"), null);
+test("extractQuestionJson gère les fences markdown", () => {
+    const q = E.extractQuestionJson("Voici ta question :\n```json\n" + cliJson + "\n```\nVoilà !");
+    assert.equal(q.question, "Qx ?");
 });
-test("parseAiQuestion retourne null si le texte n'est pas une question valide", () => {
-    const bad = JSON.stringify({ content: [{ type: "text", text: JSON.stringify({ question: "Q", choices: ["x"], answer: 0, explanation: "" }) }] });
-    assert.equal(E.parseAiQuestion(bad), null);
+test("extractQuestionJson isole l'objet au milieu de texte parasite", () => {
+    const q = E.extractQuestionJson("Bien sûr ! " + cliJson + " J'espère que ça aide.");
+    assert.equal(q.answer, 2);
+});
+test("extractQuestionJson gère une accolade à l'intérieur d'une chaîne", () => {
+    const tricky = JSON.stringify({ question: "Que fait {} en JS ?", choices: ["1", "2", "3", "4"], answer: 0, explanation: "objet vide" });
+    const q = E.extractQuestionJson(tricky);
+    assert.equal(q.question, "Que fait {} en JS ?");
+});
+test("extractQuestionJson renvoie null sur une sortie non-JSON", () => {
+    assert.equal(E.extractQuestionJson("Désolé, je ne peux pas répondre."), null);
+});
+test("extractQuestionJson renvoie null si la question est invalide", () => {
+    const bad = JSON.stringify({ question: "Q", choices: ["x"], answer: 0, explanation: "" });
+    assert.equal(E.extractQuestionJson(bad), null);
+});
+test("extractQuestionJson gère une entrée non-string", () => {
+    assert.equal(E.extractQuestionJson(null), null);
 });
 
 test("randomNudge renvoie le premier preset avec rng=0", () => {

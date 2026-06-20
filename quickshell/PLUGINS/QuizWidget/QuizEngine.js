@@ -35,44 +35,42 @@ function hashString(s) {
     return Math.abs(h);
 }
 
-function buildAiRequestBody(subject) {
-    return JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
-        system: "Tu es un générateur de QCM. Génère UNE question à choix unique, claire et factuelle, "
-              + "avec 4 propositions dont une seule correcte, et une explication courte. "
-              + "Réponds uniquement via le format structuré.",
-        messages: [{ role: "user", content: "Sujet : " + subject + ". Génère une question QCM." }],
-        output_config: {
-            format: {
-                type: "json_schema",
-                schema: {
-                    type: "object",
-                    properties: {
-                        question: { type: "string" },
-                        choices: { type: "array", items: { type: "string" } },
-                        answer: { type: "integer" },
-                        explanation: { type: "string" }
-                    },
-                    required: ["question", "choices", "answer", "explanation"],
-                    additionalProperties: false
-                }
-            }
-        }
-    });
+// Prompt pour `claude -p` : exige UN objet JSON brut (le CLI n'a pas de json_schema).
+function buildQuestionPrompt(topicLabel, category) {
+    return "Génère UNE question de quiz à choix unique, en français, de niveau intermédiaire, "
+        + "sur le sujet suivant (catégorie « " + category + " ») : " + topicLabel + ". "
+        + "La question doit être claire et factuelle, avec EXACTEMENT 4 propositions dont une seule correcte, "
+        + "et une explication courte de la bonne réponse. "
+        + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans balises Markdown, de la forme : "
+        + '{"question": "...", "choices": ["...", "...", "...", "..."], "answer": 0, "explanation": "..."} '
+        + "où \"answer\" est l'index (0 à 3) de la bonne proposition dans \"choices\".";
 }
 
-function parseAiQuestion(stdout) {
-    var resp;
-    try { resp = JSON.parse(stdout); } catch (e) { return null; }
-    if (!resp || !Array.isArray(resp.content)) return null;
-    var textBlock = null;
-    for (var i = 0; i < resp.content.length; i++) {
-        if (resp.content[i] && resp.content[i].type === "text") { textBlock = resp.content[i]; break; }
+// Parse la sortie de `claude -p` : retire les fences markdown, isole le premier objet {…}
+// équilibré (en ignorant les accolades à l'intérieur des chaînes), valide, assigne un id.
+function extractQuestionJson(stdout) {
+    if (typeof stdout !== "string") return null;
+    var text = stdout;
+    var fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) text = fence[1];
+    var start = text.indexOf("{");
+    if (start === -1) return null;
+    var depth = 0, end = -1, inStr = false, esc = false;
+    for (var i = start; i < text.length; i++) {
+        var ch = text.charAt(i);
+        if (inStr) {
+            if (esc) esc = false;
+            else if (ch === "\\") esc = true;
+            else if (ch === "\"") inStr = false;
+            continue;
+        }
+        if (ch === "\"") inStr = true;
+        else if (ch === "{") depth++;
+        else if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
     }
-    if (!textBlock || typeof textBlock.text !== "string") return null;
+    if (end === -1) return null;
     var q;
-    try { q = JSON.parse(textBlock.text); } catch (e2) { return null; }
+    try { q = JSON.parse(text.substring(start, end + 1)); } catch (e) { return null; }
     if (!validate(q)) return null;
     if (!q.id) q.id = "ai-" + hashString(q.question);
     return q;
