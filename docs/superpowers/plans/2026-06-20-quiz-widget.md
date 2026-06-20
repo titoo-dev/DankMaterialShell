@@ -1063,6 +1063,11 @@ Vérifié sur le shell vivant (Hyprland) via `dms ipc plugins enable/reload` + `
 5. **Collision de clé `"enabled"`** : `PluginService.enablePlugin` écrit `setPluginSetting(id, "enabled", true)` dans le même store que `PluginSettings` → retirer la `ToggleSetting "enabled"` (l'activation du plugin via l'onglet Plugins fait foi).
 6. **Course de chargement des réglages** : lire les réglages via `Qt.callLater(loadSettings)` ET re-lire dans `requestQuiz()` (sinon `subjects` vaut `[]` car `pluginSettings` finit de charger après `Component.onCompleted`). Bonus : réglages pris en compte à chaud.
 7. **Lecture de banque** : `XMLHttpRequest` synchrone lève « Invalid state » sous Quickshell → utiliser `FileView` (`Quickshell.Io`), pattern prouvé du repo (`PluginService.loadPluginManifestFile`).
+8. **Couleur de texte** : `StyledText` a `color: Theme.surfaceText` par défaut (token texte réel). `Theme.onSurface` est un alias de `surfaceText`. Pour la lisibilité, garder un **texte clair sur surface sombre** (`surfaceContainer`/`surface`) — éclaircir le fond casse le contraste. Ne pas se fier au `THEME_REFERENCE.md` (plusieurs entrées fausses : `cornerRadiusLarge`, `DankIcon.font.pixelSize`, tokens texte) — vérifier `Common/Theme.qml`.
+
+## Redesign visuel (bento)
+
+Sur demande utilisateur, carte redessinée façon **bento** : tuiles arrondies distinctes (choix/feedback/actions), **bordures blanches en inset** (`Qt.rgba(1,1,1,0.14)`), survols, `ElevationShadow` (`Common/ElevationShadow.qml`, `level: Theme.elevationLevel3`) avec marge de rendu (`shadowPad`) dans l'overlay pour que l'ombre ne soit pas clippée. Surfaces sombres du thème (carte `surfaceContainer`, tuiles `surface`) + texte `surfaceText` → contraste fort, suit le thème dynamique. Vérif visuelle via captures `dms screenshot` (limite : occulté par les fenêtres ; crops utilisateur).
 
 ## Déploiement & découverte (à connaître)
 
