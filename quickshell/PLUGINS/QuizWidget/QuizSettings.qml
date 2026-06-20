@@ -52,5 +52,6 @@ PluginSettings {
 
     TopicPicker {
         settingKey: "selectedTopics"
+        customSettingKey: "customTopics"
     }
 }

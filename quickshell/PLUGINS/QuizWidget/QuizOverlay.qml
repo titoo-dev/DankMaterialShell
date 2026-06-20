@@ -14,7 +14,7 @@ PanelWindow {
     readonly property int animCount: 14
     signal dismissed()
     signal snoozeRequested(int ms)
-    signal onboardingComplete(var ids)
+    signal onboardingComplete(var ids, var customs)
 
     property string mode: "hidden" // "hidden"|"pending"|"open"|"feedback"|"onboarding"
     property int selected: -1
@@ -337,8 +337,8 @@ PanelWindow {
             visible: overlay.mode === "onboarding"
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            onStart: (ids) => {
-                overlay.onboardingComplete(ids);
+            onStart: (ids, customs) => {
+                overlay.onboardingComplete(ids, customs);
                 overlay.mode = "hidden";
                 overlay.visible = false;
             }

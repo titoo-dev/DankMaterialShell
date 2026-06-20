@@ -14,6 +14,7 @@ PluginComponent {
     property bool snoozing: false
     property int workMinutes: 25
     property var selectedTopics: []
+    property var customTopics: []
 
     // état runtime
     property var pendingQuestion: null
@@ -34,7 +35,7 @@ PluginComponent {
         animIndex: root.animIndex
         onDismissed: root.pendingQuestion = null
         onSnoozeRequested: (ms) => root.snooze(ms)
-        onOnboardingComplete: (ids) => root.completeOnboarding(ids)
+        onOnboardingComplete: (ids, customs) => root.completeOnboarding(ids, customs)
     }
 
     // Accroche affichée sur la pastille : preset local immédiat, puis enrichie via `claude -p`.
@@ -103,14 +104,11 @@ PluginComponent {
         if (root.pendingQuestion)
             return; // une seule en attente
         root.loadSettings(); // re-lecture fraîche (robuste à la course de chargement + réglages à chaud)
-        if (!root.selectedTopics || root.selectedTopics.length === 0)
+        var pool = Catalog.buildTopicPool(root.selectedTopics, root.customTopics);
+        if (pool.length === 0)
             return;
-        var id = root.selectedTopics[Math.floor(Math.random() * root.selectedTopics.length)];
-        var t = Catalog.topicById(id);
-        if (!t) {
-            console.warn("QuizDaemon: sujet inconnu", id);
-            return;
-        }
+        var t = pool[Math.floor(Math.random() * pool.length)];
+        var id = t.id;
         provider.fetchQuestion(id, t.label, t.category, root.seenFor(id), function (q, newSeen) {
             if (!q) {
                 console.warn("QuizDaemon: pas de question pour", id);
@@ -125,11 +123,14 @@ PluginComponent {
         });
     }
 
-    function completeOnboarding(ids) {
-        if (typeof pluginService !== "undefined" && pluginService)
-            pluginService.savePluginData("quizWidget", "selectedTopics", ids);
-        root.selectedTopics = ids;
-        console.info("QuizDaemon: onboarding terminé,", (ids ? ids.length : 0), "sujets");
+    function completeOnboarding(ids, customs) {
+        if (typeof pluginService !== "undefined" && pluginService) {
+            pluginService.savePluginData("quizWidget", "selectedTopics", ids || []);
+            pluginService.savePluginData("quizWidget", "customTopics", customs || []);
+        }
+        root.selectedTopics = ids || [];
+        root.customTopics = customs || [];
+        console.info("QuizDaemon: onboarding terminé,", (ids ? ids.length : 0), "catalogue +", (customs ? customs.length : 0), "libres");
         firstQuizTimer.restart();
     }
 
@@ -139,14 +140,17 @@ PluginComponent {
         root.paused = pluginService.loadPluginData("quizWidget", "paused", false);
         root.workMinutes = parseInt(pluginService.loadPluginData("quizWidget", "workMinutes", "25")) || 25;
         root.selectedTopics = pluginService.loadPluginData("quizWidget", "selectedTopics", []);
+        root.customTopics = pluginService.loadPluginData("quizWidget", "customTopics", []);
     }
 
     Component.onCompleted: {
         Qt.callLater(function () {
             root.loadSettings();
-            if (!root.selectedTopics || root.selectedTopics.length === 0)
+            var nCat = root.selectedTopics ? root.selectedTopics.length : 0;
+            var nCustom = root.customTopics ? root.customTopics.length : 0;
+            if (nCat === 0 && nCustom === 0)
                 overlay.showOnboarding();
-            console.info("QuizDaemon: started, work", root.workMinutes, "min,", (root.selectedTopics ? root.selectedTopics.length : 0), "sujets");
+            console.info("QuizDaemon: started, work", root.workMinutes, "min,", nCat, "catalogue +", nCustom, "libres");
         });
     }
     Component.onDestruction: console.info("QuizDaemon: stopped")

@@ -4,7 +4,7 @@ import qs.Widgets
 
 StyledRect {
     id: cardRoot
-    signal start(var ids)
+    signal start(var ids, var customs)
 
     readonly property color insetBorder: Qt.rgba(1, 1, 1, 0.14)
 
@@ -60,7 +60,7 @@ StyledRect {
             StyledRect {
                 id: startBtn
                 anchors.right: parent.right
-                enabled: picker.selectedIds.length > 0
+                enabled: picker.selectedIds.length > 0 || picker.customTopics.length > 0
                 implicitWidth: startText.implicitWidth + Theme.spacingL * 2
                 implicitHeight: startText.implicitHeight + Theme.spacingS * 2
                 radius: Theme.cornerRadius
@@ -81,7 +81,7 @@ StyledRect {
                     anchors.fill: parent
                     enabled: startBtn.enabled
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: cardRoot.start(picker.selectedIds)
+                    onClicked: cardRoot.start(picker.selectedIds, picker.customTopics)
                 }
             }
         }
