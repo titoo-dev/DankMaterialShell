@@ -52,7 +52,7 @@ PanelWindow {
             implicitWidth: pillRow.implicitWidth + Theme.spacingM * 2
             implicitHeight: pillRow.implicitHeight + Theme.spacingS * 2
             radius: Theme.cornerRadius
-            color: Theme.surfaceContainer
+            color: Theme.surfaceContainerHigh
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
 
@@ -72,7 +72,7 @@ PanelWindow {
                 anchors.centerIn: parent
                 spacing: Theme.spacingXS
                 DankIcon { name: "quiz"; color: Theme.primary; size: Theme.iconSizeSmall }
-                StyledText { text: "Quiz dispo"; font.pixelSize: Theme.fontSizeMedium; color: Theme.onSurface }
+                StyledText { text: "Quiz dispo"; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
             }
 
             MouseArea {

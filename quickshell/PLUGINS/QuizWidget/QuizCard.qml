@@ -20,7 +20,7 @@ StyledRect {
     implicitWidth: 380
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
     radius: Theme.cornerRadius
-    color: Theme.surfaceContainer
+    color: Theme.surfaceContainerHigh
     border.width: 1
     border.color: card.insetBorder
 
@@ -48,7 +48,7 @@ StyledRect {
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontSizeLarge
             font.weight: Font.DemiBold
-            color: Theme.onSurface
+            color: Theme.surfaceText
         }
 
         // Choix — tuiles bento recessed
@@ -67,7 +67,7 @@ StyledRect {
                     radius: Theme.cornerRadius
                     color: index === card.selected
                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.22)
-                           : (choiceArea.containsMouse ? Theme.surfaceContainerHigh : Theme.surface)
+                           : (choiceArea.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainer)
                     border.width: 1
                     border.color: index === card.selected ? Theme.primary : card.insetBorder
 
@@ -81,7 +81,7 @@ StyledRect {
                         text: modelData
                         wrapMode: Text.WordWrap
                         font.pixelSize: Theme.fontSizeMedium
-                        color: Theme.onSurface
+                        color: Theme.surfaceText
                     }
 
                     MouseArea {
@@ -120,7 +120,7 @@ StyledRect {
                       ? ((card.correct ? "✓ Correct" : "✗ Incorrect — réponse : " + card.question.choices[card.question.answer])
                          + "\n" + card.question.explanation)
                       : ""
-                color: Theme.onSurface
+                color: Theme.surfaceText
             }
         }
 
@@ -134,7 +134,7 @@ StyledRect {
                 implicitWidth: validateText.implicitWidth + Theme.spacingL * 2
                 implicitHeight: validateText.implicitHeight + Theme.spacingS * 2
                 radius: Theme.cornerRadius
-                color: card.selected >= 0 ? Theme.primary : Theme.surface
+                color: card.selected >= 0 ? Theme.primary : Theme.surfaceContainer
                 border.width: 1
                 border.color: card.selected >= 0 ? Qt.rgba(1, 1, 1, 0.22) : card.insetBorderSoft
 
@@ -144,7 +144,7 @@ StyledRect {
                     text: "Valider"
                     font.pixelSize: Theme.fontSizeMedium
                     font.weight: Font.Medium
-                    color: card.selected >= 0 ? Theme.onPrimary : Theme.onSurfaceVariant
+                    color: card.selected >= 0 ? Theme.primaryText : Theme.surfaceVariantText
                 }
 
                 MouseArea {
@@ -160,7 +160,7 @@ StyledRect {
                 implicitWidth: closeText.implicitWidth + Theme.spacingL * 2
                 implicitHeight: closeText.implicitHeight + Theme.spacingS * 2
                 radius: Theme.cornerRadius
-                color: Theme.surface
+                color: Theme.surfaceContainer
                 border.width: 1
                 border.color: card.insetBorder
 
@@ -170,7 +170,7 @@ StyledRect {
                     text: "Fermer"
                     font.pixelSize: Theme.fontSizeMedium
                     font.weight: Font.Medium
-                    color: Theme.onSurface
+                    color: Theme.surfaceText
                 }
 
                 MouseArea {
