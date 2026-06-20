@@ -12,3 +12,19 @@ function validate(q) {
     if (q.answer < 0 || q.answer >= q.choices.length) return false;
     return true;
 }
+
+function pickQuestion(bank, seen, rng) {
+    rng = rng || Math.random;
+    seen = seen || [];
+    var valid = (bank || []).filter(validate);
+    if (valid.length === 0) return null;
+    var unseen = valid.filter(function (q) { return seen.indexOf(q.id) === -1; });
+    var recycling = unseen.length === 0;
+    var pool = recycling ? valid : unseen;
+    var nextSeen = recycling ? [] : seen.slice();
+    var idx = Math.floor(rng() * pool.length);
+    if (idx >= pool.length) idx = pool.length - 1;
+    var chosen = pool[idx];
+    nextSeen.push(chosen.id);
+    return { question: chosen, seen: nextSeen };
+}

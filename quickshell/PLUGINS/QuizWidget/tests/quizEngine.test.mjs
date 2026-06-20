@@ -22,6 +22,9 @@ function loadEngine() {
 }
 const E = loadEngine();
 
+// Normalise les tableaux renvoyés par le contexte vm (realm différent) avant comparaison.
+const arrEq = (actual, expected) => assert.deepEqual(Array.from(actual), expected);
+
 const good = { question: "Q ?", choices: ["a", "b"], answer: 1, explanation: "parce que" };
 
 test("validate accepte une question correcte", () => {
@@ -38,4 +41,33 @@ test("validate rejette question vide", () => {
 });
 test("validate rejette explication manquante", () => {
     assert.equal(E.validate({ ...good, explanation: "" }), false);
+});
+
+const bank = [
+    { id: "a", question: "Qa ?", choices: ["1", "2"], answer: 0, explanation: "ea" },
+    { id: "b", question: "Qb ?", choices: ["1", "2"], answer: 1, explanation: "eb" }
+];
+
+test("pickQuestion choisit la première du pool avec rng=0", () => {
+    const r = E.pickQuestion(bank, [], () => 0);
+    assert.equal(r.question.id, "a");
+    arrEq(r.seen, ["a"]);
+});
+test("pickQuestion évite les déjà-vues", () => {
+    const r = E.pickQuestion(bank, ["a"], () => 0);
+    assert.equal(r.question.id, "b");
+    arrEq(r.seen, ["a", "b"]);
+});
+test("pickQuestion recycle quand tout est vu", () => {
+    const r = E.pickQuestion(bank, ["a", "b"], () => 0);
+    assert.equal(r.question.id, "a");
+    arrEq(r.seen, ["a"]);
+});
+test("pickQuestion ignore les questions invalides", () => {
+    const mixed = [{ id: "bad", question: "", choices: ["1"], answer: 9, explanation: "" }, bank[0]];
+    const r = E.pickQuestion(mixed, [], () => 0);
+    assert.equal(r.question.id, "a");
+});
+test("pickQuestion retourne null sur banque vide/invalide", () => {
+    assert.equal(E.pickQuestion([], [], () => 0), null);
 });
