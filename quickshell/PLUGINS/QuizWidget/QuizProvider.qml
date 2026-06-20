@@ -5,28 +5,37 @@ import "QuizEngine.js" as QuizEngine
 
 Item {
     id: provider
-    property bool aiEnabled: false
-    property string apiKey: ""
 
-    // fetchQuestion(subject, seen, callback(question|null, newSeen))
-    function fetchQuestion(subject, seen, callback) {
-        if (provider.aiEnabled && provider.apiKey !== "") {
-            _fetchAi(subject, function (q) {
-                if (q) {
-                    var ns = (seen || []).slice();
-                    ns.push(q.id);
-                    callback(q, ns);
-                } else {
-                    _fetchLocal(subject, seen, callback); // fallback
-                }
-            });
-        } else {
-            _fetchLocal(subject, seen, callback);
-        }
+    // fetchQuestion(topicId, label, category, seen, callback(question|null, newSeen))
+    function fetchQuestion(topicId, label, category, seen, callback) {
+        _fetchAi(label, category, function (q) {
+            if (q) {
+                var ns = (seen || []).slice();
+                ns.push(q.id);
+                callback(q, ns);
+            } else {
+                _fetchLocal(topicId, seen, callback); // fallback banque locale si présente
+            }
+        });
     }
 
-    function _fetchLocal(subject, seen, callback) {
-        _loadBank(subject, function (bank) {
+    // Génération via `claude -p` (CLI Claude Code local — pas de clé API, comme le nudge).
+    function _fetchAi(label, category, callback) {
+        var prompt = QuizEngine.buildQuestionPrompt(label, category);
+        Proc.runCommand("quizWidget.gen", [
+            "claude", "-p", "--model", "claude-haiku-4-5", prompt
+        ], function (stdout, exitCode) {
+            if (exitCode !== 0) {
+                console.warn("QuizProvider: claude -p exit", exitCode);
+                callback(null);
+                return;
+            }
+            callback(QuizEngine.extractQuestionJson(stdout));
+        }, 0);
+    }
+
+    function _fetchLocal(topicId, seen, callback) {
+        _loadBank(topicId, function (bank) {
             var res = QuizEngine.pickQuestion(bank, seen);
             if (res)
                 callback(res.question, res.seen);
@@ -35,9 +44,9 @@ Item {
         });
     }
 
-    // Lecture asynchrone de banks/<subject>.json via FileView (pattern prouvé du repo).
-    function _loadBank(subject, cb) {
-        var url = Qt.resolvedUrl("banks/" + subject + ".json").toString();
+    // Lecture asynchrone de banks/<topicId>.json via FileView (pattern prouvé du repo).
+    function _loadBank(topicId, cb) {
+        var url = Qt.resolvedUrl("banks/" + topicId + ".json").toString();
         var path = url.indexOf("file://") === 0 ? url.substring(7) : url;
         bankFvComp.createObject(provider, { "path": path, "cb": cb });
     }
@@ -64,23 +73,5 @@ Item {
                 destroy();
             }
         }
-    }
-
-    function _fetchAi(subject, callback) {
-        var body = QuizEngine.buildAiRequestBody(subject);
-        Proc.runCommand("quizWidget.gen", [
-            "curl", "-s", "-X", "POST", "https://api.anthropic.com/v1/messages",
-            "-H", "x-api-key: " + provider.apiKey,
-            "-H", "anthropic-version: 2023-06-01",
-            "-H", "content-type: application/json",
-            "-d", body
-        ], function (stdout, exitCode) {
-            if (exitCode !== 0) {
-                console.warn("QuizProvider: AI curl exit", exitCode);
-                callback(null);
-                return;
-            }
-            callback(QuizEngine.parseAiQuestion(stdout));
-        }, 0);
     }
 }

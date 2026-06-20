@@ -3,20 +3,17 @@ import Quickshell
 import qs.Common
 import qs.Modules.Plugins
 import "QuizEngine.js" as QuizEngine
+import "Catalog.js" as Catalog
 
 PluginComponent {
     id: root
     property var popoutService: null
 
-    // réglages (chargés en onCompleted, défauts ci-dessous)
-    // Note: l'activation/désactivation du plugin (flag "enabled" géré par PluginService)
-    // gouverne déjà le chargement du daemon — pas de toggle "enabled" propre ici.
+    // réglages (chargés via Qt.callLater, défauts ci-dessous)
     property bool paused: false
     property bool snoozing: false
     property int workMinutes: 25
-    property var subjects: []
-    property bool aiEnabled: false
-    property string apiKey: ""
+    property var selectedTopics: []
 
     // état runtime
     property var pendingQuestion: null
@@ -27,8 +24,6 @@ PluginComponent {
 
     QuizProvider {
         id: provider
-        aiEnabled: root.aiEnabled
-        apiKey: root.apiKey
     }
 
     QuizOverlay {
@@ -39,6 +34,7 @@ PluginComponent {
         animIndex: root.animIndex
         onDismissed: root.pendingQuestion = null
         onSnoozeRequested: (ms) => root.snooze(ms)
+        onOnboardingComplete: (ids) => root.completeOnboarding(ids)
     }
 
     // Accroche affichée sur la pastille : preset local immédiat, puis enrichie via `claude -p`.
@@ -63,18 +59,15 @@ PluginComponent {
         onTriggered: root.requestQuiz()
     }
 
-    // Report (snooze) : pause la cadence pomodoro pendant `ms`, puis montre une quiz et reprend.
     Timer {
         id: snoozeTimer
         repeat: false
         onTriggered: {
-            root.snoozing = false; // réactive workTimer (binding running)
+            root.snoozing = false;
             root.requestQuiz();
         }
     }
 
-    // Relance : si la quiz reste en attente (pastille non ouverte), régénère un message
-    // toutes les 5 min pour réinciter. S'arrête dès que la carte est ouverte/fermée.
     Timer {
         id: renudgeTimer
         interval: 5 * 60 * 1000
@@ -86,35 +79,45 @@ PluginComponent {
         }
     }
 
+    // Première quiz peu après l'onboarding (gratification immédiate), puis cadence pomodoro normale.
+    Timer {
+        id: firstQuizTimer
+        interval: 30 * 1000
+        repeat: false
+        onTriggered: root.requestQuiz()
+    }
+
     function snooze(ms) {
         root.pendingQuestion = null;
         snoozeTimer.interval = Math.max(1, ms);
-        root.snoozing = true; // stoppe workTimer
+        root.snoozing = true;
         snoozeTimer.restart();
         console.info("QuizDaemon: snooze", ms, "ms");
     }
 
-    function seenFor(subject) {
-        return root.sessionSeen[subject] ? root.sessionSeen[subject] : [];
+    function seenFor(topicId) {
+        return root.sessionSeen[topicId] ? root.sessionSeen[topicId] : [];
     }
 
     function requestQuiz() {
         if (root.pendingQuestion)
             return; // une seule en attente
         root.loadSettings(); // re-lecture fraîche (robuste à la course de chargement + réglages à chaud)
-        if (!root.subjects || root.subjects.length === 0)
+        if (!root.selectedTopics || root.selectedTopics.length === 0)
             return;
-        var raw = root.subjects[Math.floor(Math.random() * root.subjects.length)];
-        var subject = (raw && typeof raw === "object") ? (raw.name || "") : raw;
-        if (!subject)
+        var id = root.selectedTopics[Math.floor(Math.random() * root.selectedTopics.length)];
+        var t = Catalog.topicById(id);
+        if (!t) {
+            console.warn("QuizDaemon: sujet inconnu", id);
             return;
-        provider.fetchQuestion(subject, root.seenFor(subject), function (q, newSeen) {
+        }
+        provider.fetchQuestion(id, t.label, t.category, root.seenFor(id), function (q, newSeen) {
             if (!q) {
-                console.warn("QuizDaemon: pas de question pour", subject);
+                console.warn("QuizDaemon: pas de question pour", id);
                 return;
             }
             var s = root.sessionSeen;
-            s[subject] = newSeen;
+            s[id] = newSeen;
             root.sessionSeen = s;
             root.pendingQuestion = q;
             root.fetchNudge();
@@ -122,19 +125,29 @@ PluginComponent {
         });
     }
 
+    function completeOnboarding(ids) {
+        if (typeof pluginService !== "undefined" && pluginService)
+            pluginService.savePluginData("quizWidget", "selectedTopics", ids);
+        root.selectedTopics = ids;
+        console.info("QuizDaemon: onboarding terminé,", (ids ? ids.length : 0), "sujets");
+        firstQuizTimer.restart();
+    }
+
     function loadSettings() {
         if (typeof pluginService === "undefined" || !pluginService)
             return;
         root.paused = pluginService.loadPluginData("quizWidget", "paused", false);
         root.workMinutes = parseInt(pluginService.loadPluginData("quizWidget", "workMinutes", "25")) || 25;
-        root.subjects = pluginService.loadPluginData("quizWidget", "subjects", []);
-        root.aiEnabled = pluginService.loadPluginData("quizWidget", "aiEnabled", false);
-        root.apiKey = pluginService.loadPluginData("quizWidget", "apiKey", "");
+        root.selectedTopics = pluginService.loadPluginData("quizWidget", "selectedTopics", []);
     }
 
     Component.onCompleted: {
-        Qt.callLater(loadSettings);
-        console.info("QuizDaemon: started, work", root.workMinutes, "min");
+        Qt.callLater(function () {
+            root.loadSettings();
+            if (!root.selectedTopics || root.selectedTopics.length === 0)
+                overlay.showOnboarding();
+            console.info("QuizDaemon: started, work", root.workMinutes, "min,", (root.selectedTopics ? root.selectedTopics.length : 0), "sujets");
+        });
     }
     Component.onDestruction: console.info("QuizDaemon: stopped")
 }
