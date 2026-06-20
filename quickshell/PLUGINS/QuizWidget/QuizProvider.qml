@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import qs.Common
 import "QuizEngine.js" as QuizEngine
@@ -22,8 +23,9 @@ Item {
     // Génération via `claude -p` (CLI Claude Code local — pas de clé API, comme le nudge).
     function _fetchAi(label, category, callback) {
         var prompt = QuizEngine.buildQuestionPrompt(label, category);
+        var bin = QuizEngine.claudeBinary(Quickshell.env("HOME"));
         Proc.runCommand("quizWidget.gen", [
-            "claude", "-p", "--model", "claude-haiku-4-5", prompt
+            bin, "-p", "--model", "claude-haiku-4-5", prompt
         ], function (stdout, exitCode) {
             if (exitCode !== 0) {
                 console.warn("QuizProvider: claude -p exit", exitCode);
@@ -31,7 +33,7 @@ Item {
                 return;
             }
             callback(QuizEngine.extractQuestionJson(stdout));
-        }, 0);
+        }, 0, 60000); // debounce 0, timeout 60 s (la génération claude -p dépasse le défaut de 10 s)
     }
 
     function _fetchLocal(topicId, seen, callback) {

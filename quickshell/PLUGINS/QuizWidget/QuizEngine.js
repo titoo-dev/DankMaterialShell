@@ -35,6 +35,13 @@ function hashString(s) {
     return Math.abs(h);
 }
 
+// Chemin absolu du binaire claude. Le process DMS (lancé par la session) n'a pas ~/.local/bin
+// dans son PATH, donc l'appeler par "claude" échoue ("binary could not be found"). On résout
+// depuis HOME vers l'emplacement d'install standard de Claude Code.
+function claudeBinary(home) {
+    return home ? home + "/.local/bin/claude" : "claude";
+}
+
 // Prompt pour `claude -p` : exige UN objet JSON brut (le CLI n'a pas de json_schema).
 function buildQuestionPrompt(topicLabel, category) {
     return "Génère UNE question de quiz à choix unique, en français, de niveau intermédiaire, "

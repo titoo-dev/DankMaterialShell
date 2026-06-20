@@ -16,6 +16,7 @@ function loadEngine() {
         + " pickQuestion: typeof pickQuestion !== 'undefined' ? pickQuestion : undefined,"
         + " buildQuestionPrompt: typeof buildQuestionPrompt !== 'undefined' ? buildQuestionPrompt : undefined,"
         + " extractQuestionJson: typeof extractQuestionJson !== 'undefined' ? extractQuestionJson : undefined,"
+        + " claudeBinary: typeof claudeBinary !== 'undefined' ? claudeBinary : undefined,"
         + " randomNudge: typeof randomNudge !== 'undefined' ? randomNudge : undefined,"
         + " randomEmoji: typeof randomEmoji !== 'undefined' ? randomEmoji : undefined,"
         + " randomNudgeAngle: typeof randomNudgeAngle !== 'undefined' ? randomNudgeAngle : undefined,"
@@ -115,6 +116,14 @@ test("extractQuestionJson renvoie null si la question est invalide", () => {
 });
 test("extractQuestionJson gère une entrée non-string", () => {
     assert.equal(E.extractQuestionJson(null), null);
+});
+
+test("claudeBinary construit le chemin absolu depuis HOME", () => {
+    assert.equal(E.claudeBinary("/home/x"), "/home/x/.local/bin/claude");
+});
+test("claudeBinary retombe sur 'claude' si HOME absent", () => {
+    assert.equal(E.claudeBinary(""), "claude");
+    assert.equal(E.claudeBinary(null), "claude");
 });
 
 test("randomNudge renvoie le premier preset avec rng=0", () => {

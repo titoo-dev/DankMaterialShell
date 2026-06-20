@@ -43,13 +43,13 @@ PluginComponent {
         root.nudgeText = QuizEngine.randomNudge();
         root.nudgeEmoji = QuizEngine.randomEmoji();
         root.animIndex = Math.floor(Math.random() * Math.max(1, overlay.animCount));
-        Proc.runCommand("quizWidget.nudge", ["claude", "-p", QuizEngine.nudgePrompt()], function (stdout, exitCode) {
+        Proc.runCommand("quizWidget.nudge", [QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", QuizEngine.nudgePrompt()], function (stdout, exitCode) {
             if (exitCode === 0) {
                 var n = QuizEngine.cleanNudge(stdout);
                 if (n)
                     root.nudgeText = n;
             }
-        }, 0);
+        }, 0, 30000); // debounce 0, timeout 30 s (au-dessus du défaut de 10 s)
     }
 
     Timer {
@@ -80,7 +80,8 @@ PluginComponent {
         }
     }
 
-    // Première quiz peu après l'onboarding (gratification immédiate), puis cadence pomodoro normale.
+    // Première quiz peu après le démarrage (sujets déjà configurés) ou après l'onboarding,
+    // pour une gratification immédiate ; ensuite la cadence pomodoro normale prend le relais.
     Timer {
         id: firstQuizTimer
         interval: 30 * 1000
@@ -150,6 +151,8 @@ PluginComponent {
             var nCustom = root.customTopics ? root.customTopics.length : 0;
             if (nCat === 0 && nCustom === 0)
                 overlay.showOnboarding();
+            else if (!root.paused)
+                firstQuizTimer.restart(); // sujets déjà configurés → 1re quiz peu après le démarrage (sinon attente = workMinutes)
             console.info("QuizDaemon: started, work", root.workMinutes, "min,", nCat, "catalogue +", nCustom, "libres");
         });
     }
