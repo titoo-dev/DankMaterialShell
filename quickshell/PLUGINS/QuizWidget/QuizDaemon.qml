@@ -23,6 +23,7 @@ PluginComponent {
     property var sessionSeen: ({})
     property string nudgeText: "Quiz dispo"
     property string nudgeEmoji: "🦉"
+    property int animIndex: 0
 
     QuizProvider {
         id: provider
@@ -35,6 +36,7 @@ PluginComponent {
         question: root.pendingQuestion
         nudge: root.nudgeText
         emoji: root.nudgeEmoji
+        animIndex: root.animIndex
         onDismissed: root.pendingQuestion = null
         onSnoozeRequested: (ms) => root.snooze(ms)
     }
@@ -43,6 +45,7 @@ PluginComponent {
     function fetchNudge() {
         root.nudgeText = QuizEngine.randomNudge();
         root.nudgeEmoji = QuizEngine.randomEmoji();
+        root.animIndex = Math.floor(Math.random() * Math.max(1, overlay.animCount));
         Proc.runCommand("quizWidget.nudge", ["claude", "-p", QuizEngine.nudgePrompt()], function (stdout, exitCode) {
             if (exitCode === 0) {
                 var n = QuizEngine.cleanNudge(stdout);
