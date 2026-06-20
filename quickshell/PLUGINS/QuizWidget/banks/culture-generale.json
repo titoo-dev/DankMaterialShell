@@ -1,0 +1,3 @@
+[
+  { "id": "cg-001", "question": "En quelle année a eu lieu la Révolution française ?", "choices": ["1689", "1789", "1889", "1989"], "answer": 1, "explanation": "La prise de la Bastille date du 14 juillet 1789." }
+]

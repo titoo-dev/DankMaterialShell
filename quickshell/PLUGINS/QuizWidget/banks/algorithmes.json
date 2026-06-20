@@ -1,0 +1,4 @@
+[
+  { "id": "algo-001", "question": "Quelle est la complexité d'une recherche dichotomique ?", "choices": ["O(n)", "O(log n)", "O(n²)", "O(1)"], "answer": 1, "explanation": "L'espace de recherche est divisé par deux à chaque étape." },
+  { "id": "algo-002", "question": "Quelle structure suit le principe LIFO ?", "choices": ["File", "Pile", "Arbre", "Graphe"], "answer": 1, "explanation": "Une pile (stack) est Last-In First-Out." }
+]
