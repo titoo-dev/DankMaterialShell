@@ -77,3 +77,67 @@ function parseAiQuestion(stdout) {
     if (!q.id) q.id = "ai-" + hashString(q.question);
     return q;
 }
+
+// --- nudges (messages d'accroche façon Duolingo, affichés sur la pastille) ---
+
+var LOCAL_NUDGES = [
+    "Coucou 👋",
+    "Je suis là !",
+    "Clique-moi 👀",
+    "Apprenons un truc !",
+    "Petit quiz ? 🧠",
+    "On révise ?",
+    "Hé, par ici !",
+    "Une question pour toi !"
+];
+
+function randomNudge(rng) {
+    rng = rng || Math.random;
+    var idx = Math.floor(rng() * LOCAL_NUDGES.length);
+    if (idx < 0) idx = 0;
+    if (idx >= LOCAL_NUDGES.length) idx = LOCAL_NUDGES.length - 1;
+    return LOCAL_NUDGES[idx];
+}
+
+var NUDGE_ANGLES = [
+    "une salutation chaleureuse",
+    "« je suis là, ne m'oublie pas »",
+    "« clique-moi »",
+    "« apprenons un truc ensemble »",
+    "piquer la curiosité",
+    "un défi joueur",
+    "un encouragement bienveillant",
+    "un brin d'humour"
+];
+
+function randomNudgeAngle(rng) {
+    rng = rng || Math.random;
+    var idx = Math.floor(rng() * NUDGE_ANGLES.length);
+    if (idx < 0) idx = 0;
+    if (idx >= NUDGE_ANGLES.length) idx = NUDGE_ANGLES.length - 1;
+    return NUDGE_ANGLES[idx];
+}
+
+// Prompt pour `claude -p` : une accroche courte et variée. L'angle aléatoire force la variété.
+function nudgePrompt(angle) {
+    var a = angle || randomNudgeAngle();
+    return "Génère UN court message ludique en français (max 5 mots, style Duolingo, "
+         + "un emoji bienvenu) pour inciter à cliquer sur un mini-quiz qui vient d'apparaître. "
+         + "Angle à adopter : " + a + ". "
+         + "Réponds UNIQUEMENT le message, sans guillemets ni ponctuation finale superflue.";
+}
+
+// Nettoie la sortie de `claude -p` : première ligne non vide, sans guillemets, plafonnée.
+function cleanNudge(stdout, max) {
+    max = max || 40;
+    if (typeof stdout !== "string") return "";
+    var line = "";
+    var parts = stdout.split("\n");
+    for (var i = 0; i < parts.length; i++) {
+        var t = parts[i].trim();
+        if (t) { line = t; break; }
+    }
+    line = line.replace(/^["'«»\s]+/, "").replace(/["'«»\s]+$/, "");
+    if (line.length > max) line = line.slice(0, max);
+    return line;
+}

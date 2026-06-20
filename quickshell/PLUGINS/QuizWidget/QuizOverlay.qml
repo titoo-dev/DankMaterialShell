@@ -8,6 +8,7 @@ PanelWindow {
     id: overlay
 
     property var question: null
+    property string nudge: "Quiz dispo"
     signal dismissed()
     signal snoozeRequested(int ms)
 
@@ -68,12 +69,22 @@ PanelWindow {
                 shadowEnabled: Theme.elevationEnabled && SettingsData.popoutElevationEnabled
             }
 
+            // Bounce d'attention façon Duolingo (tant qu'une quiz est en attente)
+            transform: Translate { id: pillBounce }
+            SequentialAnimation {
+                running: overlay.mode === "pending"
+                loops: Animation.Infinite
+                NumberAnimation { target: pillBounce; property: "y"; from: 0; to: -12; duration: 240; easing.type: Easing.OutQuad }
+                NumberAnimation { target: pillBounce; property: "y"; to: 0; duration: 520; easing.type: Easing.OutBounce }
+                PauseAnimation { duration: 2200 }
+            }
+
             Row {
                 id: pillRow
                 anchors.centerIn: parent
                 spacing: Theme.spacingXS
                 DankIcon { name: "quiz"; color: Theme.primary; size: Theme.iconSizeSmall }
-                StyledText { text: "Quiz dispo"; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
+                StyledText { text: overlay.nudge; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
             }
 
             MouseArea {

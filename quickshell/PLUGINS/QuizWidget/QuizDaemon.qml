@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import qs.Common
 import qs.Modules.Plugins
+import "QuizEngine.js" as QuizEngine
 
 PluginComponent {
     id: root
@@ -20,6 +21,7 @@ PluginComponent {
     // état runtime
     property var pendingQuestion: null
     property var sessionSeen: ({})
+    property string nudgeText: "Quiz dispo"
 
     QuizProvider {
         id: provider
@@ -30,8 +32,21 @@ PluginComponent {
     QuizOverlay {
         id: overlay
         question: root.pendingQuestion
+        nudge: root.nudgeText
         onDismissed: root.pendingQuestion = null
         onSnoozeRequested: (ms) => root.snooze(ms)
+    }
+
+    // Accroche affichée sur la pastille : preset local immédiat, puis enrichie via `claude -p`.
+    function fetchNudge() {
+        root.nudgeText = QuizEngine.randomNudge();
+        Proc.runCommand("quizWidget.nudge", ["claude", "-p", QuizEngine.nudgePrompt()], function (stdout, exitCode) {
+            if (exitCode === 0) {
+                var n = QuizEngine.cleanNudge(stdout);
+                if (n)
+                    root.nudgeText = n;
+            }
+        }, 0);
     }
 
     Timer {
@@ -83,6 +98,7 @@ PluginComponent {
             s[subject] = newSeen;
             root.sessionSeen = s;
             root.pendingQuestion = q;
+            root.fetchNudge();
             overlay.showPending();
         });
     }

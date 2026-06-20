@@ -15,7 +15,11 @@ function loadEngine() {
         + " validate: typeof validate !== 'undefined' ? validate : undefined,"
         + " pickQuestion: typeof pickQuestion !== 'undefined' ? pickQuestion : undefined,"
         + " buildAiRequestBody: typeof buildAiRequestBody !== 'undefined' ? buildAiRequestBody : undefined,"
-        + " parseAiQuestion: typeof parseAiQuestion !== 'undefined' ? parseAiQuestion : undefined };",
+        + " parseAiQuestion: typeof parseAiQuestion !== 'undefined' ? parseAiQuestion : undefined,"
+        + " randomNudge: typeof randomNudge !== 'undefined' ? randomNudge : undefined,"
+        + " randomNudgeAngle: typeof randomNudgeAngle !== 'undefined' ? randomNudgeAngle : undefined,"
+        + " nudgePrompt: typeof nudgePrompt !== 'undefined' ? nudgePrompt : undefined,"
+        + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
         ctx
     );
     return ctx.__api;
@@ -96,4 +100,33 @@ test("parseAiQuestion retourne null sur stdout non-JSON", () => {
 test("parseAiQuestion retourne null si le texte n'est pas une question valide", () => {
     const bad = JSON.stringify({ content: [{ type: "text", text: JSON.stringify({ question: "Q", choices: ["x"], answer: 0, explanation: "" }) }] });
     assert.equal(E.parseAiQuestion(bad), null);
+});
+
+test("randomNudge renvoie le premier preset avec rng=0", () => {
+    const n = E.randomNudge(() => 0);
+    assert.equal(typeof n, "string");
+    assert.ok(n.length > 0);
+});
+test("randomNudge renvoie toujours un preset non vide", () => {
+    for (let r = 0; r < 1; r += 0.1) {
+        const n = E.randomNudge(() => r);
+        assert.ok(typeof n === "string" && n.length > 0);
+    }
+});
+test("cleanNudge prend la première ligne non vide et retire les guillemets", () => {
+    assert.equal(E.cleanNudge('\n  "Clique-moi 👀"  \nautre ligne'), "Clique-moi 👀");
+});
+test("cleanNudge plafonne la longueur", () => {
+    const long = "x".repeat(100);
+    assert.ok(E.cleanNudge(long, 40).length <= 40);
+});
+test("cleanNudge gère une entrée non-string", () => {
+    assert.equal(E.cleanNudge(null), "");
+});
+test("randomNudgeAngle renvoie un angle non vide", () => {
+    const a = E.randomNudgeAngle(() => 0);
+    assert.ok(typeof a === "string" && a.length > 0);
+});
+test("nudgePrompt inclut l'angle fourni", () => {
+    assert.match(E.nudgePrompt("MON_ANGLE_TEST"), /MON_ANGLE_TEST/);
 });
