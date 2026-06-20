@@ -8,13 +8,13 @@ PanelWindow {
     id: overlay
 
     property var question: null
-    signal closed()
+    signal dismissed()
 
     property string mode: "hidden" // "hidden"|"pending"|"open"|"feedback"
     property int selected: -1
 
     function showPending() { overlay.selected = -1; overlay.mode = "pending"; overlay.visible = true; }
-    function reset() { overlay.mode = "hidden"; overlay.selected = -1; overlay.visible = false; overlay.closed(); }
+    function reset() { overlay.mode = "hidden"; overlay.selected = -1; overlay.visible = false; overlay.dismissed(); }
 
     color: "transparent"
     visible: false

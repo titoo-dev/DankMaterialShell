@@ -29,7 +29,7 @@ PluginComponent {
     QuizOverlay {
         id: overlay
         question: root.pendingQuestion
-        onClosed: root.pendingQuestion = null
+        onDismissed: root.pendingQuestion = null
     }
 
     Timer {
@@ -47,6 +47,7 @@ PluginComponent {
     function requestQuiz() {
         if (root.pendingQuestion)
             return; // une seule en attente
+        root.loadSettings(); // re-lecture fraîche (robuste à la course de chargement + réglages à chaud)
         if (!root.subjects || root.subjects.length === 0)
             return;
         var raw = root.subjects[Math.floor(Math.random() * root.subjects.length)];
@@ -66,15 +67,19 @@ PluginComponent {
         });
     }
 
+    function loadSettings() {
+        if (typeof pluginService === "undefined" || !pluginService)
+            return;
+        root.paused = pluginService.loadPluginData("quizWidget", "paused", false);
+        root.workMinutes = parseInt(pluginService.loadPluginData("quizWidget", "workMinutes", "25")) || 25;
+        root.subjects = pluginService.loadPluginData("quizWidget", "subjects", []);
+        root.aiEnabled = pluginService.loadPluginData("quizWidget", "aiEnabled", false);
+        root.apiKey = pluginService.loadPluginData("quizWidget", "apiKey", "");
+    }
+
     Component.onCompleted: {
-        if (typeof pluginService !== "undefined" && pluginService) {
-            root.paused = pluginService.loadPluginData("quizWidget", "paused", false);
-            root.workMinutes = parseInt(pluginService.loadPluginData("quizWidget", "workMinutes", "25")) || 25;
-            root.subjects = pluginService.loadPluginData("quizWidget", "subjects", []);
-            root.aiEnabled = pluginService.loadPluginData("quizWidget", "aiEnabled", false);
-            root.apiKey = pluginService.loadPluginData("quizWidget", "apiKey", "");
-        }
-        console.info("QuizDaemon: started, work", root.workMinutes, "min, subjects", JSON.stringify(root.subjects));
+        Qt.callLater(loadSettings);
+        console.info("QuizDaemon: started, work", root.workMinutes, "min");
     }
     Component.onDestruction: console.info("QuizDaemon: stopped")
 }
