@@ -38,18 +38,24 @@ PluginComponent {
         onOnboardingComplete: (ids, customs) => root.completeOnboarding(ids, customs)
     }
 
-    // Accroche affichée sur la pastille : preset local immédiat, puis enrichie via `claude -p`.
+    // Accroche de la pastille : preset local immédiat, puis enrichie via `claude -p` qui renvoie
+    // un JSON {message, emoji, animation} — claude choisit l'animation qui matche l'expression.
     function fetchNudge() {
         root.nudgeText = QuizEngine.randomNudge();
         root.nudgeEmoji = QuizEngine.randomEmoji();
         root.animIndex = Math.floor(Math.random() * Math.max(1, overlay.animCount));
-        Proc.runCommand("quizWidget.nudge", [QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", QuizEngine.nudgePrompt()], function (stdout, exitCode) {
-            if (exitCode === 0) {
-                var n = QuizEngine.cleanNudge(stdout);
-                if (n)
-                    root.nudgeText = n;
-            }
-        }, 0, 30000); // debounce 0, timeout 30 s (au-dessus du défaut de 10 s)
+        Proc.runCommand("quizWidget.nudge", [QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", QuizEngine.buildNudgePrompt()], function (stdout, exitCode) {
+            if (exitCode !== 0)
+                return;
+            var n = QuizEngine.parseNudge(stdout);
+            if (!n)
+                return;
+            root.nudgeText = n.message;
+            if (n.emoji)
+                root.nudgeEmoji = n.emoji;
+            if (n.animIndex >= 0)
+                root.animIndex = n.animIndex; // animation choisie par claude
+        }, 0, 30000); // debounce 0, timeout 30 s
     }
 
     Timer {

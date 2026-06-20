@@ -20,7 +20,9 @@ function loadEngine() {
         + " randomNudge: typeof randomNudge !== 'undefined' ? randomNudge : undefined,"
         + " randomEmoji: typeof randomEmoji !== 'undefined' ? randomEmoji : undefined,"
         + " randomNudgeAngle: typeof randomNudgeAngle !== 'undefined' ? randomNudgeAngle : undefined,"
-        + " nudgePrompt: typeof nudgePrompt !== 'undefined' ? nudgePrompt : undefined,"
+        + " buildNudgePrompt: typeof buildNudgePrompt !== 'undefined' ? buildNudgePrompt : undefined,"
+        + " parseNudge: typeof parseNudge !== 'undefined' ? parseNudge : undefined,"
+        + " animationIndex: typeof animationIndex !== 'undefined' ? animationIndex : undefined,"
         + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
         ctx
     );
@@ -153,8 +155,45 @@ test("randomNudgeAngle renvoie un angle non vide", () => {
     const a = E.randomNudgeAngle(() => 0);
     assert.ok(typeof a === "string" && a.length > 0);
 });
-test("nudgePrompt inclut l'angle fourni", () => {
-    assert.match(E.nudgePrompt("MON_ANGLE_TEST"), /MON_ANGLE_TEST/);
+test("buildNudgePrompt demande un JSON message/emoji/animation et liste les animations", () => {
+    const p = E.buildNudgePrompt("MON_ANGLE_TEST");
+    assert.match(p, /MON_ANGLE_TEST/);
+    assert.match(p, /JSON/);
+    assert.match(p, /message/);
+    assert.match(p, /emoji/);
+    assert.match(p, /animation/);
+    assert.match(p, /tada/); // un nom d'animation présent dans la liste
+});
+test("animationIndex mappe un nom vers l'index de l'overlay", () => {
+    assert.equal(E.animationIndex("bounce"), 0);
+    assert.equal(E.animationIndex("tada"), 4);
+    assert.equal(E.animationIndex("metronome"), 13);
+    assert.equal(E.animationIndex("  POP  "), 10); // trim + casse
+});
+test("animationIndex renvoie -1 pour un nom inconnu", () => {
+    assert.equal(E.animationIndex("inexistante"), -1);
+    assert.equal(E.animationIndex(null), -1);
+});
+test("parseNudge extrait message/emoji/animIndex", () => {
+    const n = E.parseNudge('{"message": "Allez go", "emoji": "🔥", "animation": "pop"}');
+    assert.equal(n.message, "Allez go");
+    assert.equal(n.emoji, "🔥");
+    assert.equal(n.animIndex, 10);
+});
+test("parseNudge gère les fences markdown", () => {
+    const n = E.parseNudge('```json\n{"message":"Coucou","emoji":"👋","animation":"wobble"}\n```');
+    assert.equal(n.message, "Coucou");
+    assert.equal(n.animIndex, 9);
+});
+test("parseNudge -> animIndex -1 si animation inconnue", () => {
+    const n = E.parseNudge('{"message":"Hop","emoji":"✨","animation":"zzz"}');
+    assert.equal(n.animIndex, -1);
+});
+test("parseNudge renvoie null sur sortie non-JSON", () => {
+    assert.equal(E.parseNudge("désolé, pas de json"), null);
+});
+test("parseNudge renvoie null si message vide", () => {
+    assert.equal(E.parseNudge('{"message":"  ","emoji":"✨","animation":"pop"}'), null);
 });
 test("randomEmoji renvoie un emoji non vide", () => {
     const e = E.randomEmoji(() => 0);

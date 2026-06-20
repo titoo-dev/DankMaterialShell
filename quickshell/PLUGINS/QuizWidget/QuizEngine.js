@@ -58,9 +58,9 @@ function buildQuestionPrompt(topicLabel, category) {
         + "où \"answer\" est l'index (0 à 3) de la bonne proposition dans \"choices\".";
 }
 
-// Parse la sortie de `claude -p` : retire les fences markdown, isole le premier objet {…}
-// équilibré (en ignorant les accolades à l'intérieur des chaînes), valide, assigne un id.
-function extractQuestionJson(stdout) {
+// Extrait le premier objet JSON {…} d'une sortie `claude -p` : retire les fences markdown,
+// isole l'objet équilibré (en ignorant les accolades dans les chaînes), parse. null si échec.
+function extractJsonObject(stdout) {
     if (typeof stdout !== "string") return null;
     var text = stdout;
     var fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -81,9 +81,13 @@ function extractQuestionJson(stdout) {
         else if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
     }
     if (end === -1) return null;
-    var q;
-    try { q = JSON.parse(text.substring(start, end + 1)); } catch (e) { return null; }
-    if (!validate(q)) return null;
+    try { return JSON.parse(text.substring(start, end + 1)); } catch (e) { return null; }
+}
+
+// Question valide depuis la sortie claude -p (objet JSON validé + id stable).
+function extractQuestionJson(stdout) {
+    var q = extractJsonObject(stdout);
+    if (!q || !validate(q)) return null;
     if (!q.id) q.id = "ai-" + hashString(q.question);
     return q;
 }
@@ -155,14 +159,44 @@ function randomNudgeAngle(rng) {
 }
 
 // Prompt pour `claude -p` : une accroche courte, le style/ton aléatoire force la variété.
-function nudgePrompt(angle) {
+// Noms des animations d'attention de la pastille. L'ORDRE = l'index `animIndex` de QuizOverlay
+// (0 bounce … 13 metronome) — ne pas réordonner sans aligner QuizOverlay.qml.
+var NUDGE_ANIMATIONS = [
+    "bounce", "shake", "pulse", "swing", "tada", "heartbeat", "rubber",
+    "float", "headshake", "wobble", "pop", "tilt", "jump", "metronome"
+];
+
+function animationIndex(name) {
+    if (typeof name !== "string") return -1;
+    return NUDGE_ANIMATIONS.indexOf(name.trim().toLowerCase());
+}
+
+// Prompt `claude -p` : renvoie un JSON {message, emoji, animation} — claude choisit AUSSI
+// l'animation qui colle le mieux à l'émotion du message.
+function buildNudgePrompt(angle) {
     var a = angle || randomNudgeAngle();
-    return "Génère UN court message en français (max 7 mots, un emoji bienvenu) "
-         + "pour inciter l'utilisateur à cliquer sur un mini-quiz qui vient d'apparaître. "
-         + "Style/ton de communication à adopter : " + a + ". "
-         + "Tu peux être cool, taquin, drôle, légèrement sarcastique ou lancer un petit clash amical "
-         + "— mais reste bienveillant, jamais blessant ni vulgaire. "
-         + "Réponds UNIQUEMENT le message, sans guillemets ni ponctuation finale superflue.";
+    return "Tu animes une pastille de mini-quiz qui vient d'apparaître. Génère une accroche courte ET "
+         + "choisis l'animation d'attention qui colle le mieux à l'émotion du message. "
+         + "Style/ton à adopter : " + a + " — cool, taquin, drôle, légèrement provoc, mais bienveillant, jamais vulgaire. "
+         + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte ni balises autour, de la forme : "
+         + '{"message": "...", "emoji": "🔥", "animation": "tada"} '
+         + "Contraintes : message en français, max 7 mots, sans guillemets superflus ; "
+         + "emoji = UN seul emoji expressif qui matche le ton ; "
+         + "animation = EXACTEMENT une valeur parmi : " + NUDGE_ANIMATIONS.join(", ") + ". "
+         + "Choisis selon l'énergie : excité/joyeux → tada, pop, bounce ; taquin/moqueur → wobble, shake, headshake ; "
+         + "doux/posé → float, heartbeat, swing ; insistant → metronome, tilt, jump.";
+}
+
+// Parse la sortie JSON du nudge → { message, emoji, animIndex }. animIndex = -1 si animation
+// inconnue (l'appelant choisit alors une animation aléatoire). null si message inexploitable.
+function parseNudge(stdout) {
+    var n = extractJsonObject(stdout);
+    if (!n) return null;
+    var message = cleanNudge(typeof n.message === "string" ? n.message : "");
+    if (!message) return null;
+    var emoji = (typeof n.emoji === "string" && n.emoji.trim() !== "") ? n.emoji.trim() : "";
+    var animIndex = animationIndex(typeof n.animation === "string" ? n.animation : "");
+    return { message: message, emoji: emoji, animIndex: animIndex };
 }
 
 // Nettoie la sortie de `claude -p` : première ligne non vide, sans guillemets, plafonnée.
