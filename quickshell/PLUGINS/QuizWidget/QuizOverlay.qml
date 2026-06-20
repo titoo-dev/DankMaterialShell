@@ -10,8 +10,8 @@ PanelWindow {
     property var question: null
     property string nudge: "Quiz dispo"
     property string emoji: "🦉"
-    property int animIndex: 0       // 0=bounce 1=shake 2=pulse 3=swing
-    readonly property int animCount: 4
+    property int animIndex: 0       // 0..13 — voir les animations dans la pastille
+    readonly property int animCount: 14
     signal dismissed()
     signal snoozeRequested(int ms)
 
@@ -83,6 +83,7 @@ PanelWindow {
             ]
 
             function resetPillTransforms() {
+                animTrans.x = 0;
                 animTrans.y = 0;
                 animRot.angle = 0;
                 animScale.xScale = 1;
@@ -138,6 +139,166 @@ PanelWindow {
                 NumberAnimation { target: animRot; property: "angle"; to: 4; duration: 240; easing.type: Easing.InOutQuad }
                 NumberAnimation { target: animRot; property: "angle"; to: 0; duration: 200; easing.type: Easing.OutQuad }
                 PauseAnimation { duration: 2400 }
+            }
+
+            // 4 — Tada 🎉
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 4
+                loops: Animation.Infinite
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 0.9; duration: 150 }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 0.9; duration: 150 }
+                }
+                SequentialAnimation {
+                    loops: 3
+                    ParallelAnimation {
+                        NumberAnimation { target: animScale; property: "xScale"; to: 1.1; duration: 90 }
+                        NumberAnimation { target: animScale; property: "yScale"; to: 1.1; duration: 90 }
+                        NumberAnimation { target: animRot; property: "angle"; to: 4; duration: 90 }
+                    }
+                    NumberAnimation { target: animRot; property: "angle"; to: -4; duration: 90 }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.0; duration: 150 }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.0; duration: 150 }
+                    NumberAnimation { target: animRot; property: "angle"; to: 0; duration: 150 }
+                }
+                PauseAnimation { duration: 2400 }
+            }
+
+            // 5 — Heartbeat 💗
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 5
+                loops: Animation.Infinite
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.16; duration: 120; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.16; duration: 120; easing.type: Easing.OutQuad }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.0; duration: 110; easing.type: Easing.InQuad }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.0; duration: 110; easing.type: Easing.InQuad }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.16; duration: 120; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.16; duration: 120; easing.type: Easing.OutQuad }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.0; duration: 200; easing.type: Easing.InQuad }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.0; duration: 200; easing.type: Easing.InQuad }
+                }
+                PauseAnimation { duration: 1900 }
+            }
+
+            // 6 — Rubber (squash & stretch) 🟪
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 6
+                loops: Animation.Infinite
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.25; duration: 180; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 0.78; duration: 180; easing.type: Easing.OutQuad }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 0.85; duration: 180 }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.18; duration: 180 }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.0; duration: 260; easing.type: Easing.OutBounce }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.0; duration: 260; easing.type: Easing.OutBounce }
+                }
+                PauseAnimation { duration: 2200 }
+            }
+
+            // 7 — Float 🎈 (flottement doux)
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 7
+                loops: Animation.Infinite
+                NumberAnimation { target: animTrans; property: "y"; to: -7; duration: 900; easing.type: Easing.InOutSine }
+                NumberAnimation { target: animTrans; property: "y"; to: 0; duration: 900; easing.type: Easing.InOutSine }
+            }
+
+            // 8 — Headshake ↔️
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 8
+                loops: Animation.Infinite
+                SequentialAnimation {
+                    loops: 3
+                    NumberAnimation { target: animTrans; property: "x"; to: -8; duration: 80 }
+                    NumberAnimation { target: animTrans; property: "x"; to: 8; duration: 80 }
+                }
+                NumberAnimation { target: animTrans; property: "x"; to: 0; duration: 80 }
+                PauseAnimation { duration: 2400 }
+            }
+
+            // 9 — Wobble 〰️ (x + rotation)
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 9
+                loops: Animation.Infinite
+                ParallelAnimation {
+                    NumberAnimation { target: animTrans; property: "x"; to: -8; duration: 150 }
+                    NumberAnimation { target: animRot; property: "angle"; to: -6; duration: 150 }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animTrans; property: "x"; to: 6; duration: 200 }
+                    NumberAnimation { target: animRot; property: "angle"; to: 5; duration: 200 }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animTrans; property: "x"; to: 0; duration: 200; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: animRot; property: "angle"; to: 0; duration: 200; easing.type: Easing.OutQuad }
+                }
+                PauseAnimation { duration: 2300 }
+            }
+
+            // 10 — Pop ✨ (overshoot net)
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 10
+                loops: Animation.Infinite
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.28; duration: 140; easing.type: Easing.OutBack }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.28; duration: 140; easing.type: Easing.OutBack }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animScale; property: "xScale"; to: 1.0; duration: 260; easing.type: Easing.OutBack }
+                    NumberAnimation { target: animScale; property: "yScale"; to: 1.0; duration: 260; easing.type: Easing.OutBack }
+                }
+                PauseAnimation { duration: 2200 }
+            }
+
+            // 11 — Tilt (penche et revient)
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 11
+                loops: Animation.Infinite
+                NumberAnimation { target: animRot; property: "angle"; to: 12; duration: 260; easing.type: Easing.OutQuad }
+                PauseAnimation { duration: 500 }
+                NumberAnimation { target: animRot; property: "angle"; to: 0; duration: 260; easing.type: Easing.OutQuad }
+                PauseAnimation { duration: 2200 }
+            }
+
+            // 12 — Jump-twist 🤸 (saut + petite vrille)
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 12
+                loops: Animation.Infinite
+                ParallelAnimation {
+                    NumberAnimation { target: animTrans; property: "y"; to: -14; duration: 220; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: animRot; property: "angle"; to: 8; duration: 220; easing.type: Easing.OutQuad }
+                }
+                ParallelAnimation {
+                    NumberAnimation { target: animTrans; property: "y"; to: 0; duration: 520; easing.type: Easing.OutBounce }
+                    NumberAnimation { target: animRot; property: "angle"; to: 0; duration: 520; easing.type: Easing.OutBounce }
+                }
+                PauseAnimation { duration: 2200 }
+            }
+
+            // 13 — Metronome ⏱ (tic-tac régulier)
+            SequentialAnimation {
+                running: overlay.mode === "pending" && overlay.animIndex === 13
+                loops: Animation.Infinite
+                SequentialAnimation {
+                    loops: 4
+                    NumberAnimation { target: animRot; property: "angle"; to: 12; duration: 260; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: animRot; property: "angle"; to: -12; duration: 260; easing.type: Easing.InOutSine }
+                }
+                NumberAnimation { target: animRot; property: "angle"; to: 0; duration: 200; easing.type: Easing.OutQuad }
+                PauseAnimation { duration: 2000 }
             }
 
             Row {
