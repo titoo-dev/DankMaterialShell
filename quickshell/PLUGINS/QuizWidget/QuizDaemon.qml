@@ -38,24 +38,28 @@ PluginComponent {
         onOnboardingComplete: (ids, customs) => root.completeOnboarding(ids, customs)
     }
 
-    // Accroche de la pastille : preset local immédiat, puis enrichie via `claude -p` qui renvoie
-    // un JSON {message, emoji, animation} — claude choisit l'animation qui matche l'expression.
-    function fetchNudge() {
-        root.nudgeText = QuizEngine.randomNudge();
-        root.nudgeEmoji = QuizEngine.randomEmoji();
-        root.animIndex = Math.floor(Math.random() * Math.max(1, overlay.animCount));
+    // Accroche de la pastille via `claude -p` qui renvoie un JSON {message, emoji, animation}
+    // — claude choisit l'animation qui matche l'expression. On applique le résultat (ou un repli
+    // local si claude échoue) PUIS on appelle onReady() : la pastille n'apparaît qu'une fois prête,
+    // sans bascule d'animation. onReady est optionnel (re-nudge : rafraîchit la pastille déjà visible).
+    function fetchNudge(onReady) {
+        var fbText = QuizEngine.randomNudge();
+        var fbEmoji = QuizEngine.randomEmoji();
+        var fbAnim = Math.floor(Math.random() * Math.max(1, overlay.animCount));
         Proc.runCommand("quizWidget.nudge", [QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", QuizEngine.buildNudgePrompt()], function (stdout, exitCode) {
-            if (exitCode !== 0)
-                return;
-            var n = QuizEngine.parseNudge(stdout);
-            if (!n)
-                return;
-            root.nudgeText = n.message;
-            if (n.emoji)
-                root.nudgeEmoji = n.emoji;
-            if (n.animIndex >= 0)
-                root.animIndex = n.animIndex; // animation choisie par claude
-        }, 0, 30000); // debounce 0, timeout 30 s
+            var n = (exitCode === 0) ? QuizEngine.parseNudge(stdout) : null;
+            if (n) {
+                root.nudgeText = n.message;
+                root.nudgeEmoji = n.emoji ? n.emoji : fbEmoji;
+                root.animIndex = n.animIndex >= 0 ? n.animIndex : fbAnim; // animation choisie par claude
+            } else {
+                root.nudgeText = fbText;
+                root.nudgeEmoji = fbEmoji;
+                root.animIndex = fbAnim;
+            }
+            if (onReady)
+                onReady();
+        }, 0, 15000); // debounce 0, timeout 15 s (borne l'attente avant l'affichage de la pastille)
     }
 
     Timer {
@@ -127,8 +131,9 @@ PluginComponent {
             s[id] = newSeen;
             root.sessionSeen = s;
             root.pendingQuestion = q;
-            root.fetchNudge();
-            overlay.showPending();
+            root.fetchNudge(function () {
+                overlay.showPending();
+            }); // n'affiche la pastille qu'une fois le nudge (message+emoji+animation) prêt
         });
     }
 
