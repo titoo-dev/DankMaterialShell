@@ -13,12 +13,27 @@ StyledRect {
 
     readonly property bool correct: question && selected === question.answer
 
-    implicitWidth: 360
+    // bordures blanches subtiles en inset (accent bento) — le reste suit le thème dynamique DMS
+    readonly property color insetBorder: Qt.rgba(1, 1, 1, 0.14)
+    readonly property color insetBorderSoft: Qt.rgba(1, 1, 1, 0.08)
+
+    implicitWidth: 380
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
     radius: Theme.cornerRadius
     color: Theme.surfaceContainer
     border.width: 1
-    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+    border.color: card.insetBorder
+
+    ElevationShadow {
+        anchors.fill: parent
+        z: -1
+        level: Theme.elevationLevel3
+        targetRadius: card.radius
+        targetColor: card.color
+        borderColor: card.border.color
+        borderWidth: card.border.width
+        shadowEnabled: Theme.elevationEnabled && SettingsData.popoutElevationEnabled
+    }
 
     Column {
         id: col
@@ -26,30 +41,35 @@ StyledRect {
         anchors.margins: Theme.spacingL
         spacing: Theme.spacingM
 
+        // Question
         StyledText {
             width: parent.width
             text: card.question ? card.question.question : ""
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontSizeLarge
-            font.weight: Font.Medium
+            font.weight: Font.DemiBold
             color: Theme.onSurface
         }
 
-        Column { // choix
+        // Choix — tuiles bento recessed
+        Column {
             width: parent.width
-            spacing: Theme.spacingXS
+            spacing: Theme.spacingS
             visible: card.mode === "open"
 
             Repeater {
                 model: card.question ? card.question.choices : []
 
                 StyledRect {
+                    id: choiceTile
                     width: parent.width
-                    implicitHeight: choiceText.implicitHeight + Theme.spacingS * 2
+                    implicitHeight: choiceText.implicitHeight + Theme.spacingM * 2
                     radius: Theme.cornerRadius
-                    color: index === card.selected ? Theme.surfaceContainerHighest : Theme.surfaceContainerHigh
-                    border.width: index === card.selected ? 1 : 0
-                    border.color: Theme.primary
+                    color: index === card.selected
+                           ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.22)
+                           : (choiceArea.containsMouse ? Theme.surfaceContainerHigh : Theme.surface)
+                    border.width: 1
+                    border.color: index === card.selected ? Theme.primary : card.insetBorder
 
                     StyledText {
                         id: choiceText
@@ -65,7 +85,9 @@ StyledRect {
                     }
 
                     MouseArea {
+                        id: choiceArea
                         anchors.fill: parent
+                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: card.select(index)
                     }
@@ -73,34 +95,55 @@ StyledRect {
             }
         }
 
-        StyledText { // feedback
+        // Feedback — tuile bento teintée
+        StyledRect {
             width: parent.width
             visible: card.mode === "feedback"
-            wrapMode: Text.WordWrap
-            font.pixelSize: Theme.fontSizeMedium
-            text: card.question
-                  ? ((card.correct ? "✓ Correct" : "✗ Incorrect — réponse : " + card.question.choices[card.question.answer])
-                     + "\n" + card.question.explanation)
-                  : ""
-            color: card.correct ? Theme.success : Theme.error
+            implicitHeight: feedbackText.implicitHeight + Theme.spacingM * 2
+            radius: Theme.cornerRadius
+            color: card.correct
+                   ? Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.20)
+                   : Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.20)
+            border.width: 1
+            border.color: card.insetBorder
+
+            StyledText {
+                id: feedbackText
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Theme.spacingM
+                anchors.rightMargin: Theme.spacingM
+                wrapMode: Text.WordWrap
+                font.pixelSize: Theme.fontSizeMedium
+                text: card.question
+                      ? ((card.correct ? "✓ Correct" : "✗ Incorrect — réponse : " + card.question.choices[card.question.answer])
+                         + "\n" + card.question.explanation)
+                      : ""
+                color: Theme.onSurface
+            }
         }
 
-        Row { // actions
+        // Actions — tuiles bento
+        Row {
             anchors.right: parent.right
             spacing: Theme.spacingS
 
             StyledRect {
                 visible: card.mode === "open"
-                implicitWidth: validateText.implicitWidth + Theme.spacingM * 2
+                implicitWidth: validateText.implicitWidth + Theme.spacingL * 2
                 implicitHeight: validateText.implicitHeight + Theme.spacingS * 2
                 radius: Theme.cornerRadius
-                color: card.selected >= 0 ? Theme.primary : Theme.surfaceContainerHigh
+                color: card.selected >= 0 ? Theme.primary : Theme.surface
+                border.width: 1
+                border.color: card.selected >= 0 ? Qt.rgba(1, 1, 1, 0.22) : card.insetBorderSoft
 
                 StyledText {
                     id: validateText
                     anchors.centerIn: parent
                     text: "Valider"
                     font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Medium
                     color: card.selected >= 0 ? Theme.onPrimary : Theme.onSurfaceVariant
                 }
 
@@ -114,16 +157,19 @@ StyledRect {
 
             StyledRect {
                 visible: card.mode === "feedback"
-                implicitWidth: closeText.implicitWidth + Theme.spacingM * 2
+                implicitWidth: closeText.implicitWidth + Theme.spacingL * 2
                 implicitHeight: closeText.implicitHeight + Theme.spacingS * 2
                 radius: Theme.cornerRadius
-                color: Theme.surfaceContainerHigh
+                color: Theme.surface
+                border.width: 1
+                border.color: card.insetBorder
 
                 StyledText {
                     id: closeText
                     anchors.centerIn: parent
                     text: "Fermer"
                     font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Medium
                     color: Theme.onSurface
                 }
 

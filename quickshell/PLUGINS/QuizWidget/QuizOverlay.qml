@@ -27,12 +27,16 @@ PanelWindow {
     anchors { bottom: true; right: true }
     WlrLayershell.margins { bottom: Theme.spacingL; right: Theme.spacingL }
 
-    implicitWidth: content.implicitWidth
-    implicitHeight: content.implicitHeight
+    // Marge autour du contenu pour que l'ombre d'ElevationShadow ne soit pas clippée par la fenêtre.
+    readonly property real shadowPad: 28
+
+    implicitWidth: content.implicitWidth + overlay.shadowPad * 2
+    implicitHeight: content.implicitHeight + overlay.shadowPad * 2
 
     Item {
         id: content
         anchors.fill: parent
+        anchors.margins: overlay.shadowPad
         implicitWidth: card.visible ? card.implicitWidth : pill.implicitWidth
         implicitHeight: card.visible ? card.implicitHeight : pill.implicitHeight
         opacity: overlay.mode === "hidden" ? 0 : 1
@@ -48,7 +52,20 @@ PanelWindow {
             implicitWidth: pillRow.implicitWidth + Theme.spacingM * 2
             implicitHeight: pillRow.implicitHeight + Theme.spacingS * 2
             radius: Theme.cornerRadius
-            color: Theme.surfaceContainerHigh
+            color: Theme.surfaceContainer
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            ElevationShadow {
+                anchors.fill: parent
+                z: -1
+                level: Theme.elevationLevel2
+                targetRadius: pill.radius
+                targetColor: pill.color
+                borderColor: pill.border.color
+                borderWidth: pill.border.width
+                shadowEnabled: Theme.elevationEnabled && SettingsData.popoutElevationEnabled
+            }
 
             Row {
                 id: pillRow
