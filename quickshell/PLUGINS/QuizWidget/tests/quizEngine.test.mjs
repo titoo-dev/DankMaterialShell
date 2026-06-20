@@ -84,6 +84,8 @@ test("buildQuestionPrompt inclut le label et la catégorie et exige du JSON", ()
     assert.match(p, /Technologies/);
     assert.match(p, /JSON/);
     assert.match(p, /4 propositions/);
+    assert.match(p, /emoji/i);
+    assert.match(p, /markdown/i);
 });
 
 const cliJson = JSON.stringify({ question: "Qx ?", choices: ["1", "2", "3", "4"], answer: 2, explanation: "ex" });

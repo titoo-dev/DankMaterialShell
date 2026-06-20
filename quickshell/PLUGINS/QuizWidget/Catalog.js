@@ -66,6 +66,14 @@ function categoriesWithTopics() {
     return out;
 }
 
+// Emoji de catégorie pour le badge de la carte (fun/coloré).
+function categoryEmoji(category) {
+    if (category === "Technologies") return "🛠️";
+    if (category === "Concepts") return "🧠";
+    if (category === "Méthodologies") return "🔄";
+    return "✨"; // « Sujet libre » et défaut
+}
+
 // --- sujets libres (en plus du catalogue curaté) ---
 
 // Ajoute un sujet libre trimmé à la liste (immuable), en ignorant le vide et les doublons (casse insensible).

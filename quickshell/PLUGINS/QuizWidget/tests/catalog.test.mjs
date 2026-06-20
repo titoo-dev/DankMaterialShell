@@ -10,7 +10,7 @@ function loadCatalog() {
     const ctx = {};
     vm.createContext(ctx);
     vm.runInContext(
-        src + "\n;globalThis.__api = { CATALOG, CATEGORIES, allCategories, topicById, topicsByCategory, categoriesWithTopics, addCustom, buildTopicPool };",
+        src + "\n;globalThis.__api = { CATALOG, CATEGORIES, allCategories, topicById, topicsByCategory, categoriesWithTopics, addCustom, buildTopicPool, categoryEmoji };",
         ctx
     );
     return ctx.__api;
@@ -83,4 +83,11 @@ test("buildTopicPool ignore les customs vides", () => {
 });
 test("buildTopicPool gère des arguments absents", () => {
     assert.equal(C.buildTopicPool(null, null).length, 0);
+});
+test("categoryEmoji renvoie un emoji par catégorie + un défaut", () => {
+    assert.ok(C.categoryEmoji("Technologies").length > 0);
+    assert.ok(C.categoryEmoji("Concepts").length > 0);
+    assert.ok(C.categoryEmoji("Méthodologies").length > 0);
+    assert.ok(C.categoryEmoji("Sujet libre").length > 0); // défaut
+    assert.ok(C.categoryEmoji("n'importe quoi").length > 0);
 });

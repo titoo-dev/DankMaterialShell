@@ -44,11 +44,16 @@ function claudeBinary(home) {
 
 // Prompt pour `claude -p` : exige UN objet JSON brut (le CLI n'a pas de json_schema).
 function buildQuestionPrompt(topicLabel, category) {
-    return "Génère UNE question de quiz à choix unique, en français, de niveau intermédiaire, "
+    return "Tu es un créateur de quiz fun et malin. Génère UNE question à choix unique, en français, "
+        + "de niveau intermédiaire, vraiment intéressante (angle surprenant ou piège subtil) mais 100% factuelle, "
         + "sur le sujet suivant (catégorie « " + category + " ») : " + topicLabel + ". "
-        + "La question doit être claire et factuelle, avec EXACTEMENT 4 propositions dont une seule correcte, "
-        + "et une explication courte de la bonne réponse. "
-        + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans balises Markdown, de la forme : "
+        + "Ton vivant et ludique. "
+        + "Commence la question par UN emoji pertinent. "
+        + "Utilise du markdown léger : **gras** pour les termes clés et `code` pour le code, les commandes ou les valeurs littérales. "
+        + "Donne EXACTEMENT 4 propositions plausibles (distracteurs crédibles), SANS emoji au début des propositions "
+        + "(tu peux y mettre du `code` si pertinent). "
+        + "L'explication : courte (1-2 phrases), fun et mémorable, commençant par un emoji, avec **gras**/`code` si utile. "
+        + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour ni balises de code, de la forme : "
         + '{"question": "...", "choices": ["...", "...", "...", "..."], "answer": 0, "explanation": "..."} '
         + "où \"answer\" est l'index (0 à 3) de la bonne proposition dans \"choices\".";
 }

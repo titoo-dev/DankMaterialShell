@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Common
 import qs.Widgets
+import "Catalog.js" as Catalog
 
 StyledRect {
     id: card
@@ -17,6 +18,10 @@ StyledRect {
     // bordures blanches subtiles en inset (accent bento) — le reste suit le thème dynamique DMS
     readonly property color insetBorder: Qt.rgba(1, 1, 1, 0.14)
     readonly property color insetBorderSoft: Qt.rgba(1, 1, 1, 0.08)
+
+    // pastilles A/B/C/D — quartet coloré « jeu télé » pour le fun
+    readonly property var choiceColors: ["#4F86F7", "#33B679", "#F5A623", "#A368E8"]
+    readonly property var choiceLetters: ["A", "B", "C", "D"]
 
     implicitWidth: 380
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
@@ -71,11 +76,42 @@ StyledRect {
         anchors.margins: Theme.spacingL
         spacing: Theme.spacingM
 
-        // Question (largeur réduite pour ne pas passer sous le bouton ×)
+        // Badge de sujet — emoji de catégorie + label, pilule colorée
+        StyledRect {
+            visible: card.question && card.question.topicLabel
+            implicitWidth: badgeRow.implicitWidth + Theme.spacingM * 2
+            implicitHeight: badgeRow.implicitHeight + Theme.spacingXS * 2
+            radius: height / 2
+            color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
+            border.width: 1
+            border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.35)
+
+            Row {
+                id: badgeRow
+                anchors.centerIn: parent
+                spacing: Theme.spacingXS
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: card.question ? Catalog.categoryEmoji(card.question.topicCategory) : ""
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: card.question ? (card.question.topicLabel || "") : ""
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.weight: Font.Medium
+                    color: Theme.primary
+                }
+            }
+        }
+
+        // Question (largeur réduite pour ne pas passer sous le bouton ×) — markdown + emoji
         StyledText {
             width: parent.width - Theme.iconSize
             text: card.question ? card.question.question : ""
+            textFormat: Text.MarkdownText
             wrapMode: Text.WordWrap
+            elide: Text.ElideNone
             font.pixelSize: Theme.fontSizeLarge
             font.weight: Font.DemiBold
             color: Theme.surfaceText
@@ -93,23 +129,45 @@ StyledRect {
                 StyledRect {
                     id: choiceTile
                     width: parent.width
-                    implicitHeight: choiceText.implicitHeight + Theme.spacingM * 2
+                    implicitHeight: Math.max(choiceText.implicitHeight, 24) + Theme.spacingM * 2
                     radius: Theme.cornerRadius
                     color: index === card.selected
                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.22)
                            : (choiceArea.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainer)
-                    border.width: 1
+                    border.width: index === card.selected ? 2 : 1
                     border.color: index === card.selected ? Theme.primary : card.insetBorder
+
+                    // pastille A/B/C/D colorée (accent « jeu télé »)
+                    Rectangle {
+                        id: marker
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.spacingM
+                        width: 24
+                        height: 24
+                        radius: width / 2
+                        color: card.choiceColors[index % 4]
+
+                        StyledText {
+                            anchors.centerIn: parent
+                            text: card.choiceLetters[index % 4]
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Bold
+                            color: "white"
+                        }
+                    }
 
                     StyledText {
                         id: choiceText
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left
+                        anchors.left: marker.right
                         anchors.right: parent.right
                         anchors.leftMargin: Theme.spacingM
                         anchors.rightMargin: Theme.spacingM
                         text: modelData
+                        textFormat: Text.MarkdownText
                         wrapMode: Text.WordWrap
+                        elide: Text.ElideNone
                         font.pixelSize: Theme.fontSizeMedium
                         color: Theme.surfaceText
                     }
@@ -145,10 +203,14 @@ StyledRect {
                 anchors.leftMargin: Theme.spacingM
                 anchors.rightMargin: Theme.spacingM
                 wrapMode: Text.WordWrap
+                textFormat: Text.MarkdownText
+                elide: Text.ElideNone
                 font.pixelSize: Theme.fontSizeMedium
                 text: card.question
-                      ? ((card.correct ? "✓ Correct" : "✗ Incorrect — réponse : " + card.question.choices[card.question.answer])
-                         + "\n" + card.question.explanation)
+                      ? ((card.correct
+                          ? "🎉 **Bravo, c'est ça !**"
+                          : "😅 **Raté !** La bonne réponse : " + card.question.choices[card.question.answer])
+                         + "\n\n" + card.question.explanation)
                       : ""
                 color: Theme.surfaceText
             }

@@ -115,6 +115,8 @@ PluginComponent {
                 console.warn("QuizDaemon: pas de question pour", id);
                 return;
             }
+            q.topicLabel = t.label;       // pour le badge de la carte
+            q.topicCategory = t.category;
             var s = root.sessionSeen;
             s[id] = newSeen;
             root.sessionSeen = s;
