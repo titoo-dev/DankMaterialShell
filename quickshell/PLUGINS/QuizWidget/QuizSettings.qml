@@ -11,7 +11,7 @@ PluginSettings {
         text: "Quiz Widget"
         font.pixelSize: Theme.fontSizeLarge
         font.weight: Font.Bold
-        color: Theme.onSurface
+        color: Theme.surfaceText
     }
 
     ToggleSetting {
@@ -34,28 +34,23 @@ PluginSettings {
         defaultValue: "25"
     }
 
-    ListSettingWithInput {
-        settingKey: "subjects"
-        label: "Sujets"
-        description: "Sujets à réviser (doit correspondre à un fichier banks/<sujet>.json et/ou un prompt IA)"
-        defaultValue: []
-        fields: [
-            { id: "name", label: "Sujet", placeholder: "algorithmes", width: 220, required: true }
-        ]
+    StyledText {
+        width: parent.width
+        text: "Sujets (dev & IT)"
+        font.pixelSize: Theme.fontSizeMedium
+        font.weight: Font.Medium
+        color: Theme.surfaceText
     }
 
-    ToggleSetting {
-        settingKey: "aiEnabled"
-        label: "Générer via IA"
-        description: "Utilise Claude pour générer des questions (sinon banque locale uniquement)"
-        defaultValue: false
+    StyledText {
+        width: parent.width
+        text: "Choisis les technos, concepts et méthodologies à réviser. Les questions sont générées par Claude (claude -p) sur ces sujets."
+        font.pixelSize: Theme.fontSizeSmall
+        color: Theme.surfaceVariantText
+        wrapMode: Text.WordWrap
     }
 
-    StringSetting {
-        settingKey: "apiKey"
-        label: "Clé API Anthropic"
-        description: "Requise si « Générer via IA » est activé"
-        placeholder: "sk-ant-…"
-        defaultValue: ""
+    TopicPicker {
+        settingKey: "selectedTopics"
     }
 }
