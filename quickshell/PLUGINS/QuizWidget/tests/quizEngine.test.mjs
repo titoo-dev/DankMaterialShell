@@ -23,6 +23,9 @@ function loadEngine() {
         + " buildNudgePrompt: typeof buildNudgePrompt !== 'undefined' ? buildNudgePrompt : undefined,"
         + " parseNudge: typeof parseNudge !== 'undefined' ? parseNudge : undefined,"
         + " animationIndex: typeof animationIndex !== 'undefined' ? animationIndex : undefined,"
+        + " buildLessonPrompt: typeof buildLessonPrompt !== 'undefined' ? buildLessonPrompt : undefined,"
+        + " parseLearningStep: typeof parseLearningStep !== 'undefined' ? parseLearningStep : undefined,"
+        + " summarizeStep: typeof summarizeStep !== 'undefined' ? summarizeStep : undefined,"
         + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
         ctx
     );
@@ -198,4 +201,56 @@ test("parseNudge renvoie null si message vide", () => {
 test("randomEmoji renvoie un emoji non vide", () => {
     const e = E.randomEmoji(() => 0);
     assert.ok(typeof e === "string" && e.length > 0);
+});
+
+test("buildLessonPrompt inclut le sujet, l'historique, leçon/quiz et exige du JSON", () => {
+    const p = E.buildLessonPrompt("Vim", ["modes", "dd/yy"]);
+    assert.match(p, /Vim/);
+    assert.match(p, /modes/);
+    assert.match(p, /le[çc]on/i);
+    assert.match(p, /quiz/i);
+    assert.match(p, /JSON/);
+});
+test("buildLessonPrompt gère un historique vide", () => {
+    const p = E.buildLessonPrompt("Vim", []);
+    assert.match(p, /rien encore/);
+});
+test("parseLearningStep — leçon valide", () => {
+    const s = E.parseLearningStep('{"type":"lesson","title":"Les modes","content":"**Normal** et `i`","summary":"modes de base"}');
+    assert.equal(s.type, "lesson");
+    assert.equal(s.title, "Les modes");
+    assert.match(s.content, /Normal/);
+    assert.equal(s.summary, "modes de base");
+});
+test("parseLearningStep — leçon sans summary -> summary = title", () => {
+    const s = E.parseLearningStep('{"type":"lesson","title":"Le registre","content":"..."}');
+    assert.equal(s.summary, "Le registre");
+});
+test("parseLearningStep — leçon sans contenu -> null", () => {
+    assert.equal(E.parseLearningStep('{"type":"lesson","title":"X","content":"  "}'), null);
+});
+test("parseLearningStep — quiz valide", () => {
+    const s = E.parseLearningStep('{"type":"quiz","question":"Quitter Vim ?","choices":[":q",":w",":x",":e"],"answer":0,"explanation":"...","summary":"sortie"}');
+    assert.equal(s.type, "quiz");
+    assert.equal(s.answer, 0);
+    assert.ok(s.id.startsWith("ai-"));
+    assert.equal(s.summary, "sortie");
+});
+test("parseLearningStep — quiz invalide (validate) -> null", () => {
+    assert.equal(E.parseLearningStep('{"type":"quiz","question":"Q","choices":["a"],"answer":0,"explanation":""}'), null);
+});
+test("parseLearningStep — type inconnu / non-JSON -> null", () => {
+    assert.equal(E.parseLearningStep('{"type":"autre"}'), null);
+    assert.equal(E.parseLearningStep("désolé"), null);
+});
+test("parseLearningStep gère les fences markdown", () => {
+    const s = E.parseLearningStep('```json\n{"type":"lesson","title":"T","content":"C"}\n```');
+    assert.equal(s.type, "lesson");
+});
+test("summarizeStep renvoie le summary", () => {
+    assert.equal(E.summarizeStep({ type: "lesson", summary: "abc" }), "abc");
+});
+test("buildNudgePrompt inclut le context fourni et garde le défaut", () => {
+    assert.match(E.buildNudgePrompt("a", "une nouvelle leçon de Vim"), /nouvelle leçon de Vim/);
+    assert.match(E.buildNudgePrompt("a"), /mini-quiz/);
 });

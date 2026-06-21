@@ -173,9 +173,10 @@ function animationIndex(name) {
 
 // Prompt `claude -p` : renvoie un JSON {message, emoji, animation} — claude choisit AUSSI
 // l'animation qui colle le mieux à l'émotion du message.
-function buildNudgePrompt(angle) {
+function buildNudgePrompt(angle, context) {
     var a = angle || randomNudgeAngle();
-    return "Tu animes une pastille de mini-quiz qui vient d'apparaître. Génère une accroche courte ET "
+    var ctx = context || "un mini-quiz qui vient d'apparaître";
+    return "Tu animes une pastille : " + ctx + ". Génère une accroche courte ET "
          + "choisis l'animation d'attention qui colle le mieux à l'émotion du message. "
          + "Style/ton à adopter : " + a + " — cool, taquin, drôle, légèrement provoc, mais bienveillant, jamais vulgaire. "
          + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte ni balises autour, de la forme : "
@@ -197,6 +198,51 @@ function parseNudge(stdout) {
     var emoji = (typeof n.emoji === "string" && n.emoji.trim() !== "") ? n.emoji.trim() : "";
     var animIndex = animationIndex(typeof n.animation === "string" ? n.animation : "");
     return { message: message, emoji: emoji, animIndex: animIndex };
+}
+
+// --- mode apprentissage (prof IA organique) ---
+
+// Prompt « enseigne la suite » : renvoie un JSON leçon OU quiz selon l'historique couvert.
+function buildLessonPrompt(subject, history) {
+    var covered = (history && history.length) ? history.join(" ; ") : "rien encore";
+    return "Tu es un prof cool, concis et bienveillant de « " + subject + " ». "
+        + "Déjà couvert par l'apprenant : " + covered + ". "
+        + "Donne LA PROCHAINE étape d'apprentissage, en construisant logiquement sur l'acquis, sans répéter. "
+        + "La plupart du temps : une LEÇON courte et digeste (UNE notion à la fois, un exemple concret, "
+        + "un emoji en tête, markdown **gras**/`code`). "
+        + "De temps en temps seulement, si plusieurs notions ont déjà été vues et qu'une vérification est pertinente : "
+        + "un QUIZ à choix unique sur ce qui a été couvert. "
+        + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte ni balises autour. "
+        + 'Leçon : {"type":"lesson","title":"...","content":"...","summary":"..."} (content en markdown). '
+        + 'Quiz : {"type":"quiz","question":"...","choices":["..","..","..",".."],"answer":0,"explanation":"...","summary":"..."}. '
+        + "summary = courte phrase (max ~8 mots) résumant la notion, pour le suivi de progression.";
+}
+
+// Parse une étape : leçon {type,title,content,summary} ou quiz validé {type,...,id,summary}. null sinon.
+function parseLearningStep(stdout) {
+    var o = extractJsonObject(stdout);
+    if (!o || typeof o.type !== "string") return null;
+    if (o.type === "lesson") {
+        if (typeof o.title !== "string" || o.title.trim() === "") return null;
+        if (typeof o.content !== "string" || o.content.trim() === "") return null;
+        var lsum = (typeof o.summary === "string" && o.summary.trim() !== "") ? o.summary.trim() : o.title.trim();
+        return { type: "lesson", title: o.title, content: o.content, summary: lsum };
+    }
+    if (o.type === "quiz") {
+        if (!validate(o)) return null;
+        var qsum = (typeof o.summary === "string" && o.summary.trim() !== "") ? o.summary.trim() : ("Quiz : " + o.question);
+        if (qsum.length > 60) qsum = qsum.slice(0, 60);
+        return {
+            type: "quiz", question: o.question, choices: o.choices, answer: o.answer,
+            explanation: o.explanation, id: o.id || ("ai-" + hashString(o.question)), summary: qsum
+        };
+    }
+    return null;
+}
+
+// Résumé court d'une étape à ajouter à l'historique de progression.
+function summarizeStep(step) {
+    return (step && typeof step.summary === "string") ? step.summary : "";
 }
 
 // Nettoie la sortie de `claude -p` : première ligne non vide, sans guillemets, plafonnée.
