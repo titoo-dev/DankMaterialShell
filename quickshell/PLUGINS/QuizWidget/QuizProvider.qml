@@ -20,6 +20,21 @@ Item {
         });
     }
 
+    // Apprentissage : une étape (leçon OU quiz) via `claude -p`, selon l'historique couvert.
+    function fetchLearningStep(subject, history, callback) {
+        var prompt = QuizEngine.buildLessonPrompt(subject, history);
+        Proc.runCommand("quizWidget.learn", [
+            QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", "--model", "claude-haiku-4-5", prompt
+        ], function (stdout, exitCode) {
+            if (exitCode !== 0) {
+                console.warn("QuizProvider: learn claude -p exit", exitCode);
+                callback(null);
+                return;
+            }
+            callback(QuizEngine.parseLearningStep(stdout));
+        }, 0, 60000);
+    }
+
     // Génération via `claude -p` (CLI Claude Code local — pas de clé API, comme le nudge).
     function _fetchAi(label, category, callback) {
         var prompt = QuizEngine.buildQuestionPrompt(label, category);
