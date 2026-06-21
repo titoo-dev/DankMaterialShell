@@ -348,3 +348,10 @@ test("buildAnswerPrompt injecte le contexte (historique appris + leçon actuelle
     assert.match(p, /Changer de mode/);
     assert.match(p, /rappelle la leçon d'avant/);
 });
+
+test("cleanNudge tronque au mot entier avec … (pas de coupe en plein mot)", () => {
+    const r = E.cleanNudge("Spoiler tu vas flopper dès la toute première question facile ok", 40);
+    assert.ok(r.length <= 40);
+    assert.ok(r.endsWith("…"));
+    assert.ok(!/quest$|questi$|flopp$/.test(r)); // pas de mot coupé brut
+});

@@ -110,11 +110,11 @@ function extractQuestionJson(stdout) {
 var LOCAL_NUDGES = [
     "Encore en train de fuir ? 😏",
     "T'as déjà abandonné, avoue 🥱",
-    "Trop dur pour toi on dirait 💀",
+    "Trop dur pour toi, on dirait 💀",
     "Prouve que t'es pas un touriste 😈",
     "Tu sèches, c'est évident 🤡",
     "Même un débutant aurait cliqué ⏳",
-    "Peur de te planter ? 😂",
+    "Peur de te planter, hein ? 😂",
     "On parie que tu fuis ? 🏃💨",
     "Fais semblant d'être occupé, vas-y 🙄",
     "Ton cerveau prend la poussière 🕸️",
@@ -122,8 +122,16 @@ var LOCAL_NUDGES = [
     "Les vrais ont déjà répondu 🏆",
     "T'es pas chaud, hein ? ❄️😬",
     "Viens te faire humilier 😎",
-    "Allez, montre que t'as un cerveau 🧠🔥",
-    "Encore à scroller pour rien 📱💀"
+    "Encore à scroller pour rien 📱💀",
+    "Toujours aussi nul, on continue de fuir ? 💀",
+    "Allez le lâche, un seul clic 😤",
+    "T'es un boulet ou tu cliques ? 🎈",
+    "Ton ego survivra pas à ça 😈",
+    "Cap, ou tu vas pleurnicher ? 😭",
+    "Montre que t'es pas qu'une grande gueule 🗣️",
+    "Spoiler : tu vas encore te dégonfler 🎈",
+    "Trois neurones suffiraient, t'en as ? 🧠💀",
+    "Même mamie irait plus vite 👵🔥"
 ];
 
 function randomNudge(rng) {
@@ -191,10 +199,11 @@ function buildNudgePrompt(angle, context) {
     var ctx = context || "un mini-quiz qui vient d'apparaître";
     return "Tu animes une pastille : " + ctx + ". Génère une accroche courte ET "
          + "choisis l'animation d'attention qui colle le mieux à l'émotion du message. "
-         + "Style/ton à adopter : " + a + ". Sois PIQUANT, insolent et provocateur — charrie fort, clashe, pique l'ego, "
-         + "façon trash-talk de jeu vidéo, quitte à en faire trop. Le but : titiller son orgueil pour qu'il clique. "
-         + "Garde-fous : zéro vulgarité, zéro insulte grossière, zéro propos haineux ou discriminatoire, rien qui blesse vraiment "
-         + "— ça reste du chambrage joueur entre potes. "
+         + "Style/ton à adopter : " + a + ". Sois CINGLANT, insolent, SANS FILTRE — clashe à fond, vise son orgueil, "
+         + "nargue-le, humilie-le gentiment, façon trash-talk de jeu vidéo SANS RETENUE, quitte à en faire trop. "
+         + "N'ADOUCIS PAS, ne sois jamais gentil ni encourageant : c'est une pique qui doit piquer, pas un compliment. "
+         + "Seules limites : pas de vulgarité grossière, pas d'insulte haineuse/discriminatoire, rien de réellement blessant "
+         + "— ça reste du chambrage joueur. "
          + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte ni balises autour, de la forme : "
          + '{"message": "...", "emoji": "🔥", "animation": "tada"} '
          + "Contraintes : message en français, max 7 mots, sans guillemets superflus ; "
@@ -389,7 +398,7 @@ function mdToHtml(md, codeColor, codeBg) {
 
 // Nettoie la sortie de `claude -p` : première ligne non vide, sans guillemets, plafonnée.
 function cleanNudge(stdout, max) {
-    max = max || 40;
+    max = max || 48;
     if (typeof stdout !== "string") return "";
     var line = "";
     var parts = stdout.split("\n");
@@ -398,6 +407,11 @@ function cleanNudge(stdout, max) {
         if (t) { line = t; break; }
     }
     line = line.replace(/^["'«»\s]+/, "").replace(/["'«»\s]+$/, "");
-    if (line.length > max) line = line.slice(0, max);
+    if (line.length > max) {
+        var cut = line.slice(0, max - 1);          // garde 1 car. pour le …
+        var sp = cut.lastIndexOf(" ");
+        if (sp > max * 0.5) cut = cut.slice(0, sp); // coupe au dernier mot entier
+        line = cut.replace(/[\s.,;:!?…]+$/, "") + "…";
+    }
     return line;
 }
