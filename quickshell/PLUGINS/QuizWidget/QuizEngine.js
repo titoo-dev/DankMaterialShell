@@ -327,6 +327,15 @@ function summarizeStep(step) {
     return (step && typeof step.summary === "string") ? step.summary : "";
 }
 
+// Réponse libre à une question de l'apprenant sur le sujet (brève, markdown).
+function buildAnswerPrompt(subject, question) {
+    return "Tu es un prof cool, clair et concis de « " + subject + " ». TOUJOURS répondre EN FRANÇAIS. "
+        + "L'apprenant te pose une question sur ce sujet. Réponds BRIÈVEMENT (2 à 4 phrases maximum), "
+        + "directement, sans préambule ni salutation. "
+        + "Utilise du markdown : entoure de backticks `…` le code, les commandes, fichiers, touches et termes techniques. "
+        + "Question de l'apprenant : " + question;
+}
+
 // --- rendu markdown → HTML (pour Text.RichText) ---
 
 function escapeHtml(s) {

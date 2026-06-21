@@ -17,9 +17,12 @@ PanelWindow {
     signal onboardingComplete(var ids, var customs)
     signal lessonDone()
     signal quizAnswered()
+    signal askQuestion(string question)
 
     property var lesson: null
     property string contentType: "quiz" // "quiz" | "lesson"
+    property string lessonAnswer: ""
+    property bool lessonAnswering: false
 
     property string mode: "hidden" // "hidden"|"pending"|"open"|"feedback"|"onboarding"
     property int selected: -1
@@ -37,7 +40,7 @@ PanelWindow {
     WlrLayershell.namespace: "dms:quiz"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusiveZone: -1
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
     anchors { bottom: true; right: true }
     WlrLayershell.margins { bottom: Theme.spacingL; right: Theme.spacingL }
@@ -347,12 +350,15 @@ PanelWindow {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             lesson: overlay.lesson
+            answer: overlay.lessonAnswer
+            answering: overlay.lessonAnswering
             onNext: {
                 overlay.lessonDone();
                 overlay.reset();
             }
             onClose: overlay.reset()
             onSnooze: (ms) => { overlay.snoozeRequested(ms); overlay.reset(); }
+            onAsk: (q) => overlay.askQuestion(q)
         }
 
         QuizOnboardingCard { // setup au 1er lancement

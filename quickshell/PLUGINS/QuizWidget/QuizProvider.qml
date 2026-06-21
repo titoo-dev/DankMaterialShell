@@ -37,6 +37,21 @@ Item {
         }, 0, 60000);
     }
 
+    // Réponse libre à une question de l'apprenant sur le sujet (texte markdown bref).
+    function fetchAnswer(subject, question, callback) {
+        var prompt = QuizEngine.buildAnswerPrompt(subject, question);
+        Proc.runCommand("quizWidget.answer", [
+            QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", "--model", "claude-haiku-4-5", prompt
+        ], function (stdout, exitCode) {
+            if (exitCode !== 0) {
+                console.warn("QuizProvider: answer claude -p exit", exitCode);
+                callback(null);
+                return;
+            }
+            callback((stdout || "").trim());
+        }, 0, 45000);
+    }
+
     // Génération via `claude -p` (CLI Claude Code local — pas de clé API, comme le nudge).
     function _fetchAi(label, category, callback) {
         var prompt = QuizEngine.buildQuestionPrompt(label, category);

@@ -25,6 +25,21 @@ StyledRect {
     // hauteur max de la zone de contenu (au-delà → scroll)
     property real maxContentHeight: 380
 
+    // Q&A : poser une question libre sur le sujet
+    property bool askMode: false
+    property string answer: ""
+    property bool answering: false
+    property real maxAnswerHeight: 200
+    signal ask(string question)
+    onLessonChanged: card.askMode = false
+    function _submitAsk() {
+        var q = askInput.text.trim();
+        if (q === "")
+            return;
+        card.ask(q);
+        askInput.text = "";
+    }
+
     implicitWidth: 400
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
     radius: Theme.cornerRadius
@@ -135,10 +150,38 @@ StyledRect {
             }
         }
 
-        // action : Suivant
+        // actions : Des questions ? + Suivant
         Row {
             anchors.right: parent.right
             spacing: Theme.spacingS
+
+            StyledRect {
+                implicitWidth: askText.implicitWidth + Theme.spacingL * 2
+                implicitHeight: askText.implicitHeight + Theme.spacingS * 2
+                radius: Theme.cornerRadius
+                color: askBtnArea.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainer
+                border.width: 1
+                border.color: card.askMode ? Theme.primary : card.insetBorderSoft
+                StyledText {
+                    id: askText
+                    anchors.centerIn: parent
+                    text: "Des questions ?"
+                    font.pixelSize: Theme.fontSizeMedium
+                    color: card.askMode ? Theme.primary : Theme.surfaceText
+                }
+                MouseArea {
+                    id: askBtnArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        card.askMode = !card.askMode;
+                        if (card.askMode)
+                            askInput.forceActiveFocus();
+                    }
+                }
+            }
+
             StyledRect {
                 implicitWidth: nextText.implicitWidth + Theme.spacingL * 2
                 implicitHeight: nextText.implicitHeight + Theme.spacingS * 2
@@ -200,6 +243,59 @@ StyledRect {
                         onClicked: card.snooze(modelData.ms)
                     }
                 }
+            }
+        }
+
+        // --- Q&A : panneau réponse (au-dessus) + champ de saisie (en bas) ---
+        StyledRect {
+            visible: card.askMode && (card.answering || card.answer !== "")
+            width: parent.width
+            implicitHeight: ansFlick.height + Theme.spacingM * 2
+            radius: Theme.cornerRadius
+            color: Theme.surfaceContainer
+            border.width: 1
+            border.color: card.insetBorderSoft
+
+            DankFlickable {
+                id: ansFlick
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.spacingM
+                height: Math.min(ansText.implicitHeight, card.maxAnswerHeight)
+                contentHeight: ansText.implicitHeight
+                clip: true
+
+                StyledText {
+                    id: ansText
+                    width: ansFlick.width - Theme.spacingS
+                    text: card.answering ? "💭 Je réfléchis…" : QuizEngine.mdToHtml(card.answer, card.codeColor, card.codeBg)
+                    textFormat: card.answering ? Text.PlainText : Text.RichText
+                    wrapMode: Text.WordWrap
+                    elide: Text.ElideNone
+                    font.pixelSize: Theme.fontSizeMedium
+                    color: Theme.surfaceText
+                }
+            }
+        }
+
+        Row {
+            visible: card.askMode
+            width: parent.width
+            spacing: Theme.spacingS
+
+            DankTextField {
+                id: askInput
+                width: Math.max(0, parent.width - askSend.width - Theme.spacingS)
+                placeholderText: "Pose ta question sur " + (card.lesson ? (card.lesson.topicLabel || "le sujet") : "le sujet") + "…"
+                onAccepted: card._submitAsk()
+            }
+
+            DankButton {
+                id: askSend
+                text: "Demander"
+                buttonHeight: 44
+                onClicked: card._submitAsk()
             }
         }
     }

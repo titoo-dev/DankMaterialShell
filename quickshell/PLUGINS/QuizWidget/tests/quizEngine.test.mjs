@@ -27,6 +27,7 @@ function loadEngine() {
         + " buildRelearnPrompt: typeof buildRelearnPrompt !== 'undefined' ? buildRelearnPrompt : undefined,"
         + " parseLearningStep: typeof parseLearningStep !== 'undefined' ? parseLearningStep : undefined,"
         + " summarizeStep: typeof summarizeStep !== 'undefined' ? summarizeStep : undefined,"
+        + " buildAnswerPrompt: typeof buildAnswerPrompt !== 'undefined' ? buildAnswerPrompt : undefined,"
         + " mdToHtml: typeof mdToHtml !== 'undefined' ? mdToHtml : undefined,"
         + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
         ctx
@@ -330,4 +331,12 @@ test("mdToHtml — retours-ligne en <br>", () => {
 });
 test("mdToHtml — entrée non-string -> chaîne vide", () => {
     assert.equal(E.mdToHtml(null, "#fff", "#222"), "");
+});
+
+test("buildAnswerPrompt — réponse brève sur le sujet, inclut la question", () => {
+    const p = E.buildAnswerPrompt("Vim", "comment quitter ?");
+    assert.match(p, /Vim/);
+    assert.match(p, /comment quitter \?/);
+    assert.match(p, /bri[eè]vement|bref|concis/i);
+    assert.match(p, /backtick|markdown/i);
 });

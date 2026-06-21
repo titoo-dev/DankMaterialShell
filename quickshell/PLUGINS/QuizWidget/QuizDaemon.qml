@@ -30,6 +30,9 @@ PluginComponent {
     property string nudgeText: "Quiz dispo"
     property string nudgeEmoji: "🦉"
     property int animIndex: 0
+    // Q&A leçon
+    property string lessonAnswer: ""
+    property bool lessonAnswering: false
 
     QuizProvider {
         id: provider
@@ -42,6 +45,9 @@ PluginComponent {
         nudge: root.nudgeText
         emoji: root.nudgeEmoji
         animIndex: root.animIndex
+        lessonAnswer: root.lessonAnswer
+        lessonAnswering: root.lessonAnswering
+        onAskQuestion: (q) => root.answerQuestion(q)
         onDismissed: {
             // Leçon : "Suivant" (validée) → on avance ; fermeture/report (non validée) → on retient
             // la notion pour la ré-expliquer au prochain cycle (ne PAS passer au suivant).
@@ -54,6 +60,8 @@ PluginComponent {
             root.lessonValidated = false;
             root.pendingQuestion = null;
             root.pendingLesson = null;
+            root.lessonAnswer = "";
+            root.lessonAnswering = false;
         }
         onLessonDone: {
             root.lessonValidated = true;
@@ -228,6 +236,19 @@ PluginComponent {
         root.learningHistory = h;
         if (typeof pluginService !== "undefined" && pluginService)
             pluginService.savePluginData("quizWidget", "learningHistory", h);
+    }
+
+    // Q&A : répond à une question libre de l'apprenant sur le sujet (réponse brève via claude -p).
+    function answerQuestion(q) {
+        var subject = (root.learningSubject || "").trim();
+        if (!subject || !q || q.trim() === "")
+            return;
+        root.lessonAnswer = "";
+        root.lessonAnswering = true;
+        provider.fetchAnswer(subject, q, function (ans) {
+            root.lessonAnswering = false;
+            root.lessonAnswer = (ans && ans !== "") ? ans : "Désolé, je n'ai pas pu répondre. Réessaie ?";
+        });
     }
 
     // Notion en cours non validée (persistée) : tant qu'elle est définie, on la ré-explique.
