@@ -27,6 +27,7 @@ function loadEngine() {
         + " buildRelearnPrompt: typeof buildRelearnPrompt !== 'undefined' ? buildRelearnPrompt : undefined,"
         + " parseLearningStep: typeof parseLearningStep !== 'undefined' ? parseLearningStep : undefined,"
         + " summarizeStep: typeof summarizeStep !== 'undefined' ? summarizeStep : undefined,"
+        + " mdToHtml: typeof mdToHtml !== 'undefined' ? mdToHtml : undefined,"
         + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
         ctx
     );
@@ -303,4 +304,30 @@ test("parseLearningStep — réponse entière enveloppée dans un fence", () => 
     assert.ok(s);
     assert.equal(s.title, "T");
     assert.match(s.content, /hello/);
+});
+
+test("mdToHtml — gras / italique / code inline en HTML stylé", () => {
+    const h = E.mdToHtml("Tape `:wq` pour **sauver** et *quitter*", "#fff", "#222");
+    assert.match(h, /<span[^>]*font-family:monospace[^>]*>[^<]*:wq[^<]*<\/span>/);
+    assert.match(h, /<b>sauver<\/b>/);
+    assert.match(h, /<i>quitter<\/i>/);
+});
+test("mdToHtml — bloc de code ``` en <pre>", () => {
+    const h = E.mdToHtml("Exemple:\n```vim\n:wq\n```", "#fff", "#222");
+    assert.match(h, /<pre[^>]*>:wq<\/pre>/);
+});
+test("mdToHtml — échappe le HTML", () => {
+    const h = E.mdToHtml("a < b & c > d", "#fff", "#222");
+    assert.match(h, /a &lt; b &amp; c &gt; d/);
+});
+test("mdToHtml — le contenu du code est échappé et non re-formatté", () => {
+    const h = E.mdToHtml("`a < b **x**`", "#fff", "#222");
+    assert.match(h, /a &lt; b/);
+    assert.ok(!/<b>/.test(h), "pas de gras à l'intérieur du code");
+});
+test("mdToHtml — retours-ligne en <br>", () => {
+    assert.match(E.mdToHtml("l1\nl2", "#fff", "#222"), /l1<br>l2/);
+});
+test("mdToHtml — entrée non-string -> chaîne vide", () => {
+    assert.equal(E.mdToHtml(null, "#fff", "#222"), "");
 });

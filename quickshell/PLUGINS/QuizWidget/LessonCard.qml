@@ -2,6 +2,7 @@ import QtQuick
 import qs.Common
 import qs.Widgets
 import "Catalog.js" as Catalog
+import "QuizEngine.js" as QuizEngine
 
 StyledRect {
     id: card
@@ -12,6 +13,14 @@ StyledRect {
 
     readonly property color insetBorder: Qt.rgba(1, 1, 1, 0.14)
     readonly property color insetBorderSoft: Qt.rgba(1, 1, 1, 0.08)
+
+    // couleurs du code (markdown → RichText), dérivées du thème
+    function hex6(c) {
+        function p(x) { var v = Math.round(x * 255).toString(16); return v.length < 2 ? "0" + v : v; }
+        return "#" + p(c.r) + p(c.g) + p(c.b);
+    }
+    readonly property string codeColor: hex6(Theme.primary)
+    readonly property string codeBg: hex6(Theme.surfaceContainerHighest)
 
     implicitWidth: 400
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
@@ -91,11 +100,11 @@ StyledRect {
             }
         }
 
-        // titre (markdown + emoji)
+        // titre (markdown → RichText + emoji)
         StyledText {
             width: parent.width - Theme.iconSize
-            text: card.lesson ? (card.lesson.title || "") : ""
-            textFormat: Text.MarkdownText
+            text: QuizEngine.mdToHtml(card.lesson ? (card.lesson.title || "") : "", card.codeColor, card.codeBg)
+            textFormat: Text.RichText
             wrapMode: Text.WordWrap
             elide: Text.ElideNone
             font.pixelSize: Theme.fontSizeLarge
@@ -103,11 +112,11 @@ StyledRect {
             color: Theme.surfaceText
         }
 
-        // contenu (markdown)
+        // contenu (markdown → RichText : gras, code stylé, listes…)
         StyledText {
             width: parent.width
-            text: card.lesson ? (card.lesson.content || "") : ""
-            textFormat: Text.MarkdownText
+            text: QuizEngine.mdToHtml(card.lesson ? (card.lesson.content || "") : "", card.codeColor, card.codeBg)
+            textFormat: Text.RichText
             wrapMode: Text.WordWrap
             elide: Text.ElideNone
             font.pixelSize: Theme.fontSizeMedium

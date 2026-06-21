@@ -218,12 +218,15 @@ function parseNudge(stdout) {
 // Format des leçons : texte à délimiteurs (PAS de JSON). Le contenu markdown libre (guillemets,
 // antislashs, code) casse trop souvent le JSON généré par le LLM — le format ligne est robuste.
 var LESSON_FORMAT =
-    "Pour une LEÇON, réponds EXACTEMENT (aucun autre texte, PAS de JSON, PAS de balises ```) :\n"
+    "Pour une LEÇON, réponds EXACTEMENT (aucun autre texte, PAS de JSON, n'enveloppe pas toute la réponse dans un bloc de code) :\n"
     + "TYPE: lesson\n"
     + "TITRE: <titre court avec un emoji au début>\n"
     + "RESUME: <résumé en ~8 mots>\n"
     + "CONTENU:\n"
-    + "<contenu de la leçon en markdown, plusieurs lignes autorisées, **gras**/`code` libres>\n";
+    + "<contenu de la leçon en markdown, plusieurs lignes autorisées>\n\n"
+    + "RÈGLE markdown : entoure SYSTÉMATIQUEMENT de backticks `…` tout code, commande, nom de fichier, "
+    + "chemin, touche, option ou terme technique (ex. `:wq`, `~/.vimrc`, `Esc`, `git rebase`, `dd`). "
+    + "Mets en **gras** les notions clés. Pour un exemple sur plusieurs lignes, utilise un bloc ```.\n";
 var QUIZ_FORMAT =
     "Pour un QUIZ, réponds EXACTEMENT (aucun autre texte, PAS de JSON) :\n"
     + "TYPE: quiz\n"
@@ -322,6 +325,47 @@ function parseLearningStep(stdout) {
 // Résumé court d'une étape à ajouter à l'historique de progression.
 function summarizeStep(step) {
     return (step && typeof step.summary === "string") ? step.summary : "";
+}
+
+// --- rendu markdown → HTML (pour Text.RichText) ---
+
+function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Convertit un sous-ensemble de markdown en HTML stylé pour Qt RichText : gras, italique,
+// code inline et blocs de code (monospace + couleur + fond), listes, sauts de ligne.
+// codeColor/codeBg : couleurs CSS (#rrggbb) appliquées au code, fournies par le thème.
+function mdToHtml(md, codeColor, codeBg) {
+    if (typeof md !== "string") return "";
+    var cc = codeColor || "#cbb6ff";
+    var cb = codeBg || "#3a3a44";
+    var style = "font-family:monospace; color:" + cc + "; background-color:" + cb;
+    var ph = [];
+    var s = md;
+    // blocs de code ```lang ... ```
+    s = s.replace(/```[a-zA-Z0-9+#.\-]*\n?([\s\S]*?)```/g, function (m, code) {
+        ph.push('<pre style="' + style + '">' + escapeHtml(code.replace(/\s+$/, "")) + '</pre>');
+        return "\u0000" + (ph.length - 1) + "\u0000";
+    });
+    // code inline `...`
+    s = s.replace(/`([^`\n]+)`/g, function (m, code) {
+        ph.push('<span style="' + style + '">&nbsp;' + escapeHtml(code) + '&nbsp;</span>');
+        return "\u0000" + (ph.length - 1) + "\u0000";
+    });
+    s = escapeHtml(s);
+    // titres markdown → gras
+    s = s.replace(/^[ \t]*#{1,6}[ \t]+(.+)$/gm, '<b>$1</b>');
+    // gras puis italique
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+    // listes à puces
+    s = s.replace(/^[ \t]*[-*][ \t]+(.+)$/gm, '&#8226;&nbsp;$1');
+    // sauts de ligne
+    s = s.replace(/\n/g, '<br>');
+    // restaurer le code
+    s = s.replace(/\u0000(\d+)\u0000/g, function (m, i) { return ph[+i]; });
+    return s;
 }
 
 // Nettoie la sortie de `claude -p` : première ligne non vide, sans guillemets, plafonnée.

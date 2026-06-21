@@ -2,9 +2,17 @@ import QtQuick
 import qs.Common
 import qs.Widgets
 import "Catalog.js" as Catalog
+import "QuizEngine.js" as QuizEngine
 
 StyledRect {
     id: card
+
+    function hex6(c) {
+        function p(x) { var v = Math.round(x * 255).toString(16); return v.length < 2 ? "0" + v : v; }
+        return "#" + p(c.r) + p(c.g) + p(c.b);
+    }
+    readonly property string codeColor: hex6(Theme.primary)
+    readonly property string codeBg: hex6(Theme.surfaceContainerHighest)
     property var question: null
     property string mode: "open"   // "open" | "feedback"
     property int selected: -1
@@ -108,8 +116,8 @@ StyledRect {
         // Question (largeur réduite pour ne pas passer sous le bouton ×) — markdown + emoji
         StyledText {
             width: parent.width - Theme.iconSize
-            text: card.question ? card.question.question : ""
-            textFormat: Text.MarkdownText
+            text: QuizEngine.mdToHtml(card.question ? card.question.question : "", card.codeColor, card.codeBg)
+            textFormat: Text.RichText
             wrapMode: Text.WordWrap
             elide: Text.ElideNone
             font.pixelSize: Theme.fontSizeLarge
@@ -164,8 +172,8 @@ StyledRect {
                         anchors.right: parent.right
                         anchors.leftMargin: Theme.spacingM
                         anchors.rightMargin: Theme.spacingM
-                        text: modelData
-                        textFormat: Text.MarkdownText
+                        text: QuizEngine.mdToHtml(modelData, card.codeColor, card.codeBg)
+                        textFormat: Text.RichText
                         wrapMode: Text.WordWrap
                         elide: Text.ElideNone
                         font.pixelSize: Theme.fontSizeMedium
@@ -203,15 +211,15 @@ StyledRect {
                 anchors.leftMargin: Theme.spacingM
                 anchors.rightMargin: Theme.spacingM
                 wrapMode: Text.WordWrap
-                textFormat: Text.MarkdownText
+                textFormat: Text.RichText
                 elide: Text.ElideNone
                 font.pixelSize: Theme.fontSizeMedium
-                text: card.question
+                text: QuizEngine.mdToHtml(card.question
                       ? ((card.correct
                           ? "🎉 **Bravo, c'est ça !**"
                           : "😅 **Raté !** La bonne réponse : " + card.question.choices[card.question.answer])
                          + "\n\n" + card.question.explanation)
-                      : ""
+                      : "", card.codeColor, card.codeBg)
                 color: Theme.surfaceText
             }
         }
