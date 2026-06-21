@@ -106,7 +106,7 @@ PluginComponent {
         interval: Math.max(1, root.workMinutes) * 60 * 1000
         repeat: true
         running: !root.paused && !root.snoozing
-        onTriggered: root.requestNext()
+        onTriggered: { root.retryCount = 0; root.requestNext(); }
     }
 
     Timer {
@@ -114,6 +114,7 @@ PluginComponent {
         repeat: false
         onTriggered: {
             root.snoozing = false;
+            root.retryCount = 0;
             root.requestNext();
         }
     }
@@ -135,7 +136,25 @@ PluginComponent {
         id: firstQuizTimer
         interval: 30 * 1000
         repeat: false
+        onTriggered: { root.retryCount = 0; root.requestNext(); }
+    }
+
+    // Réessai rapide si la génération échoue (claude répond parfois hors-format) — borné, pour
+    // ne pas attendre tout un cycle pomodoro (15 min) après un échec transitoire.
+    property int retryCount: 0
+    readonly property int maxRetries: 4
+    Timer {
+        id: retryTimer
+        interval: 25 * 1000
+        repeat: false
         onTriggered: root.requestNext()
+    }
+    function scheduleRetry() {
+        if (root.retryCount >= root.maxRetries)
+            return;
+        root.retryCount++;
+        retryTimer.restart();
+        console.info("QuizDaemon: réessai", root.retryCount, "/", root.maxRetries, "dans 25s");
     }
 
     function snooze(ms) {
@@ -162,8 +181,10 @@ PluginComponent {
         provider.fetchQuestion(id, t.label, t.category, root.seenFor(id), function (q, newSeen) {
             if (!q) {
                 console.warn("QuizDaemon: pas de question pour", id);
+                root.scheduleRetry();
                 return;
             }
+            root.retryCount = 0;
             q.topicLabel = t.label;       // pour le badge de la carte
             q.topicCategory = t.category;
             var s = root.sessionSeen;
@@ -209,8 +230,10 @@ PluginComponent {
         provider.fetchLearningStep(subject, recent, function (step) {
             if (!step) {
                 console.warn("QuizDaemon: pas de leçon pour", subject);
+                root.scheduleRetry();
                 return;
             }
+            root.retryCount = 0;
             step.topicLabel = subject;
             step.topicCategory = "Apprentissage";
             if (step.type === "lesson") {
