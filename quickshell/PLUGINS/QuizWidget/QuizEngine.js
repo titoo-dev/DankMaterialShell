@@ -108,22 +108,22 @@ function extractQuestionJson(stdout) {
 // --- nudges (messages d'accroche façon Duolingo, affichés sur la pastille) ---
 
 var LOCAL_NUDGES = [
-    "Coucou 👋",
-    "Clique-moi 👀",
-    "Apprenons un truc !",
-    "Trop facile pour toi ? 😏",
-    "T'as peur d'un quiz ? 😎",
-    "Petit génie, par ici 🧠",
-    "Allez, juste une 🙃",
-    "On parie que tu sèches ? 🤭",
-    "Hop, un quiz fun ! 🎉",
-    "Réveille ce cerveau 🧠⚡",
-    "Même pas cap 😜",
-    "Une pause maligne ?",
-    "Psst… par ici 🤫",
-    "Le savoir t'attend 📚",
-    "Tu vas adorer (ou pas) 😈",
-    "Prouve que t'es chaud 🔥"
+    "Encore en train de fuir ? 😏",
+    "T'as déjà abandonné, avoue 🥱",
+    "Trop dur pour toi on dirait 💀",
+    "Prouve que t'es pas un touriste 😈",
+    "Tu sèches, c'est évident 🤡",
+    "Même un débutant aurait cliqué ⏳",
+    "Peur de te planter ? 😂",
+    "On parie que tu fuis ? 🏃💨",
+    "Fais semblant d'être occupé, vas-y 🙄",
+    "Ton cerveau prend la poussière 🕸️",
+    "Clique ou assume ta lâcheté 😤",
+    "Les vrais ont déjà répondu 🏆",
+    "T'es pas chaud, hein ? ❄️😬",
+    "Viens te faire humilier 😎",
+    "Allez, montre que t'as un cerveau 🧠🔥",
+    "Encore à scroller pour rien 📱💀"
 ];
 
 function randomNudge(rng) {
@@ -145,22 +145,22 @@ function randomEmoji(rng) {
     return NUDGE_EMOJIS[idx];
 }
 
-// Styles/tons de communication — variété demandée : cool, sarcasme, blague, clash, fun…
+// Styles/tons — on veut du PIQUANT : clash, provoc, chambrage, trash-talk joueur.
 var NUDGE_ANGLES = [
-    "cool et décontracté",
-    "un petit sarcasme taquin",
-    "une mini-blague ou un jeu de mots",
-    "un petit clash amical / une provoc joueuse",
-    "fun et déjanté",
-    "complice, entre potes",
-    "une salutation chaleureuse",
-    "piquer la curiosité",
-    "un défi joueur (« même pas cap »)",
-    "un encouragement bienveillant",
-    "un brin d'humour absurde",
-    "façon coach survolté",
-    "faussement blasé / ironique",
-    "mystérieux et intrigant"
+    "un clash sans pitié (charrie fort)",
+    "une provoc qui pique l'ego",
+    "du trash-talk façon jeu vidéo",
+    "un défi cinglant (« même pas cap »)",
+    "moqueur et insolent",
+    "faussement déçu de ta lâcheté",
+    "te traiter de touriste qui fuit",
+    "un tacle bien senti",
+    "sarcasme acide",
+    "qui doute ouvertement de ton niveau",
+    "façon rival arrogant qui te nargue",
+    "qui te met au défi de prouver le contraire",
+    "blasé, genre « tu vas encore te dégonfler »",
+    "chambrage de pote relou mais drôle"
 ];
 
 function randomNudgeAngle(rng) {
@@ -191,7 +191,10 @@ function buildNudgePrompt(angle, context) {
     var ctx = context || "un mini-quiz qui vient d'apparaître";
     return "Tu animes une pastille : " + ctx + ". Génère une accroche courte ET "
          + "choisis l'animation d'attention qui colle le mieux à l'émotion du message. "
-         + "Style/ton à adopter : " + a + " — cool, taquin, drôle, légèrement provoc, mais bienveillant, jamais vulgaire. "
+         + "Style/ton à adopter : " + a + ". Sois PIQUANT, insolent et provocateur — charrie fort, clashe, pique l'ego, "
+         + "façon trash-talk de jeu vidéo, quitte à en faire trop. Le but : titiller son orgueil pour qu'il clique. "
+         + "Garde-fous : zéro vulgarité, zéro insulte grossière, zéro propos haineux ou discriminatoire, rien qui blesse vraiment "
+         + "— ça reste du chambrage joueur entre potes. "
          + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte ni balises autour, de la forme : "
          + '{"message": "...", "emoji": "🔥", "animation": "tada"} '
          + "Contraintes : message en français, max 7 mots, sans guillemets superflus ; "
