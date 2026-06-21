@@ -159,13 +159,15 @@ StyledRect {
                 implicitWidth: askText.implicitWidth + Theme.spacingL * 2
                 implicitHeight: askText.implicitHeight + Theme.spacingS * 2
                 radius: Theme.cornerRadius
-                color: askBtnArea.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainer
+                color: card.askMode
+                       ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
+                       : (askBtnArea.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainer)
                 border.width: 1
                 border.color: card.askMode ? Theme.primary : card.insetBorderSoft
                 StyledText {
                     id: askText
                     anchors.centerIn: parent
-                    text: "Des questions ?"
+                    text: card.askMode ? "Fermer ✕" : "Des questions ?"
                     font.pixelSize: Theme.fontSizeMedium
                     color: card.askMode ? Theme.primary : Theme.surfaceText
                 }
@@ -178,6 +180,8 @@ StyledRect {
                         card.askMode = !card.askMode;
                         if (card.askMode)
                             askInput.forceActiveFocus();
+                        else
+                            askInput.text = "";
                     }
                 }
             }
