@@ -328,10 +328,17 @@ function summarizeStep(step) {
 }
 
 // Réponse libre à une question de l'apprenant sur le sujet (brève, markdown).
-function buildAnswerPrompt(subject, question) {
+// history = notions déjà apprises (ordre) ; currentTitle = titre de la leçon affichée → contexte
+// pour répondre à « rappelle-moi la leçon d'avant », « qu'a-t-on déjà vu ? », etc.
+function buildAnswerPrompt(subject, question, history, currentTitle) {
+    var covered = (history && history.length) ? history.join(" ; ") : "rien encore";
+    var cur = (currentTitle && currentTitle.trim() !== "") ? currentTitle.trim() : "(aucune)";
     return "Tu es un prof cool, clair et concis de « " + subject + " ». TOUJOURS répondre EN FRANÇAIS. "
-        + "L'apprenant te pose une question sur ce sujet. Réponds BRIÈVEMENT (2 à 4 phrases maximum), "
-        + "directement, sans préambule ni salutation. "
+        + "Contexte — notions déjà apprises par l'apprenant, dans l'ordre : " + covered + ". "
+        + "Leçon actuellement affichée : « " + cur + " ». "
+        + "L'apprenant te pose une question sur le sujet OU sur ce qu'il a déjà vu (il peut faire référence "
+        + "aux leçons précédentes). Appuie-toi sur ce contexte pour répondre. "
+        + "Réponds BRIÈVEMENT (2 à 4 phrases maximum), directement, sans préambule ni salutation. "
         + "Utilise du markdown : entoure de backticks `…` le code, les commandes, fichiers, touches et termes techniques. "
         + "Question de l'apprenant : " + question;
 }

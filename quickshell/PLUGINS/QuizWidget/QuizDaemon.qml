@@ -245,7 +245,10 @@ PluginComponent {
             return;
         root.lessonAnswer = "";
         root.lessonAnswering = true;
-        provider.fetchAnswer(subject, q, function (ans) {
+        var hist = root.learningHistory || [];
+        var recent = hist.slice(Math.max(0, hist.length - 40));
+        var curTitle = root.pendingLesson ? (root.pendingLesson.title || "") : "";
+        provider.fetchAnswer(subject, q, recent, curTitle, function (ans) {
             root.lessonAnswering = false;
             root.lessonAnswer = (ans && ans !== "") ? ans : "Désolé, je n'ai pas pu répondre. Réessaie ?";
         });

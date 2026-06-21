@@ -38,8 +38,8 @@ Item {
     }
 
     // Réponse libre à une question de l'apprenant sur le sujet (texte markdown bref).
-    function fetchAnswer(subject, question, callback) {
-        var prompt = QuizEngine.buildAnswerPrompt(subject, question);
+    function fetchAnswer(subject, question, history, currentTitle, callback) {
+        var prompt = QuizEngine.buildAnswerPrompt(subject, question, history, currentTitle);
         Proc.runCommand("quizWidget.answer", [
             QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", "--model", "claude-haiku-4-5", prompt
         ], function (stdout, exitCode) {

@@ -340,3 +340,11 @@ test("buildAnswerPrompt — réponse brève sur le sujet, inclut la question", (
     assert.match(p, /bri[eè]vement|bref|concis/i);
     assert.match(p, /backtick|markdown/i);
 });
+
+test("buildAnswerPrompt injecte le contexte (historique appris + leçon actuelle)", () => {
+    const p = E.buildAnswerPrompt("Vim", "rappelle la leçon d'avant", ["les modes Normal/Insertion", "naviguer avec hjkl"], "Changer de mode");
+    assert.match(p, /les modes Normal\/Insertion/);
+    assert.match(p, /naviguer avec hjkl/);
+    assert.match(p, /Changer de mode/);
+    assert.match(p, /rappelle la leçon d'avant/);
+});
