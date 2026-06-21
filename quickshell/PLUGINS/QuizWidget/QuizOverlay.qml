@@ -15,6 +15,10 @@ PanelWindow {
     signal dismissed()
     signal snoozeRequested(int ms)
     signal onboardingComplete(var ids, var customs)
+    signal lessonDone()
+
+    property var lesson: null
+    property string contentType: "quiz" // "quiz" | "lesson"
 
     property string mode: "hidden" // "hidden"|"pending"|"open"|"feedback"|"onboarding"
     property int selected: -1
@@ -47,8 +51,12 @@ PanelWindow {
         id: content
         anchors.fill: parent
         anchors.margins: overlay.shadowPad
-        implicitWidth: onboardingCard.visible ? onboardingCard.implicitWidth : (card.visible ? card.implicitWidth : pill.implicitWidth)
-        implicitHeight: onboardingCard.visible ? onboardingCard.implicitHeight : (card.visible ? card.implicitHeight : pill.implicitHeight)
+        implicitWidth: onboardingCard.visible ? onboardingCard.implicitWidth
+                       : lessonCard.visible ? lessonCard.implicitWidth
+                       : card.visible ? card.implicitWidth : pill.implicitWidth
+        implicitHeight: onboardingCard.visible ? onboardingCard.implicitHeight
+                        : lessonCard.visible ? lessonCard.implicitHeight
+                        : card.visible ? card.implicitHeight : pill.implicitHeight
         opacity: overlay.mode === "hidden" ? 0 : 1
         scale: overlay.mode === "hidden" ? 0.9 : 1
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -318,9 +326,9 @@ PanelWindow {
             }
         }
 
-        QuizCard { // carte
+        QuizCard { // carte quiz
             id: card
-            visible: overlay.mode === "open" || overlay.mode === "feedback"
+            visible: (overlay.mode === "open" || overlay.mode === "feedback") && overlay.contentType === "quiz"
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             question: overlay.question
@@ -328,6 +336,20 @@ PanelWindow {
             selected: overlay.selected
             onSelect: (i) => overlay.selected = i
             onSubmit: overlay.mode = "feedback"
+            onClose: overlay.reset()
+            onSnooze: (ms) => { overlay.snoozeRequested(ms); overlay.reset(); }
+        }
+
+        LessonCard { // carte leçon (mode apprentissage)
+            id: lessonCard
+            visible: overlay.mode === "open" && overlay.contentType === "lesson"
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            lesson: overlay.lesson
+            onNext: {
+                overlay.lessonDone();
+                overlay.reset();
+            }
             onClose: overlay.reset()
             onSnooze: (ms) => { overlay.snoozeRequested(ms); overlay.reset(); }
         }
