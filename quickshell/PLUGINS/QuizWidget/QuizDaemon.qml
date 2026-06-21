@@ -15,9 +15,15 @@ PluginComponent {
     property int workMinutes: 25
     property var selectedTopics: []
     property var customTopics: []
+    // mode apprentissage
+    property string mode: "quiz" // "quiz" | "learning"
+    property string learningSubject: ""
+    property var learningHistory: []
+    property string learningHistorySubject: ""
 
     // état runtime
     property var pendingQuestion: null
+    property var pendingLesson: null
     property var sessionSeen: ({})
     property string nudgeText: "Quiz dispo"
     property string nudgeEmoji: "🦉"
@@ -30,10 +36,21 @@ PluginComponent {
     QuizOverlay {
         id: overlay
         question: root.pendingQuestion
+        lesson: root.pendingLesson
         nudge: root.nudgeText
         emoji: root.nudgeEmoji
         animIndex: root.animIndex
-        onDismissed: root.pendingQuestion = null
+        onDismissed: {
+            // en mode learning, un quiz fermé compte comme couvert
+            if (root.mode === "learning" && root.pendingQuestion && root.pendingQuestion.summary)
+                root.recordHistory(QuizEngine.summarizeStep(root.pendingQuestion));
+            root.pendingQuestion = null;
+            root.pendingLesson = null;
+        }
+        onLessonDone: {
+            if (root.pendingLesson)
+                root.recordHistory(QuizEngine.summarizeStep(root.pendingLesson));
+        }
         onSnoozeRequested: (ms) => root.snooze(ms)
         onOnboardingComplete: (ids, customs) => root.completeOnboarding(ids, customs)
     }
@@ -42,11 +59,11 @@ PluginComponent {
     // — claude choisit l'animation qui matche l'expression. On applique le résultat (ou un repli
     // local si claude échoue) PUIS on appelle onReady() : la pastille n'apparaît qu'une fois prête,
     // sans bascule d'animation. onReady est optionnel (re-nudge : rafraîchit la pastille déjà visible).
-    function fetchNudge(onReady) {
+    function fetchNudge(onReady, context) {
         var fbText = QuizEngine.randomNudge();
         var fbEmoji = QuizEngine.randomEmoji();
         var fbAnim = Math.floor(Math.random() * Math.max(1, overlay.animCount));
-        Proc.runCommand("quizWidget.nudge", [QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", QuizEngine.buildNudgePrompt()], function (stdout, exitCode) {
+        Proc.runCommand("quizWidget.nudge", [QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", QuizEngine.buildNudgePrompt(undefined, context)], function (stdout, exitCode) {
             var n = (exitCode === 0) ? QuizEngine.parseNudge(stdout) : null;
             if (n) {
                 root.nudgeText = n.message;
@@ -67,7 +84,7 @@ PluginComponent {
         interval: Math.max(1, root.workMinutes) * 60 * 1000
         repeat: true
         running: !root.paused && !root.snoozing
-        onTriggered: root.requestQuiz()
+        onTriggered: root.requestNext()
     }
 
     Timer {
@@ -75,7 +92,7 @@ PluginComponent {
         repeat: false
         onTriggered: {
             root.snoozing = false;
-            root.requestQuiz();
+            root.requestNext();
         }
     }
 
@@ -96,7 +113,7 @@ PluginComponent {
         id: firstQuizTimer
         interval: 30 * 1000
         repeat: false
-        onTriggered: root.requestQuiz()
+        onTriggered: root.requestNext()
     }
 
     function snooze(ms) {
@@ -131,10 +148,70 @@ PluginComponent {
             s[id] = newSeen;
             root.sessionSeen = s;
             root.pendingQuestion = q;
+            overlay.contentType = "quiz";
             root.fetchNudge(function () {
                 overlay.showPending();
             }); // n'affiche la pastille qu'une fois le nudge (message+emoji+animation) prêt
         });
+    }
+
+    // Dispatcher appelé par les timers : quiz ou apprentissage selon le mode.
+    function requestNext() {
+        if (root.mode === "learning")
+            root.requestLearningStep();
+        else
+            root.requestQuiz();
+    }
+
+    // Mode apprentissage : l'IA enseigne la prochaine étape (leçon ou quiz) selon l'historique.
+    function requestLearningStep() {
+        if (root.pendingQuestion || root.pendingLesson)
+            return;
+        root.loadSettings();
+        var subject = (root.learningSubject || "").trim();
+        if (!subject)
+            return;
+        if (root.learningHistorySubject !== subject) {
+            // sujet changé → réinitialiser la progression
+            root.learningHistory = [];
+            root.learningHistorySubject = subject;
+            if (typeof pluginService !== "undefined" && pluginService) {
+                pluginService.savePluginData("quizWidget", "learningHistory", []);
+                pluginService.savePluginData("quizWidget", "learningHistorySubject", subject);
+            }
+        }
+        var hist = root.learningHistory || [];
+        var recent = hist.slice(Math.max(0, hist.length - 40));
+        provider.fetchLearningStep(subject, recent, function (step) {
+            if (!step) {
+                console.warn("QuizDaemon: pas de leçon pour", subject);
+                return;
+            }
+            step.topicLabel = subject;
+            step.topicCategory = "Apprentissage";
+            if (step.type === "lesson") {
+                root.pendingLesson = step;
+                overlay.contentType = "lesson";
+            } else {
+                root.pendingQuestion = step;
+                overlay.contentType = "quiz";
+            }
+            root.fetchNudge(function () {
+                overlay.showPending();
+            }, "une nouvelle leçon de " + subject);
+        });
+    }
+
+    function recordHistory(summary) {
+        if (!summary)
+            return;
+        var h = (root.learningHistory || []).slice();
+        h.push(summary);
+        if (h.length > 60)
+            h = h.slice(h.length - 60);
+        root.learningHistory = h;
+        if (typeof pluginService !== "undefined" && pluginService)
+            pluginService.savePluginData("quizWidget", "learningHistory", h);
     }
 
     function completeOnboarding(ids, customs) {
@@ -155,18 +232,28 @@ PluginComponent {
         root.workMinutes = parseInt(pluginService.loadPluginData("quizWidget", "workMinutes", "25")) || 25;
         root.selectedTopics = pluginService.loadPluginData("quizWidget", "selectedTopics", []);
         root.customTopics = pluginService.loadPluginData("quizWidget", "customTopics", []);
+        root.mode = pluginService.loadPluginData("quizWidget", "mode", "quiz");
+        root.learningSubject = pluginService.loadPluginData("quizWidget", "learningSubject", "");
+        root.learningHistory = pluginService.loadPluginData("quizWidget", "learningHistory", []);
+        root.learningHistorySubject = pluginService.loadPluginData("quizWidget", "learningHistorySubject", "");
     }
 
     Component.onCompleted: {
         Qt.callLater(function () {
             root.loadSettings();
-            var nCat = root.selectedTopics ? root.selectedTopics.length : 0;
-            var nCustom = root.customTopics ? root.customTopics.length : 0;
-            if (nCat === 0 && nCustom === 0)
-                overlay.showOnboarding();
-            else if (!root.paused)
-                firstQuizTimer.restart(); // sujets déjà configurés → 1re quiz peu après le démarrage (sinon attente = workMinutes)
-            console.info("QuizDaemon: started, work", root.workMinutes, "min,", nCat, "catalogue +", nCustom, "libres");
+            if (root.mode === "learning") {
+                if ((root.learningSubject || "").trim() !== "" && !root.paused)
+                    firstQuizTimer.restart();
+                console.info("QuizDaemon: started, mode learning, sujet", JSON.stringify(root.learningSubject), (root.learningHistory ? root.learningHistory.length : 0), "notions");
+            } else {
+                var nCat = root.selectedTopics ? root.selectedTopics.length : 0;
+                var nCustom = root.customTopics ? root.customTopics.length : 0;
+                if (nCat === 0 && nCustom === 0)
+                    overlay.showOnboarding();
+                else if (!root.paused)
+                    firstQuizTimer.restart();
+                console.info("QuizDaemon: started, mode quiz,", nCat, "catalogue +", nCustom, "libres");
+            }
         });
     }
     Component.onDestruction: console.info("QuizDaemon: stopped")

@@ -206,6 +206,7 @@ function parseNudge(stdout) {
 function buildLessonPrompt(subject, history) {
     var covered = (history && history.length) ? history.join(" ; ") : "rien encore";
     return "Tu es un prof cool, concis et bienveillant de « " + subject + " ». "
+        + "TOUJOURS répondre EN FRANÇAIS (titre, contenu, quiz, explication). "
         + "Déjà couvert par l'apprenant : " + covered + ". "
         + "Donne LA PROCHAINE étape d'apprentissage, en construisant logiquement sur l'acquis, sans répéter. "
         + "La plupart du temps : une LEÇON courte et digeste (UNE notion à la fois, un exemple concret, "
