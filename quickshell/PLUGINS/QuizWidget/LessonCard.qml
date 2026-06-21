@@ -22,6 +22,9 @@ StyledRect {
     readonly property string codeColor: hex6(Theme.primary)
     readonly property string codeBg: hex6(Theme.surfaceContainerHighest)
 
+    // hauteur max de la zone de contenu (au-delà → scroll)
+    property real maxContentHeight: 380
+
     implicitWidth: 400
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
     radius: Theme.cornerRadius
@@ -112,15 +115,24 @@ StyledRect {
             color: Theme.surfaceText
         }
 
-        // contenu (markdown → RichText : gras, code stylé, listes…)
-        StyledText {
+        // contenu (markdown → RichText) — hauteur plafonnée + scrollable
+        DankFlickable {
+            id: contentFlick
             width: parent.width
-            text: QuizEngine.mdToHtml(card.lesson ? (card.lesson.content || "") : "", card.codeColor, card.codeBg)
-            textFormat: Text.RichText
-            wrapMode: Text.WordWrap
-            elide: Text.ElideNone
-            font.pixelSize: Theme.fontSizeMedium
-            color: Theme.surfaceText
+            height: Math.min(contentText.implicitHeight, card.maxContentHeight)
+            contentHeight: contentText.implicitHeight
+            clip: true
+
+            StyledText {
+                id: contentText
+                width: contentFlick.width - Theme.spacingS
+                text: QuizEngine.mdToHtml(card.lesson ? (card.lesson.content || "") : "", card.codeColor, card.codeBg)
+                textFormat: Text.RichText
+                wrapMode: Text.WordWrap
+                elide: Text.ElideNone
+                font.pixelSize: Theme.fontSizeMedium
+                color: Theme.surfaceText
+            }
         }
 
         // action : Suivant

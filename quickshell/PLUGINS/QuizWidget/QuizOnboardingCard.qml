@@ -8,6 +8,9 @@ StyledRect {
 
     readonly property color insetBorder: Qt.rgba(1, 1, 1, 0.14)
 
+    // hauteur max de la liste de sujets (au-delà → scroll)
+    property real maxPickerHeight: 360
+
     implicitWidth: 460
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
     radius: Theme.cornerRadius
@@ -48,9 +51,17 @@ StyledRect {
             wrapMode: Text.WordWrap
         }
 
-        TopicPicker {
-            id: picker
+        DankFlickable {
+            id: pickerFlick
             width: parent.width
+            height: Math.min(picker.implicitHeight, cardRoot.maxPickerHeight)
+            contentHeight: picker.implicitHeight
+            clip: true
+
+            TopicPicker {
+                id: picker
+                width: pickerFlick.width - Theme.spacingS
+            }
         }
 
         Item {

@@ -13,6 +13,9 @@ StyledRect {
     }
     readonly property string codeColor: hex6(Theme.primary)
     readonly property string codeBg: hex6(Theme.surfaceContainerHighest)
+
+    // hauteur max de la zone question/choix/feedback (au-delà → scroll)
+    property real maxBodyHeight: 360
     property var question: null
     property string mode: "open"   // "open" | "feedback"
     property int selected: -1
@@ -112,6 +115,19 @@ StyledRect {
                 }
             }
         }
+
+        // Question + choix + feedback : hauteur plafonnée + scrollable
+        DankFlickable {
+            id: bodyFlick
+            width: parent.width
+            height: Math.min(bodyCol.implicitHeight, card.maxBodyHeight)
+            contentHeight: bodyCol.implicitHeight
+            clip: true
+
+            Column {
+                id: bodyCol
+                width: bodyFlick.width - Theme.spacingS
+                spacing: Theme.spacingM
 
         // Question (largeur réduite pour ne pas passer sous le bouton ×) — markdown + emoji
         StyledText {
@@ -223,6 +239,8 @@ StyledRect {
                 color: Theme.surfaceText
             }
         }
+            } // bodyCol
+        } // bodyFlick
 
         // Actions — tuiles bento
         Row {
