@@ -16,6 +16,7 @@ PanelWindow {
     signal snoozeRequested(int ms)
     signal onboardingComplete(var ids, var customs)
     signal lessonDone()
+    signal quizAnswered()
 
     property var lesson: null
     property string contentType: "quiz" // "quiz" | "lesson"
@@ -335,7 +336,7 @@ PanelWindow {
             mode: overlay.mode === "feedback" ? "feedback" : "open"
             selected: overlay.selected
             onSelect: (i) => overlay.selected = i
-            onSubmit: overlay.mode = "feedback"
+            onSubmit: { overlay.mode = "feedback"; overlay.quizAnswered(); }
             onClose: overlay.reset()
             onSnooze: (ms) => { overlay.snoozeRequested(ms); overlay.reset(); }
         }

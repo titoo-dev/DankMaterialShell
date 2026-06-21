@@ -24,6 +24,7 @@ function loadEngine() {
         + " parseNudge: typeof parseNudge !== 'undefined' ? parseNudge : undefined,"
         + " animationIndex: typeof animationIndex !== 'undefined' ? animationIndex : undefined,"
         + " buildLessonPrompt: typeof buildLessonPrompt !== 'undefined' ? buildLessonPrompt : undefined,"
+        + " buildRelearnPrompt: typeof buildRelearnPrompt !== 'undefined' ? buildRelearnPrompt : undefined,"
         + " parseLearningStep: typeof parseLearningStep !== 'undefined' ? parseLearningStep : undefined,"
         + " summarizeStep: typeof summarizeStep !== 'undefined' ? summarizeStep : undefined,"
         + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
@@ -203,49 +204,60 @@ test("randomEmoji renvoie un emoji non vide", () => {
     assert.ok(typeof e === "string" && e.length > 0);
 });
 
-test("buildLessonPrompt inclut le sujet, l'historique, leçon/quiz et exige du JSON", () => {
+test("buildLessonPrompt inclut le sujet, l'historique, leçon/quiz et le format TYPE", () => {
     const p = E.buildLessonPrompt("Vim", ["modes", "dd/yy"]);
     assert.match(p, /Vim/);
     assert.match(p, /modes/);
     assert.match(p, /le[çc]on/i);
     assert.match(p, /quiz/i);
-    assert.match(p, /JSON/);
+    assert.match(p, /TYPE:/);
 });
 test("buildLessonPrompt gère un historique vide", () => {
     const p = E.buildLessonPrompt("Vim", []);
     assert.match(p, /rien encore/);
 });
-test("parseLearningStep — leçon valide", () => {
-    const s = E.parseLearningStep('{"type":"lesson","title":"Les modes","content":"**Normal** et `i`","summary":"modes de base"}');
+const lessonTxt = "TYPE: lesson\nTITRE: Les modes\nRESUME: modes de base\nCONTENU:\n**Normal** et `i`\nplusieurs lignes \"avec guillemets\" et \\d antislash";
+test("parseLearningStep — leçon (format texte) avec contenu libre", () => {
+    const s = E.parseLearningStep(lessonTxt);
     assert.equal(s.type, "lesson");
     assert.equal(s.title, "Les modes");
     assert.match(s.content, /Normal/);
+    assert.match(s.content, /plusieurs lignes/); // multi-ligne préservé
+    assert.match(s.content, /guillemets/);       // guillemets bruts OK (impossible en JSON)
+    assert.match(s.content, /\\d/);               // antislash brut OK
     assert.equal(s.summary, "modes de base");
 });
-test("parseLearningStep — leçon sans summary -> summary = title", () => {
-    const s = E.parseLearningStep('{"type":"lesson","title":"Le registre","content":"..."}');
+test("parseLearningStep — leçon sans RESUME -> summary = titre", () => {
+    const s = E.parseLearningStep("TYPE: lesson\nTITRE: Le registre\nCONTENU:\ndu contenu");
     assert.equal(s.summary, "Le registre");
 });
 test("parseLearningStep — leçon sans contenu -> null", () => {
-    assert.equal(E.parseLearningStep('{"type":"lesson","title":"X","content":"  "}'), null);
+    assert.equal(E.parseLearningStep("TYPE: lesson\nTITRE: X\nCONTENU:\n   "), null);
 });
-test("parseLearningStep — quiz valide", () => {
-    const s = E.parseLearningStep('{"type":"quiz","question":"Quitter Vim ?","choices":[":q",":w",":x",":e"],"answer":0,"explanation":"...","summary":"sortie"}');
+test("parseLearningStep — quiz (format texte) valide, avec ':' dans un choix", () => {
+    const s = E.parseLearningStep("TYPE: quiz\nQUESTION: Quitter Vim ?\nA: :q\nB: :w\nC: :x\nD: :e\nREPONSE: A\nEXPLICATION: ok\nRESUME: sortie");
     assert.equal(s.type, "quiz");
     assert.equal(s.answer, 0);
+    assert.equal(s.choices.length, 4);
+    assert.equal(s.choices[0], ":q");
     assert.ok(s.id.startsWith("ai-"));
     assert.equal(s.summary, "sortie");
 });
-test("parseLearningStep — quiz invalide (validate) -> null", () => {
-    assert.equal(E.parseLearningStep('{"type":"quiz","question":"Q","choices":["a"],"answer":0,"explanation":""}'), null);
+test("parseLearningStep — quiz REPONSE numérique acceptée", () => {
+    const s = E.parseLearningStep("TYPE: quiz\nQUESTION: Q ?\nA: a\nB: b\nC: c\nD: d\nREPONSE: 2\nEXPLICATION: ok\nRESUME: s");
+    assert.equal(s.answer, 2);
 });
-test("parseLearningStep — type inconnu / non-JSON -> null", () => {
-    assert.equal(E.parseLearningStep('{"type":"autre"}'), null);
-    assert.equal(E.parseLearningStep("désolé"), null);
+test("parseLearningStep — quiz incomplet (validate) -> null", () => {
+    assert.equal(E.parseLearningStep("TYPE: quiz\nQUESTION: Q ?\nA: a\nB: \nC: \nD: \nREPONSE: A\nEXPLICATION: \nRESUME: s"), null);
+});
+test("parseLearningStep — type inconnu / vide -> null", () => {
+    assert.equal(E.parseLearningStep("TYPE: autre\nTITRE: x"), null);
+    assert.equal(E.parseLearningStep("désolé, rien d'utile"), null);
 });
 test("parseLearningStep gère les fences markdown", () => {
-    const s = E.parseLearningStep('```json\n{"type":"lesson","title":"T","content":"C"}\n```');
+    const s = E.parseLearningStep("```\nTYPE: lesson\nTITRE: T\nCONTENU:\nC\n```");
     assert.equal(s.type, "lesson");
+    assert.equal(s.title, "T");
 });
 test("summarizeStep renvoie le summary", () => {
     assert.equal(E.summarizeStep({ type: "lesson", summary: "abc" }), "abc");
@@ -253,4 +265,42 @@ test("summarizeStep renvoie le summary", () => {
 test("buildNudgePrompt inclut le context fourni et garde le défaut", () => {
     assert.match(E.buildNudgePrompt("a", "une nouvelle leçon de Vim"), /nouvelle leçon de Vim/);
     assert.match(E.buildNudgePrompt("a"), /mini-quiz/);
+});
+
+test("buildRelearnPrompt ré-explique la même notion autrement (format texte)", () => {
+    const p = E.buildRelearnPrompt("Vim", "les modes Normal/Insertion", ["x"]);
+    assert.match(p, /Vim/);
+    assert.match(p, /les modes Normal\/Insertion/);
+    assert.match(p, /AUTREMENT|autre/i);
+    assert.match(p, /TYPE: lesson/);
+});
+
+test("extractQuestionJson tolère un retour-ligne brut dans une chaîne", () => {
+    const raw = '{"question":"Ligne1\nLigne2 ?","choices":["1","2","3","4"],"answer":0,"explanation":"ok"}';
+    const q = E.extractQuestionJson(raw);
+    assert.ok(q);
+    assert.match(q.question, /Ligne1/);
+});
+
+test("extractJsonObject répare une séquence d'échappement invalide (ex. backslash-d de regex)", () => {
+    // claude écrit parfois \d (antislash brut) dans le JSON → invalide ; on le répare en littéral.
+    const raw = '{"question":"Regex \\d trouve un chiffre ?","choices":["1","2","3","4"],"answer":0,"explanation":"ok"}';
+    const q = E.extractQuestionJson(raw);
+    assert.ok(q, "doit parser malgré l'échappement invalide");
+    assert.match(q.question, /Regex/);
+});
+
+test("parseLearningStep — contenu avec bloc de code ``` interne préservé", () => {
+    const txt = "TYPE: lesson\nTITRE: T\nRESUME: s\nCONTENU:\nExemple :\n```vim\n:wq\n```\nVoilà !";
+    const s = E.parseLearningStep(txt);
+    assert.ok(s, "doit parser malgré le bloc de code interne");
+    assert.match(s.content, /:wq/);
+    assert.match(s.content, /```vim/); // bloc de code conservé
+});
+test("parseLearningStep — réponse entière enveloppée dans un fence", () => {
+    const txt = "```\nTYPE: lesson\nTITRE: T\nRESUME: s\nCONTENU:\nhello\n```";
+    const s = E.parseLearningStep(txt);
+    assert.ok(s);
+    assert.equal(s.title, "T");
+    assert.match(s.content, /hello/);
 });

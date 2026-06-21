@@ -21,8 +21,10 @@ Item {
     }
 
     // Apprentissage : une étape (leçon OU quiz) via `claude -p`, selon l'historique couvert.
-    function fetchLearningStep(subject, history, callback) {
-        var prompt = QuizEngine.buildLessonPrompt(subject, history);
+    function fetchLearningStep(subject, history, callback, relearnNotion) {
+        var prompt = (relearnNotion && relearnNotion !== "")
+            ? QuizEngine.buildRelearnPrompt(subject, relearnNotion, history)
+            : QuizEngine.buildLessonPrompt(subject, history);
         Proc.runCommand("quizWidget.learn", [
             QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", "--model", "claude-haiku-4-5", prompt
         ], function (stdout, exitCode) {

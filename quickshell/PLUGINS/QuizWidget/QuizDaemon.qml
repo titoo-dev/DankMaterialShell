@@ -20,10 +20,12 @@ PluginComponent {
     property string learningSubject: ""
     property var learningHistory: []
     property string learningHistorySubject: ""
+    property string currentNotion: "" // leçon en cours non validée → à ré-expliquer tant que pas "Suivant"
 
     // état runtime
     property var pendingQuestion: null
     property var pendingLesson: null
+    property bool lessonValidated: false
     property var sessionSeen: ({})
     property string nudgeText: "Quiz dispo"
     property string nudgeEmoji: "🦉"
@@ -41,15 +43,27 @@ PluginComponent {
         emoji: root.nudgeEmoji
         animIndex: root.animIndex
         onDismissed: {
-            // en mode learning, un quiz fermé compte comme couvert
-            if (root.mode === "learning" && root.pendingQuestion && root.pendingQuestion.summary)
-                root.recordHistory(QuizEngine.summarizeStep(root.pendingQuestion));
+            // Leçon : "Suivant" (validée) → on avance ; fermeture/report (non validée) → on retient
+            // la notion pour la ré-expliquer au prochain cycle (ne PAS passer au suivant).
+            if (root.pendingLesson) {
+                if (root.lessonValidated)
+                    root.setPendingNotion("");
+                else
+                    root.setPendingNotion(QuizEngine.summarizeStep(root.pendingLesson));
+            }
+            root.lessonValidated = false;
             root.pendingQuestion = null;
             root.pendingLesson = null;
         }
         onLessonDone: {
+            root.lessonValidated = true;
             if (root.pendingLesson)
                 root.recordHistory(QuizEngine.summarizeStep(root.pendingLesson));
+        }
+        // Un quiz d'apprentissage ne compte que s'il est RÉPONDU (validé), pas à la simple fermeture.
+        onQuizAnswered: {
+            if (root.mode === "learning" && root.pendingQuestion && root.pendingQuestion.summary)
+                root.recordHistory(QuizEngine.summarizeStep(root.pendingQuestion));
         }
         onSnoozeRequested: (ms) => root.snooze(ms)
         onOnboardingComplete: (ids, customs) => root.completeOnboarding(ids, customs)
@@ -172,9 +186,10 @@ PluginComponent {
         if (!subject)
             return;
         if (root.learningHistorySubject !== subject) {
-            // sujet changé → réinitialiser la progression
+            // sujet changé → réinitialiser la progression et la notion en cours
             root.learningHistory = [];
             root.learningHistorySubject = subject;
+            root.setPendingNotion("");
             if (typeof pluginService !== "undefined" && pluginService) {
                 pluginService.savePluginData("quizWidget", "learningHistory", []);
                 pluginService.savePluginData("quizWidget", "learningHistorySubject", subject);
@@ -182,6 +197,7 @@ PluginComponent {
         }
         var hist = root.learningHistory || [];
         var recent = hist.slice(Math.max(0, hist.length - 40));
+        var notion = (root.currentNotion || "").trim();
         provider.fetchLearningStep(subject, recent, function (step) {
             if (!step) {
                 console.warn("QuizDaemon: pas de leçon pour", subject);
@@ -199,7 +215,7 @@ PluginComponent {
             root.fetchNudge(function () {
                 overlay.showPending();
             }, "une nouvelle leçon de " + subject);
-        });
+        }, notion ? notion : undefined);
     }
 
     function recordHistory(summary) {
@@ -212,6 +228,13 @@ PluginComponent {
         root.learningHistory = h;
         if (typeof pluginService !== "undefined" && pluginService)
             pluginService.savePluginData("quizWidget", "learningHistory", h);
+    }
+
+    // Notion en cours non validée (persistée) : tant qu'elle est définie, on la ré-explique.
+    function setPendingNotion(notion) {
+        root.currentNotion = notion || "";
+        if (typeof pluginService !== "undefined" && pluginService)
+            pluginService.savePluginData("quizWidget", "learningPendingNotion", root.currentNotion);
     }
 
     function completeOnboarding(ids, customs) {
@@ -236,6 +259,7 @@ PluginComponent {
         root.learningSubject = pluginService.loadPluginData("quizWidget", "learningSubject", "");
         root.learningHistory = pluginService.loadPluginData("quizWidget", "learningHistory", []);
         root.learningHistorySubject = pluginService.loadPluginData("quizWidget", "learningHistorySubject", "");
+        root.currentNotion = pluginService.loadPluginData("quizWidget", "learningPendingNotion", "");
     }
 
     Component.onCompleted: {

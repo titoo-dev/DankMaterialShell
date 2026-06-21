@@ -67,21 +67,34 @@ function extractJsonObject(stdout) {
     if (fence) text = fence[1];
     var start = text.indexOf("{");
     if (start === -1) return null;
-    var depth = 0, end = -1, inStr = false, esc = false;
+    var depth = 0, end = -1, inStr = false;
+    var out = "";
     for (var i = start; i < text.length; i++) {
         var ch = text.charAt(i);
         if (inStr) {
-            if (esc) esc = false;
-            else if (ch === "\\") esc = true;
-            else if (ch === "\"") inStr = false;
+            if (ch === "\"") { out += ch; inStr = false; continue; }
+            if (ch === "\\") {
+                var nx = text.charAt(i + 1);
+                if (nx === "u") { out += text.substr(i, 6); i += 5; continue; } // \uXXXX
+                if (nx !== "" && "\"\\/bfnrt".indexOf(nx) !== -1) { out += "\\" + nx; i += 1; continue; } // échappement valide
+                out += "\\\\"; // échappement invalide (ex. \d, \w de regex/code) → antislash littéral
+                continue;
+            }
+            // JSON interdit les caractères de contrôle bruts dans les chaînes ; claude
+            // pretty-printe parfois du contenu multi-ligne → on les échappe pour JSON.parse.
+            if (ch === "\n") { out += "\\n"; continue; }
+            if (ch === "\r") { out += "\\r"; continue; }
+            if (ch === "\t") { out += "\\t"; continue; }
+            out += ch;
             continue;
         }
+        out += ch;
         if (ch === "\"") inStr = true;
         else if (ch === "{") depth++;
         else if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
     }
     if (end === -1) return null;
-    try { return JSON.parse(text.substring(start, end + 1)); } catch (e) { return null; }
+    try { return JSON.parse(out); } catch (e) { return null; }
 }
 
 // Question valide depuis la sortie claude -p (objet JSON validé + id stable).
@@ -202,42 +215,107 @@ function parseNudge(stdout) {
 
 // --- mode apprentissage (prof IA organique) ---
 
-// Prompt « enseigne la suite » : renvoie un JSON leçon OU quiz selon l'historique couvert.
+// Format des leçons : texte à délimiteurs (PAS de JSON). Le contenu markdown libre (guillemets,
+// antislashs, code) casse trop souvent le JSON généré par le LLM — le format ligne est robuste.
+var LESSON_FORMAT =
+    "Pour une LEÇON, réponds EXACTEMENT (aucun autre texte, PAS de JSON, PAS de balises ```) :\n"
+    + "TYPE: lesson\n"
+    + "TITRE: <titre court avec un emoji au début>\n"
+    + "RESUME: <résumé en ~8 mots>\n"
+    + "CONTENU:\n"
+    + "<contenu de la leçon en markdown, plusieurs lignes autorisées, **gras**/`code` libres>\n";
+var QUIZ_FORMAT =
+    "Pour un QUIZ, réponds EXACTEMENT (aucun autre texte, PAS de JSON) :\n"
+    + "TYPE: quiz\n"
+    + "QUESTION: <la question, un emoji au début>\n"
+    + "A: <choix>\nB: <choix>\nC: <choix>\nD: <choix>\n"
+    + "REPONSE: <A, B, C ou D>\n"
+    + "EXPLICATION: <courte explication, une seule ligne>\n"
+    + "RESUME: <résumé en ~8 mots>\n";
+
+// Prompt « enseigne la suite » : une leçon OU un quiz, en format texte, selon l'historique.
 function buildLessonPrompt(subject, history) {
     var covered = (history && history.length) ? history.join(" ; ") : "rien encore";
     return "Tu es un prof cool, concis et bienveillant de « " + subject + " ». "
-        + "TOUJOURS répondre EN FRANÇAIS (titre, contenu, quiz, explication). "
+        + "TOUJOURS répondre EN FRANÇAIS. "
         + "Déjà couvert par l'apprenant : " + covered + ". "
         + "Donne LA PROCHAINE étape d'apprentissage, en construisant logiquement sur l'acquis, sans répéter. "
-        + "La plupart du temps : une LEÇON courte et digeste (UNE notion à la fois, un exemple concret, "
-        + "un emoji en tête, markdown **gras**/`code`). "
+        + "La plupart du temps : une LEÇON courte et digeste (UNE notion à la fois, un exemple concret). "
         + "De temps en temps seulement, si plusieurs notions ont déjà été vues et qu'une vérification est pertinente : "
-        + "un QUIZ à choix unique sur ce qui a été couvert. "
-        + "Réponds UNIQUEMENT avec un objet JSON valide, sans texte ni balises autour. "
-        + 'Leçon : {"type":"lesson","title":"...","content":"...","summary":"..."} (content en markdown). '
-        + 'Quiz : {"type":"quiz","question":"...","choices":["..","..","..",".."],"answer":0,"explanation":"...","summary":"..."}. '
-        + "summary = courte phrase (max ~8 mots) résumant la notion, pour le suivi de progression.";
+        + "un QUIZ à choix unique sur ce qui a été couvert.\n\n"
+        + "IMPORTANT : commence ta réponse DIRECTEMENT par « TYPE: » — aucune salutation, aucune phrase avant ou après.\n\n"
+        + LESSON_FORMAT + "\n" + QUIZ_FORMAT;
 }
 
-// Parse une étape : leçon {type,title,content,summary} ou quiz validé {type,...,id,summary}. null sinon.
+// Ré-explication : l'apprenant n'a pas validé une notion → la ré-enseigner AUTREMENT (sans avancer).
+function buildRelearnPrompt(subject, notion, history) {
+    var covered = (history && history.length) ? history.join(" ; ") : "rien encore";
+    return "Tu es un prof cool de « " + subject + " ». TOUJOURS répondre EN FRANÇAIS. "
+        + "L'apprenant n'a PAS encore validé la notion : « " + notion + " ». "
+        + "Ré-explique-la AUTREMENT (autre angle, autre exemple, analogie ou astuce mnémo) pour l'aider à la saisir — "
+        + "NE PASSE PAS à une nouvelle notion, reste exactement sur celle-ci. "
+        + "Déjà couvert avant : " + covered + ".\n\n"
+        + "IMPORTANT : commence ta réponse DIRECTEMENT par « TYPE: » — aucune salutation, aucune phrase avant ou après.\n\n"
+        + LESSON_FORMAT;
+}
+
+// Lit la valeur d'un champ « CLE: valeur » (insensible à la casse) dans un tableau de lignes.
+function _field(lines, name) {
+    var re = new RegExp("^\\s*" + name + "\\s*:\\s*(.*)$", "i");
+    for (var i = 0; i < lines.length; i++) {
+        var m = lines[i].match(re);
+        if (m) return m[1].trim();
+    }
+    return "";
+}
+
+// Parse une étape au format texte → leçon {type,title,content,summary} ou quiz {type,...,id,summary}.
 function parseLearningStep(stdout) {
-    var o = extractJsonObject(stdout);
-    if (!o || typeof o.type !== "string") return null;
-    if (o.type === "lesson") {
-        if (typeof o.title !== "string" || o.title.trim() === "") return null;
-        if (typeof o.content !== "string" || o.content.trim() === "") return null;
-        var lsum = (typeof o.summary === "string" && o.summary.trim() !== "") ? o.summary.trim() : o.title.trim();
-        return { type: "lesson", title: o.title, content: o.content, summary: lsum };
+    if (typeof stdout !== "string") return null;
+    var text = stdout.trim();
+    // retire un éventuel fence ENVELOPPANT uniquement (préserve les blocs ``` internes du contenu)
+    if (text.indexOf("```") === 0) {
+        text = text.replace(/^```[a-zA-Z]*[ \t]*\r?\n?/, "");
+        text = text.replace(/\r?\n?```[ \t]*$/, "");
     }
-    if (o.type === "quiz") {
-        if (!validate(o)) return null;
-        var qsum = (typeof o.summary === "string" && o.summary.trim() !== "") ? o.summary.trim() : ("Quiz : " + o.question);
+    var lines = text.split(/\r?\n/);
+    var type = _field(lines, "TYPE").toLowerCase();
+
+    if (type === "lesson") {
+        var title = _field(lines, "TITRE");
+        var summary = _field(lines, "RESUME");
+        var ci = -1;
+        for (var j = 0; j < lines.length; j++) {
+            if (/^\s*CONTENU\s*:/i.test(lines[j])) { ci = j; break; }
+        }
+        var content = "";
+        if (ci !== -1) {
+            var head = lines[ci].replace(/^\s*CONTENU\s*:\s?/i, "");
+            var rest = lines.slice(ci + 1).join("\n");
+            content = (head + (head && rest ? "\n" : "") + rest).trim();
+        }
+        if (!title || !content) return null;
+        if (!summary) summary = title;
+        return { type: "lesson", title: title, content: content, summary: summary };
+    }
+
+    if (type === "quiz") {
+        var q = _field(lines, "QUESTION");
+        var choices = [_field(lines, "A"), _field(lines, "B"), _field(lines, "C"), _field(lines, "D")];
+        var rep = _field(lines, "REPONSE").toUpperCase();
+        var map = { A: 0, B: 1, C: 2, D: 3 };
+        var answer = (map[rep] !== undefined) ? map[rep] : parseInt(rep, 10);
+        var explanation = _field(lines, "EXPLICATION");
+        var obj = { question: q, choices: choices, answer: answer, explanation: explanation };
+        if (!validate(obj)) return null;
+        var qsum = _field(lines, "RESUME") || ("Quiz : " + q);
         if (qsum.length > 60) qsum = qsum.slice(0, 60);
-        return {
-            type: "quiz", question: o.question, choices: o.choices, answer: o.answer,
-            explanation: o.explanation, id: o.id || ("ai-" + hashString(o.question)), summary: qsum
-        };
+        obj.id = "ai-" + hashString(q);
+        obj.type = "quiz";
+        obj.summary = qsum;
+        return obj;
     }
+
     return null;
 }
 
