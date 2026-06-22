@@ -130,6 +130,40 @@ Item {
             name: "vpn_lock"; size: Theme.iconSize - 6; color: island.accent
             visible: island.vpnOn; anchors.verticalCenter: parent.verticalCenter
         }
+        Row {  // Tailscale: peer count, exit-node glyph, click → panel
+            spacing: 3
+            visible: island.tsAvailable
+            anchors.verticalCenter: parent.verticalCenter
+            scale: tsArea.pressed ? 0.86 : 1.0
+            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+            DankIcon {
+                name: "device_hub"
+                size: Theme.iconSize - 6
+                color: island.tsNeedsAttention ? Theme.warning
+                    : (island.tsConnected ? island.accent : island.subText)
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            StyledText {
+                visible: island.tsConnected
+                text: island.tsPeerCount
+                color: island.tsNeedsAttention ? Theme.warning : island.textColor
+                font.pixelSize: Theme.fontSizeSmall; font.bold: true
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            DankIcon {
+                visible: island.tsUsingExitNode
+                name: "public"
+                size: Theme.iconSize - 8
+                color: island.accent
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            MouseArea {
+                id: tsArea
+                anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.openPanel("tailscale")
+            }
+        }
         Item {  // Shelf: parked items, click drills into the shelf view
             visible: ShelfService.count > 0
             width: shelfChip.implicitWidth; height: 22
