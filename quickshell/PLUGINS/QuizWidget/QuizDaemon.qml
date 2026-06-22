@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Common
 import qs.Modules.Plugins
 import "QuizEngine.js" as QuizEngine
@@ -77,6 +78,38 @@ PluginComponent {
         }
         onSnoozeRequested: (ms) => root.snooze(ms)
         onOnboardingComplete: (ids, customs) => root.completeOnboarding(ids, customs)
+    }
+
+    // Contrôle clavier global (depuis n'importe quelle appli) via `dms ipc call quiz <fn>`.
+    // No-op explicite si aucune pastille n'est en attente.
+    IpcHandler {
+        target: "quiz"
+
+        // Ouvre la pastille en attente (équivaut au clic sur la pastille).
+        function open(): string {
+            if (overlay.mode !== "pending")
+                return "quiz: rien en attente";
+            overlay.mode = "open";
+            return "quiz: ouvert";
+        }
+
+        // Reporte la pastille en attente de 5 min sans l'ouvrir (réutilise le chemin du bouton snooze).
+        function snooze(): string {
+            if (overlay.mode !== "pending")
+                return "quiz: rien en attente";
+            overlay.snoozeRequested(300000);
+            overlay.reset();
+            return "quiz: reporté 5 min";
+        }
+
+        // Ignore la pastille en attente sans l'ouvrir (réutilise le chemin de fermeture : onDismissed
+        // conserve la notion d'une leçon non validée pour la ré-expliquer plus tard).
+        function dismiss(): string {
+            if (overlay.mode !== "pending")
+                return "quiz: rien en attente";
+            overlay.reset();
+            return "quiz: ignoré";
+        }
     }
 
     // Accroche de la pastille via `claude -p` qui renvoie un JSON {message, emoji, animation}
