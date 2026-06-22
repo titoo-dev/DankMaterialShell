@@ -63,15 +63,23 @@ Encapsulates both directions and the operator state. Reads
 - On stderr/exit indicating access-denied → set `needsOperatorSetup = true` and
   emit a finished(ok=false) with a setup-hint error.
 
-**Receive (daemon):**
-- A `Process` running
-  `tailscale file get --loop --verbose --conflict=rename <dir>`, active while
+**Receive (polling):**
+- A repeating `Timer` (5s) active while
   `SettingsData.taildropReceive && TailscaleService.connected && !needsOperatorSetup`.
-- `mkdir -p <dir>` before launching.
-- Parses stdout lines for written filenames → signal `received(string name)`.
-- Restart-on-exit with a debounce timer (≥2s) so a failing command doesn't hot-loop;
-  stops when disconnected or the toggle is off.
-- Access-denied on launch → `needsOperatorSetup = true`, stop trying.
+- Each tick runs one `Process`:
+  `sh -c 'd="$1"; mkdir -p "$d"; out=$(tailscale file get --conflict=rename "$d" 2>&1); echo "GET:$?:$out"; ls -1 "$d"'`.
+  The first stdout line `GET:<rc>:<msg>` carries the command result; the rest is the
+  current directory listing.
+- New filenames (listing minus a seeded `_seen` set) → signal `received(string name)`.
+  `_seen` is seeded from the dir contents on first enable so pre-existing files
+  never notify.
+- Polling (vs `--loop`) avoids babysitting a long-lived process; a dedicated
+  receive dir avoids false positives from unrelated writes (see below).
+- Access-denied in the `GET:` line → `needsOperatorSetup = true`, stop the timer.
+
+The default receive dir is a **dedicated** `~/Downloads/Taildrop` subfolder (not
+`~/Downloads` itself), so the dir-diff detector never mistakes a browser download
+for a Taildrop receipt.
 
 **State:** `property bool needsOperatorSetup`, `readonly property bool sending`.
 
@@ -102,7 +110,7 @@ URLs:
 
 - `property bool taildropReceive: true` — enables the receive daemon.
 - `property string taildropReceiveDir: ""` — empty means resolve to
-  `$XDG_DOWNLOAD_DIR` or `~/Downloads` at use time.
+  `<DownloadLocation>/Taildrop` (a dedicated subfolder) at use time.
 - A toggle ("Taildrop: recevoir les fichiers") + a directory field in the island
   settings section, consistent with the existing `dynamicIsland*` toggles. If
   `TaildropService.needsOperatorSetup`, show the one-time-setup hint text near the
