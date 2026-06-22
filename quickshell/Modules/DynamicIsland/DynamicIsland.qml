@@ -374,6 +374,8 @@ Scope {
     // a drag hovering the pill auto-opens the shelf view; leaving without
     // dropping restores the previous rest state
     property bool _shelfAutoOpened: false
+    // which half of the two-zone "dropchoose" surface the drag is over ("left"=Shelf, "right"=Taildrop)
+    property string _dropHalf: "left"
     // a drag is hovering the pill right now (drives the panel's drop affordance);
     // suppressed while the drag is one of OUR OWN items leaving the shelf
     readonly property bool shelfDropHover: shelfDrop.containsDrag && !shelfDragActive
@@ -1148,7 +1150,16 @@ Scope {
                         root._shelfAutoOpened = true
                         root.bump()
                     }
-                    root.openPanel("shelf")
+                    // a file drag with a configured online default device → offer the
+                    // two-zone chooser (Shelf | → device); otherwise the plain shelf
+                    if (drag.hasUrls && TailscaleService.defaultPeerOnline)
+                        root.openPanel("dropchoose")
+                    else
+                        root.openPanel("shelf")
+                }
+                onPositionChanged: drag => {
+                    if (root.panelView === "dropchoose")
+                        root._dropHalf = (drag.x > shelfDrop.width / 2) ? "right" : "left"
                 }
                 onExited: {
                     // drag pulled away without dropping: fold back to rest
@@ -1159,10 +1170,21 @@ Scope {
                 }
                 onDropped: drop => {
                     root._shelfAutoOpened = false
-                    if (drop.hasUrls)
+                    if (root.panelView === "dropchoose" && drop.hasUrls && drop.x > shelfDrop.width / 2 && TailscaleService.defaultPeer) {
+                        // right half → Taildrop to the default device
+                        const paths = []
+                        for (var i = 0; i < drop.urls.length; i++) {
+                            const u = String(drop.urls[i])
+                            if (u.startsWith("file://"))
+                                paths.push(decodeURIComponent(u.substring(7)))
+                        }
+                        if (paths.length > 0)
+                            TaildropService.send(paths, TailscaleService.defaultPeer)
+                    } else if (drop.hasUrls) {
                         ShelfService.addUrls(drop.urls)
-                    else if (drop.hasText)
+                    } else if (drop.hasText) {
                         ShelfService.addText(drop.text)
+                    }
                     drop.accept(Qt.CopyAction)
                     root.bump()
                 }
