@@ -111,5 +111,16 @@ Singleton {
             ActivityService.stop(id);
             return "ISLAND_ACTIVITY:stop:" + id;
         }
+        // countdown timer / Pomodoro (drives the "timer" activity):
+        //   dms ipc call island timerStart 25 "Pomodoro"
+        //   dms ipc call island timerCancel
+        function timerStart(minutes: string, label: string): string {
+            TimerService.start(minutes, label);
+            return "ISLAND_TIMER:start:" + minutes;
+        }
+        function timerCancel(): string {
+            TimerService.cancel();
+            return "ISLAND_TIMER:cancel";
+        }
     }
 }
