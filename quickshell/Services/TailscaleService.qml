@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Common
 
 Singleton {
@@ -100,6 +101,89 @@ Singleton {
     readonly property bool needsAttention: available
         && ((statusKind !== "running" && statusKind !== "starting")
             || (connected && onlinePeerCount === 0))
+
+    // ---- login flow (pkexec tailscale up) ----
+    property string authUrl: ""
+    property bool loginInProgress: false
+    property string loginError: ""
+    property string _tsBin: "tailscale"   // pkexec sanitizes PATH → need an absolute path
+
+    // resolve the tailscale binary's absolute path once
+    Process {
+        running: true
+        command: ["sh", "-c", "command -v tailscale || echo tailscale"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const t = (text || "").trim();
+                if (t.length > 0)
+                    root._tsBin = t.split("\n")[0];
+            }
+        }
+    }
+
+    function login() {
+        if (loginInProgress)
+            return;
+        loginError = "";
+        authUrl = "";
+        loginInProgress = true;
+        loginProc.command = ["pkexec", root._tsBin, "up"];
+        loginProc._lastErr = "";
+        loginProc.running = true;
+    }
+
+    function cancelLogin() {
+        if (loginProc.running)
+            loginProc.running = false;
+        loginInProgress = false;
+        authUrl = "";
+    }
+
+    Process {
+        id: loginProc
+        running: false
+        property string _lastErr: ""
+        function _scan(line) {
+            if (!line || root.authUrl.length > 0)
+                return;
+            let m = line.match(/https?:\/\/\S*login\.tailscale\.com\S*/);
+            if (!m)
+                m = line.match(/https?:\/\/\S+/);
+            if (m)
+                root.authUrl = m[0];
+        }
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: data => loginProc._scan(data)
+        }
+        stderr: SplitParser {
+            splitMarker: "\n"
+            onRead: data => {
+                loginProc._scan(data);
+                if (data && data.length > 0)
+                    loginProc._lastErr = data;
+            }
+        }
+        onExited: exitCode => {
+            root.loginInProgress = false;
+            if (exitCode === 0) {
+                root.authUrl = "";        // authenticated; subscription flips `connected`
+                root.loginError = "";
+            } else if (exitCode === 126 || exitCode === 127) {
+                root.loginError = I18n.tr("Login cancelled");
+                root.authUrl = "";
+            } else {
+                root.loginError = loginProc._lastErr.length > 0 ? loginProc._lastErr : I18n.tr("Login failed");
+            }
+        }
+    }
+
+    // clear login state once we are connected
+    onConnectedChanged: if (connected) {
+        authUrl = "";
+        loginInProgress = false;
+        loginError = "";
+    }
 
     readonly property string socketPath: Quickshell.env("DMS_SOCKET")
 
