@@ -122,6 +122,14 @@ Column {
                         text: DgopService.totalMemoryKB > 0 ? (DgopService.formatSystemMemory(DgopService.usedMemoryKB) + " / " + DgopService.formatSystemMemory(DgopService.totalMemoryKB)) : ""
                         color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2
                     }
+                    // CPU temperature subtitle under the CPU gauge
+                    StyledText {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: modelData.kind === "cpu" && DgopService.cpuTemperature > 0
+                        text: DgopService.cpuTemperature + "°C"
+                        color: DgopService.cpuTemperature >= 85 ? Theme.error : island.subText
+                        font.pixelSize: Theme.fontSizeSmall - 2
+                    }
                 }
             }
         }
