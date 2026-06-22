@@ -189,6 +189,7 @@ Singleton {
     property bool dynamicIslandTailscale: true
     property bool taildropReceive: true
     property string taildropReceiveDir: ""
+    property string taildropDefaultPeer: ""
     property bool useFahrenheit: false
     property string windSpeedUnit: "kmh"
     property bool nightModeEnabled: false
