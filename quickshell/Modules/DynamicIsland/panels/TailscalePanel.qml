@@ -22,13 +22,15 @@ Column {
     property int filterIndex: 0  // 0=My Online, 1=All Online, 2=All
 
     // ref-count the service while the view is open (covers the direct IPC
-    // `open tailscale` path too)
+    // `open tailscale` path too). TailscaleService is ref'd via the declarative
+    // Ref component (it has no addRef()/removeRef() methods).
     readonly property bool tsActive: island && island.mode === "expanded" && island.panelView === "tailscale"
-    onTsActiveChanged: {
-        if (tsActive) TailscaleService.addRef()
-        else TailscaleService.removeRef()
+    Loader {
+        active: tsCol.tsActive
+        visible: false   // non-visual: keep it out of the Column layout
+        sourceComponent: Component { Ref { service: TailscaleService } }
     }
-    Component.onDestruction: if (tsActive) TailscaleService.removeRef()
+    onTsActiveChanged: if (tsActive) TailscaleService.getStatus()
 
     // header: back · device_hub · title · refresh
     RowLayout {
