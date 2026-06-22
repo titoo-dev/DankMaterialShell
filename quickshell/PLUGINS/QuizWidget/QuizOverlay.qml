@@ -40,7 +40,11 @@ PanelWindow {
     WlrLayershell.namespace: "dms:quiz"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusiveZone: -1
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    // La pastille (pending) ne doit JAMAIS prendre le focus clavier : sinon, quand elle se mappe
+    // pendant que tu tapes dans un champ, Hyprland lui donne le focus (layer OnDemand) et tu perds
+    // ta saisie. Seules les cartes ouvertes (Q&A de leçon, onboarding) — ouvertes par un clic — en
+    // ont besoin. None en pending/hidden, OnDemand une fois ouvert.
+    WlrLayershell.keyboardFocus: (overlay.mode === "hidden" || overlay.mode === "pending") ? WlrKeyboardFocus.None : WlrKeyboardFocus.OnDemand
 
     anchors { bottom: true; right: true }
     WlrLayershell.margins { bottom: Theme.spacingL; right: Theme.spacingL }
