@@ -192,6 +192,7 @@ Singleton {
     property string taildropDefaultPeer: ""
     property bool islandAgendaCountdown: true
     property bool islandRecordingTimer: true
+    property bool islandWeatherAlerts: true
     property bool useFahrenheit: false
     property string windSpeedUnit: "kmh"
     property bool nightModeEnabled: false

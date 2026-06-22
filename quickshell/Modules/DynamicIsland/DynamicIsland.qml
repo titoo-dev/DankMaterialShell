@@ -304,6 +304,26 @@ Scope {
     readonly property bool _agendaCountdownAlive: CalendarCountdownService.enabled
     readonly property bool _recTimerAlive: RecordingTimerService.enabled
 
+    // severe-weather alert pop (WMO wCode entering a severe set)
+    property int _lastWeatherAlertCode: 0
+    Connections {
+        target: WeatherService
+        function onWeatherChanged() {
+            if (!SettingsData.islandWeatherAlerts || !root.ready || !WeatherService.weather || !WeatherService.weather.available)
+                return
+            const c = WeatherService.weather.wCode
+            const severe = [65, 75, 82, 86, 95, 96, 99].indexOf(c) !== -1
+            if (severe && c !== root._lastWeatherAlertCode) {
+                root.pushActivity(WeatherService.getWeatherIcon(c),
+                                  I18n.tr("Weather alert") + " · " + WeatherService.getWeatherCondition(c),
+                                  { priority: 2, duration: 5000 })
+                root._lastWeatherAlertCode = c
+            } else if (!severe) {
+                root._lastWeatherAlertCode = 0
+            }
+        }
+    }
+
     // generic live-activities drive the activity rest mode + a completion flash
     Connections {
         target: ActivityService
