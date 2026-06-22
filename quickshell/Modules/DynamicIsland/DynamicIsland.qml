@@ -249,7 +249,7 @@ Scope {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer" | "privacy" | "shelf"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer" | "privacy" | "shelf" | "tailscale"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     onPanelViewChanged: if (panelView !== "wifi") wifiNeedsKeyboard = false
     // open the expanded panel directly on a given detail view
