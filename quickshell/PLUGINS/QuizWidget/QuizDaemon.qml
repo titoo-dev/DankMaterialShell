@@ -33,6 +33,8 @@ PluginComponent {
     // Q&A leçon
     property string lessonAnswer: ""
     property bool lessonAnswering: false
+    // garde-fou : ignorer les changements de réglages tant que le chargement initial n'est pas fini
+    property bool _settingsReady: false
 
     QuizProvider {
         id: provider
@@ -203,7 +205,10 @@ PluginComponent {
     }
 
     // Dispatcher appelé par les timers : quiz ou apprentissage selon le mode.
+    // Relit les réglages AVANT de router : sinon on dispatcherait sur un `mode` figé au
+    // démarrage (loadSettings n'était rappelé qu'À L'INTÉRIEUR des branches, trop tard).
     function requestNext() {
+        root.loadSettings();
         if (root.mode === "learning")
             root.requestLearningStep();
         else
@@ -313,6 +318,49 @@ PluginComponent {
         root.currentNotion = pluginService.loadPluginData("quizWidget", "learningPendingNotion", "");
     }
 
+    // Réactivité aux réglages : applique À CHAUD une bascule de mode/sujet faite dans l'UI (ou
+    // écrite dans plugin_settings.json, qui est surveillé sur disque). Avant, mode/sujet restaient
+    // figés à la valeur lue au démarrage et la bascule était ignorée jusqu'au redémarrage du service.
+    Connections {
+        target: SettingsData
+        function onPluginSettingsChanged() {
+            if (!root._settingsReady)
+                return;
+            var prevMode = root.mode;
+            var prevSubject = (root.learningSubject || "").trim();
+            root.loadSettings();
+            var changed = (root.mode !== prevMode) || (root.mode === "learning" && (root.learningSubject || "").trim() !== prevSubject);
+            if (changed)
+                root.applyLiveModeChange();
+        }
+    }
+
+    // Purge le contenu périmé (quiz d'un autre mode / leçon d'un autre sujet) puis relance une
+    // génération sous 30 s avec le nouveau mode, sans attendre le prochain cycle pomodoro.
+    function applyLiveModeChange() {
+        root.lessonValidated = false;
+        root.pendingQuestion = null;
+        root.pendingLesson = null;
+        root.lessonAnswer = "";
+        root.lessonAnswering = false;
+        overlay.reset();
+        root.retryCount = 0;
+        console.info("QuizDaemon: réglages à chaud → mode", root.mode, "sujet", JSON.stringify(root.learningSubject));
+        if (root.paused)
+            return;
+        if (root.mode === "learning") {
+            if ((root.learningSubject || "").trim() !== "")
+                firstQuizTimer.restart();
+        } else {
+            var nCat = root.selectedTopics ? root.selectedTopics.length : 0;
+            var nCustom = root.customTopics ? root.customTopics.length : 0;
+            if (nCat === 0 && nCustom === 0)
+                overlay.showOnboarding();
+            else
+                firstQuizTimer.restart();
+        }
+    }
+
     Component.onCompleted: {
         Qt.callLater(function () {
             root.loadSettings();
@@ -329,6 +377,7 @@ PluginComponent {
                     firstQuizTimer.restart();
                 console.info("QuizDaemon: started, mode quiz,", nCat, "catalogue +", nCustom, "libres");
             }
+            root._settingsReady = true;
         });
     }
     Component.onDestruction: console.info("QuizDaemon: stopped")
