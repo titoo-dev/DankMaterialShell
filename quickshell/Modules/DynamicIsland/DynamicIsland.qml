@@ -67,6 +67,16 @@ Scope {
 
     // mini-indicator data
     readonly property bool vpnOn: NetworkService.vpnConnected
+
+    // ---- Tailscale (live activity) ----
+    readonly property bool tsFeature: SettingsData.dynamicIslandTailscale
+    readonly property bool tsAvailable: tsFeature && TailscaleService.available
+    readonly property bool tsConnected: TailscaleService.connected
+    readonly property int  tsPeerCount: TailscaleService.onlinePeerCount
+    readonly property bool tsUsingExitNode: TailscaleService.usingExitNode
+    readonly property string tsExitNodeName: TailscaleService.exitNodeName
+    readonly property bool tsNeedsAttention: tsFeature && TailscaleService.needsAttention
+    readonly property string tsStatusKind: TailscaleService.statusKind
     readonly property bool weatherReady: WeatherService.weather && WeatherService.weather.available
     readonly property string weatherTemp: weatherReady ? (((SettingsData.useFahrenheit ? WeatherService.weather.tempF : WeatherService.weather.temp)) + "°") : ""
     readonly property string weatherIcon: weatherReady ? WeatherService.getWeatherIcon(WeatherService.weather.wCode) : "cloud"
@@ -188,6 +198,12 @@ Scope {
                 Component.onDestruction: DgopService.removeRef(["cpu", "memory", "network", "system"])
             }
         }
+    }
+    // keep the Tailscale subscription live while the feature is enabled & the
+    // backend supports it, so the at-rest indicator/satellite reflect real state
+    Loader {
+        active: root.tsAvailable
+        sourceComponent: Component { Ref { service: TailscaleService } }
     }
     // fallback animation when the `cava` binary isn't installed
     Timer {
