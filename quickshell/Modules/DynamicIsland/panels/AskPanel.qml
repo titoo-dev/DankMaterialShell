@@ -30,6 +30,29 @@ Column {
             onAccepted: AskService.ask(text)
         }
     }
+    // clipboard claude actions (operate on the current clipboard, user-initiated)
+    Row {
+        width: parent.width
+        spacing: Theme.spacingXS
+        DankButton {
+            text: I18n.tr("Summarize")
+            buttonHeight: 26
+            backgroundColor: Theme.surfaceContainerHigh
+            onClicked: AskService.askClipboard(I18n.tr("Summarize this text in a few bullet points"))
+        }
+        DankButton {
+            text: I18n.tr("Translate")
+            buttonHeight: 26
+            backgroundColor: Theme.surfaceContainerHigh
+            onClicked: AskService.askClipboard(I18n.tr("Translate this text to English"))
+        }
+        DankButton {
+            text: I18n.tr("Explain")
+            buttonHeight: 26
+            backgroundColor: Theme.surfaceContainerHigh
+            onClicked: AskService.askClipboard(I18n.tr("Explain this text simply"))
+        }
+    }
     DankFlickable {
         width: parent.width
         height: Math.min(contentHeight, 300)
