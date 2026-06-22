@@ -282,7 +282,11 @@ Scope {
         return volPct < 50 ? "volume_down" : "volume_up"
     }
 
-    function restMode() { return playing ? "chip" : "compact" }
+    function restMode() {
+        if (ActivityService.activities.length > 0)
+            return "activity"
+        return playing ? "chip" : "compact"
+    }
     function settle() {
         if (pinned) return
         if (hovered) { mode = playing ? "media" : "idle"; return }
@@ -294,6 +298,20 @@ Scope {
     // never yank the expanded control center (or an active OSD) away just because
     // playback started/stopped — only the rest modes follow the player
     onPlayingChanged: if (!hovered && !pinned && mode !== "presenter" && mode !== "expanded") mode = restMode()
+
+    // generic live-activities drive the activity rest mode + a completion flash
+    Connections {
+        target: ActivityService
+        function onActivitiesChanged() {
+            if (!root.hovered && !root.pinned && root.mode !== "presenter" && root.mode !== "expanded")
+                root.mode = root.restMode()
+        }
+        function onActivityFinished(id, ok) {
+            if (root.ready && root.isFocusedScreen)
+                edgeGlow.flash(ok ? Theme.success : Theme.error)
+            root.bump()
+        }
+    }
 
     // ---------- insert the emoji into the focused app (emoji picker) ----------
     // Insertion reality on this setup, by target window:
@@ -665,6 +683,7 @@ Scope {
             return Math.max(480, Math.min(need, screenW - 40))
         }
         case "presenter": return 320
+        case "activity":  return Math.max(220, Math.min(activityPane.contentWidth + Theme.spacingL * 2, screenW - 40))
         default:          return Math.max(92, compactPane.contentWidth + Theme.spacingL * 2)  // compact
         }
     }
@@ -675,10 +694,11 @@ Scope {
         case "idle":      return 50
         case "presenter": return 48
         case "chip":      return 34
+        case "activity":  return 40
         default:          return 28   // compact
         }
     }
-    readonly property real pillRadius: (mode === "compact" || mode === "chip") ? 12 : 22
+    readonly property real pillRadius: (mode === "compact" || mode === "chip" || mode === "activity") ? 12 : 22
     // notch mode: flush to the top edge, only the bottom corners round (MacBook look)
     readonly property bool notchMode: SettingsData.dynamicIslandNotchMode
     // radius of the concave flare where the notch meets the screen's top edge
@@ -1064,6 +1084,7 @@ Scope {
             ChipPane      { id: chipPane;       island: root }
             IdlePane      { id: idlePane;       island: root }
             MediaPane     { id: mediaPane;      island: root }
+            ActivityPane  { id: activityPane;   island: root }
 
             // ===== EXPANDED: inline Control Center + drill-down views =====
             ControlCenterPanel { id: controlPanel; island: root }
@@ -1128,6 +1149,8 @@ Scope {
                     if (root.mode === "expanded") {
                         root.pinned = false
                         root.settle()
+                    } else if (root.mode === "activity") {
+                        root.openPanel("activities")
                     } else {
                         // don't pin on click-expand: the island can't receive clicks
                         // outside its mask, so it auto-collapses once the pointer
