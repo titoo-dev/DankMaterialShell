@@ -528,6 +528,43 @@ Scope {
         }
     }
 
+    // peer-online splashes. Tamed: only MY peers, deltas only (the initial set is
+    // absorbed without firing), and a burst is coalesced into one "N online" pop.
+    property var _tsKnownOnline: ({})   // hostname -> true
+    property bool _tsSeeded: false
+    function _tsHostsOf(list) {
+        const m = {}
+        for (var i = 0; i < list.length; i++) {
+            const h = list[i] && list[i].hostname
+            if (h) m[h] = true
+        }
+        return m
+    }
+    Connections {
+        target: TailscaleService
+        enabled: root.tsFeature
+        function onMyOnlinePeersChanged() {
+            const cur = root._tsHostsOf(TailscaleService.myOnlinePeers)
+            // seed silently on first observation and whenever we were empty
+            // (covers connect: the whole set arrives at once and must not splash)
+            if (!root._tsSeeded || Object.keys(root._tsKnownOnline).length === 0) {
+                root._tsKnownOnline = cur
+                root._tsSeeded = true
+                return
+            }
+            const fresh = []
+            for (var h in cur) {
+                if (!root._tsKnownOnline[h]) fresh.push(h)
+            }
+            root._tsKnownOnline = cur
+            if (!root.ready || fresh.length === 0) return
+            if (fresh.length === 1)
+                root.pushActivity("device_hub", fresh[0] + " " + I18n.tr("online"))
+            else
+                root.pushActivity("device_hub", fresh.length + " " + I18n.tr("devices online"))
+        }
+    }
+
     // Super+I (via `dms ipc call island toggle`) -> expand/collapse focused island
     Connections {
         target: IslandHub
