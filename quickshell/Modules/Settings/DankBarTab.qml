@@ -258,6 +258,23 @@ Item {
                     checked: SettingsData.dynamicIslandTailscale
                     onToggled: SettingsData.set("dynamicIslandTailscale", checked)
                 }
+
+                DankToggle {
+                    width: parent.width
+                    text: I18n.tr("Taildrop: receive files")
+                    description: I18n.tr("Automatically receive files sent to this machine over Tailscale into the folder below, with a pop in the island. Requires running `sudo tailscale set --operator=$USER` once.")
+                    enabled: SettingsData.dynamicIslandEnabled
+                    checked: SettingsData.taildropReceive
+                    onToggled: SettingsData.set("taildropReceive", checked)
+                }
+
+                DankTextField {
+                    width: parent.width
+                    enabled: SettingsData.dynamicIslandEnabled && SettingsData.taildropReceive
+                    placeholderText: "~/Downloads/Taildrop"
+                    text: SettingsData.taildropReceiveDir
+                    onEditingFinished: SettingsData.set("taildropReceiveDir", text)
+                }
             }
 
             SettingsCard {
