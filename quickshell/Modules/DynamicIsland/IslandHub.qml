@@ -22,7 +22,7 @@ Singleton {
     id: hub
 
     // single source of truth for the drill views reachable over IPC
-    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer", "privacy", "shelf", "tailscale"]
+    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer", "privacy", "shelf", "tailscale", "activities"]
 
     signal toggleRequested
     signal expandRequested
@@ -76,6 +76,40 @@ Singleton {
                 return "ISLAND_ERROR:absolute-path-required";
             ShelfService.addPath(path);
             return "ISLAND_SHELF:" + path;
+        }
+        // generic live-activity control (see ActivityService). One verb per action
+        // because the IPC bridge requires every declared arg to be provided:
+        //   dms ipc call island activityStart    <id> "<label>"
+        //   dms ipc call island activityProgress <id> <0-100>
+        //   dms ipc call island activityUpdate   <id> "<label>"
+        //   dms ipc call island activityDone     <id> "<label>"
+        //   dms ipc call island activityFail     <id> "<label>"
+        //   dms ipc call island activityStop     <id>
+        function activityStart(id: string, label: string): string {
+            if (!id || id.length === 0)
+                return "ISLAND_ERROR:activity-needs-id";
+            ActivityService.start(id, label, "");
+            return "ISLAND_ACTIVITY:start:" + id;
+        }
+        function activityProgress(id: string, pct: string): string {
+            ActivityService.progress(id, parseInt(pct, 10));
+            return "ISLAND_ACTIVITY:progress:" + id;
+        }
+        function activityUpdate(id: string, label: string): string {
+            ActivityService.update(id, label);
+            return "ISLAND_ACTIVITY:update:" + id;
+        }
+        function activityDone(id: string, label: string): string {
+            ActivityService.done(id, label);
+            return "ISLAND_ACTIVITY:done:" + id;
+        }
+        function activityFail(id: string, label: string): string {
+            ActivityService.fail(id, label);
+            return "ISLAND_ACTIVITY:fail:" + id;
+        }
+        function activityStop(id: string): string {
+            ActivityService.stop(id);
+            return "ISLAND_ACTIVITY:stop:" + id;
         }
     }
 }
