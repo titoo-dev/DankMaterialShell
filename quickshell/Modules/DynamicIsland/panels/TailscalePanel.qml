@@ -152,7 +152,10 @@ Column {
             Repeater {
                 model: peerCol.filteredPeers
                 delegate: Rectangle {
+                    id: peerCard
                     required property var modelData
+                    // Taildrop: only online devices I own (with an IP) can receive a drop
+                    readonly property bool canReceiveDrop: modelData.online && TailscaleService.isMine(modelData) && (modelData.tailscaleIp || "").length > 0
                     width: peerCol.width
                     height: peerRow.implicitHeight + Theme.spacingS * 2
                     radius: Theme.cornerRadius
@@ -191,6 +194,45 @@ Column {
                             iconColor: Theme.surfaceVariantText
                             tooltipText: I18n.tr("Copy")
                             onClicked: Quickshell.execDetached(["dms", "cl", "copy", modelData.tailscaleIp])
+                        }
+                    }
+
+                    // Taildrop: drop files here to send to this device
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: peerCard.radius
+                        visible: tsDrop.containsDrag && peerCard.canReceiveDrop
+                        color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
+                        border.width: 1
+                        border.color: Theme.primary
+                        StyledText {
+                            anchors.centerIn: parent
+                            text: I18n.tr("Drop to send")
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Bold
+                            color: Theme.primary
+                        }
+                    }
+                    DropArea {
+                        id: tsDrop
+                        anchors.fill: parent
+                        onEntered: drag => {
+                            if (!peerCard.canReceiveDrop || !drag.hasUrls)
+                                drag.accepted = false
+                        }
+                        onDropped: drop => {
+                            if (!peerCard.canReceiveDrop || !drop.hasUrls)
+                                return
+                            const paths = []
+                            for (var i = 0; i < drop.urls.length; i++) {
+                                const u = String(drop.urls[i])
+                                if (u.startsWith("file://"))
+                                    paths.push(decodeURIComponent(u.substring(7)))
+                            }
+                            if (paths.length > 0) {
+                                TaildropService.send(paths, peerCard.modelData)
+                                drop.accept(Qt.CopyAction)
+                            }
                         }
                     }
                 }
