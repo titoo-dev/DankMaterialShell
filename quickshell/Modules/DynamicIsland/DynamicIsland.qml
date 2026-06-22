@@ -711,7 +711,7 @@ Scope {
 
     // keyboard-driven drill views (the controller-level list; the pill window
     // derives its keyboardFocus from it)
-    readonly property var _kbViews: ["apps", "clipboard", "emoji", "wallpaper"]
+    readonly property var _kbViews: ["apps", "clipboard", "emoji", "wallpaper", "ask"]
     // the Wi-Fi view grabs the keyboard only while an inline password prompt is
     // open (set by WifiPanel) — without it the field can never receive input
     property bool wifiNeedsKeyboard: false
