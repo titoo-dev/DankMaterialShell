@@ -40,6 +40,18 @@ StyledRect {
         askInput.text = "";
     }
 
+    // Vrai quand le champ de question a le focus clavier → l'overlay suspend ses keymaps.
+    property bool inputActive: askInput.activeFocus
+
+    function openAsk() {
+        card.askMode = true;
+        askInput.forceActiveFocus();
+    }
+    function closeAsk() {
+        card.askMode = false;
+        askInput.text = "";
+    }
+
     implicitWidth: 400
     implicitHeight: col.implicitHeight + Theme.spacingL * 2
     radius: Theme.cornerRadius
