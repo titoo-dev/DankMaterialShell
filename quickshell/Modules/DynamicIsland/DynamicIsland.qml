@@ -302,6 +302,7 @@ Scope {
     // keep the calendar-countdown singleton alive (it polls + drives the "agenda"
     // activity); reading a prop instantiates the lazy singleton
     readonly property bool _agendaCountdownAlive: CalendarCountdownService.enabled
+    readonly property bool _recTimerAlive: RecordingTimerService.enabled
 
     // generic live-activities drive the activity rest mode + a completion flash
     Connections {
