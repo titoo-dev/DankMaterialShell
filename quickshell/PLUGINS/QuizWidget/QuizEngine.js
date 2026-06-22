@@ -459,3 +459,26 @@ function cleanNudge(stdout, max) {
     }
     return line;
 }
+
+function keyAction(token, mode, contentType, inputActive) {
+    if (inputActive)
+        return token === "ESC" ? "closeAsk" : "";
+    if (contentType === "quiz") {
+        if (mode === "open") {
+            var sel = { "A": 0, "B": 1, "C": 2, "D": 3, "1": 0, "2": 1, "3": 2, "4": 3 };
+            if (token in sel) return "select" + sel[token];
+            if (token === "ENTER") return "submit";
+            if (token === "S") return "snooze";
+            if (token === "ESC") return "close";
+        } else if (mode === "feedback") {
+            if (token === "ENTER" || token === "ESC") return "close";
+            if (token === "S") return "snooze";
+        }
+    } else if (contentType === "lesson" && mode === "open") {
+        if (token === "ENTER" || token === "N") return "next";
+        if (token === "Q" || token === "?") return "ask";
+        if (token === "S") return "snooze";
+        if (token === "ESC") return "close";
+    }
+    return "";
+}

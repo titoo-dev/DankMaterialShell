@@ -31,7 +31,8 @@ function loadEngine() {
         + " summarizeStep: typeof summarizeStep !== 'undefined' ? summarizeStep : undefined,"
         + " buildAnswerPrompt: typeof buildAnswerPrompt !== 'undefined' ? buildAnswerPrompt : undefined,"
         + " mdToHtml: typeof mdToHtml !== 'undefined' ? mdToHtml : undefined,"
-        + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined };",
+        + " cleanNudge: typeof cleanNudge !== 'undefined' ? cleanNudge : undefined,"
+        + " keyAction: typeof keyAction !== 'undefined' ? keyAction : undefined };",
         ctx
     );
     return ctx.__api;
@@ -385,4 +386,34 @@ test("cleanNudge tronque au mot entier avec … (pas de coupe en plein mot)", ()
     assert.ok(r.length <= 40);
     assert.ok(r.endsWith("…"));
     assert.ok(!/quest$|questi$|flopp$/.test(r)); // pas de mot coupé brut
+});
+
+test("keyAction — quiz open: A/B/C/D et 1-4 sélectionnent", () => {
+  for (const [tok, exp] of [["A","select0"],["B","select1"],["C","select2"],["D","select3"],["1","select0"],["4","select3"]])
+    assert.equal(E.keyAction(tok, "open", "quiz", false), exp);
+});
+test("keyAction — quiz open: Entrée valide, S reporte, Échap ferme", () => {
+  assert.equal(E.keyAction("ENTER", "open", "quiz", false), "submit");
+  assert.equal(E.keyAction("S", "open", "quiz", false), "snooze");
+  assert.equal(E.keyAction("ESC", "open", "quiz", false), "close");
+});
+test("keyAction — quiz feedback: Entrée et Échap ferment", () => {
+  assert.equal(E.keyAction("ENTER", "feedback", "quiz", false), "close");
+  assert.equal(E.keyAction("ESC", "feedback", "quiz", false), "close");
+});
+test("keyAction — leçon: Entrée/N suivant, Q/? questions, Échap ferme", () => {
+  assert.equal(E.keyAction("ENTER", "open", "lesson", false), "next");
+  assert.equal(E.keyAction("N", "open", "lesson", false), "next");
+  assert.equal(E.keyAction("Q", "open", "lesson", false), "ask");
+  assert.equal(E.keyAction("?", "open", "lesson", false), "ask");
+  assert.equal(E.keyAction("ESC", "open", "lesson", false), "close");
+});
+test("keyAction — champ actif: lettres ignorées, Échap referme le champ", () => {
+  assert.equal(E.keyAction("A", "open", "lesson", true), "");
+  assert.equal(E.keyAction("N", "open", "lesson", true), "");
+  assert.equal(E.keyAction("ESC", "open", "lesson", true), "closeAsk");
+});
+test("keyAction — touche inconnue / mode pending => aucune action", () => {
+  assert.equal(E.keyAction("Z", "open", "quiz", false), "");
+  assert.equal(E.keyAction("A", "pending", "quiz", false), "");
 });
