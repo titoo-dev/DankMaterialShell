@@ -46,6 +46,7 @@ var SPEC = {
     taildropReceive: { def: true },
     taildropReceiveDir: { def: "" },
     taildropDefaultPeer: { def: "" },
+    islandAgendaCountdown: { def: true },
     useFahrenheit: { def: false },
     windSpeedUnit: { def: "kmh" },
     nightModeEnabled: { def: false },

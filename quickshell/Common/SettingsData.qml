@@ -190,6 +190,7 @@ Singleton {
     property bool taildropReceive: true
     property string taildropReceiveDir: ""
     property string taildropDefaultPeer: ""
+    property bool islandAgendaCountdown: true
     property bool useFahrenheit: false
     property string windSpeedUnit: "kmh"
     property bool nightModeEnabled: false
