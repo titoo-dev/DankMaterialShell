@@ -70,6 +70,37 @@ Singleton {
 
     readonly property int onlinePeerCount: onlinePeers.length
 
+    // the peer currently used as this node's exit node (the `exitNode` flag is
+    // already populated per-peer by the Go backend), or null if none
+    readonly property var activeExitNode: {
+        const list = allPeersList
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].exitNode)
+                return list[i]
+        }
+        return null
+    }
+    readonly property bool usingExitNode: activeExitNode !== null
+    readonly property string exitNodeName: activeExitNode ? (activeExitNode.hostname || "") : ""
+
+    // coarse health bucket derived from the daemon's backendState
+    readonly property string statusKind: {
+        switch (backendState) {
+        case "Running":          return "running"
+        case "Starting":
+        case "NoState":          return "starting"
+        case "Stopped":          return "stopped"
+        case "NeedsLogin":       return "needsLogin"
+        case "NeedsMachineAuth": return "needsAuth"
+        default:                 return backendState === "" ? "starting" : "error"
+        }
+    }
+    // something the user should notice: daemon down / login needed / auth needed
+    // / unreachable, or connected-but-isolated (no peers reachable)
+    readonly property bool needsAttention: available
+        && ((statusKind !== "running" && statusKind !== "starting")
+            || (connected && onlinePeerCount === 0))
+
     readonly property string socketPath: Quickshell.env("DMS_SOCKET")
 
     Component.onCompleted: {
