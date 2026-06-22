@@ -122,5 +122,10 @@ Singleton {
             TimerService.cancel();
             return "ISLAND_TIMER:cancel";
         }
+        // toggle: start if no timer is running, else cancel the running one
+        function timerToggle(minutes: string, label: string): string {
+            TimerService.toggle(minutes, label);
+            return "ISLAND_TIMER:toggle:" + (TimerService.active ? "on" : "off");
+        }
     }
 }

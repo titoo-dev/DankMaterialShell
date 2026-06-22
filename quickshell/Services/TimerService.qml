@@ -39,6 +39,13 @@ Singleton {
         root.endTime = 0;
         ActivityService.stop("timer");
     }
+    // toggle: start a timer if none is running, otherwise cancel the running one
+    function toggle(minutes, label) {
+        if (root.active)
+            cancel();
+        else
+            start(minutes, label);
+    }
     function _finish() {
         root.endTime = 0;
         ActivityService.done("timer", "⏰ " + root.label);
