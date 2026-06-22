@@ -90,6 +90,7 @@ PanelWindow {
                 lessonCard.openAsk();
             } else if (act === "closeAsk") {
                 lessonCard.closeAsk();
+                content.forceActiveFocus(); // masquer le champ focalisé perd le focus clavier → le regagner, sinon la nav (N/Échap) devient morte
             } else if (act === "snooze") {
                 overlay.snoozeRequested(300000); overlay.reset();
             } else if (act === "close") {
