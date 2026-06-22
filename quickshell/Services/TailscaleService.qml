@@ -185,6 +185,148 @@ Singleton {
         loginError = "";
     }
 
+    // ---- exit-node candidates (read directly from `tailscale status --json`) ----
+    property var exitNodeOfferIps: ({})
+    property string exitNodeError: ""
+    function refreshExitInfo() {
+        exitInfoProc.running = true;
+    }
+    Process {
+        id: exitInfoProc
+        running: false
+        command: ["tailscale", "status", "--json"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text || "{}");
+                    const offers = {};
+                    const collect = n => {
+                        if (n && n.ExitNodeOption && n.TailscaleIPs && n.TailscaleIPs.length > 0)
+                            offers[n.TailscaleIPs[0]] = true;
+                    };
+                    if (d.Self)
+                        collect(d.Self);
+                    if (d.Peer)
+                        for (const k in d.Peer)
+                            collect(d.Peer[k]);
+                    root.exitNodeOfferIps = offers;
+                } catch (e) {
+                    root.log.warn("status --json parse failed:", e);
+                }
+            }
+        }
+    }
+    readonly property var exitNodePeers: allPeersList.filter(p => root.exitNodeOfferIps[p.tailscaleIp])
+
+    function setExitNode(peer) {
+        if (!peer)
+            return;
+        const tgt = peer.tailscaleIp || peer.hostname || "";
+        if (tgt.length === 0)
+            return;
+        exitNodeError = "";
+        exitNodeProc.command = ["pkexec", root._tsBin, "set", "--exit-node=" + tgt];
+        exitNodeProc._err = "";
+        exitNodeProc.running = true;
+    }
+    function clearExitNode() {
+        exitNodeError = "";
+        exitNodeProc.command = ["pkexec", root._tsBin, "set", "--exit-node="];
+        exitNodeProc._err = "";
+        exitNodeProc.running = true;
+    }
+    Process {
+        id: exitNodeProc
+        running: false
+        property string _err: ""
+        stderr: SplitParser {
+            splitMarker: "\n"
+            onRead: data => { if (data && data.length > 0) exitNodeProc._err = data; }
+        }
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                root.exitNodeError = "";
+                root.getStatus();
+                root.refreshExitInfo();
+            } else if (exitCode !== 126 && exitCode !== 127) {
+                root.exitNodeError = exitNodeProc._err.length > 0 ? exitNodeProc._err : I18n.tr("Exit node change failed");
+            }
+            exitNodeProc._err = "";
+        }
+    }
+
+    // ---- per-peer latency (tailscale ping, no root; serial queue) ----
+    property var pings: ({})   // ip -> { ms: int, route: "direct"|"relay", state: "ok"|"pending"|"fail" }
+    property var _pingQueue: []
+    function pingMyOnline() {
+        const q = [];
+        const peers = myOnlinePeers;
+        for (var i = 0; i < peers.length; i++) {
+            if (peers[i].tailscaleIp)
+                q.push(peers[i].tailscaleIp);
+        }
+        _pingQueue = q;
+        _pingNext();
+    }
+    function pingPeer(ip) {
+        if (!ip)
+            return;
+        const q = _pingQueue.slice();
+        q.push(ip);
+        _pingQueue = q;
+        _pingNext();
+    }
+    function _pingNext() {
+        if (pingProc.running || _pingQueue.length === 0)
+            return;
+        const q = _pingQueue.slice();
+        const ip = q.shift();
+        _pingQueue = q;
+        const m = Object.assign({}, root.pings);
+        m[ip] = { ms: -1, route: "", state: "pending" };
+        root.pings = m;
+        pingProc._ip = ip;
+        pingProc._out = "";
+        pingProc.command = ["tailscale", "ping", "--c", "1", "--timeout", "5s", ip];
+        pingProc.running = true;
+    }
+    Process {
+        id: pingProc
+        running: false
+        property string _ip: ""
+        property string _out: ""
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: data => { if (data && data.length > 0) pingProc._out = data; }
+        }
+        onExited: exitCode => {
+            const ip = pingProc._ip;
+            const line = pingProc._out;
+            const m = Object.assign({}, root.pings);
+            const rtt = line.match(/in ([0-9.]+)\s*ms/);
+            if (exitCode === 0 && rtt)
+                m[ip] = { ms: Math.round(parseFloat(rtt[1])), route: /DERP|relay/i.test(line) ? "relay" : "direct", state: "ok" };
+            else
+                m[ip] = { ms: -1, route: "", state: "fail" };
+            root.pings = m;
+            pingProc.running = false;
+            root._pingNext();
+        }
+    }
+
+    // ---- default Taildrop device (set via the star toggle in the panel) ----
+    readonly property var defaultPeer: {
+        const h = SettingsData.taildropDefaultPeer;
+        if (!h || h.length === 0)
+            return null;
+        const peers = allPeersList;
+        for (var i = 0; i < peers.length; i++)
+            if (peers[i].hostname === h)
+                return peers[i];
+        return null;
+    }
+    readonly property bool defaultPeerOnline: defaultPeer !== null && defaultPeer.online === true
+
     readonly property string socketPath: Quickshell.env("DMS_SOCKET")
 
     Component.onCompleted: {
