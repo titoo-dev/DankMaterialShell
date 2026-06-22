@@ -107,6 +107,7 @@ function extractQuestionJson(stdout) {
 
 // --- nudges (messages d'accroche façon Duolingo, affichés sur la pastille) ---
 
+// Banque QUIZ : on chambre pour qu'il RÉPONDE/CLIQUE une question (mode quiz, ou quiz d'apprentissage).
 var LOCAL_NUDGES = [
     "Encore en train de fuir ? 😏",
     "T'as déjà abandonné, avoue 🥱",
@@ -134,12 +135,55 @@ var LOCAL_NUDGES = [
     "Même mamie irait plus vite 👵🔥"
 ];
 
-function randomNudge(rng) {
+// Banque APPRENTISSAGE : même mordant, mais on le pousse à APPRENDRE/LIRE une leçon —
+// PAS de sémantique « cliquer/répondre/quiz » (la pastille montre une leçon, pas un QCM).
+var LOCAL_NUDGES_LEARNING = [
+    "Encore une notion que t'ignores ? 😏",
+    "T'apprends ou t'abandonnes ? 🥱",
+    "Trop feignant pour apprendre 💀",
+    "Une leçon t'attend, le lâche 😈",
+    "Ton cerveau rouille, viens lire 🕸️",
+    "Toujours aussi ignare ? 🤡",
+    "Même un stagiaire saurait déjà 😂",
+    "Peur d'apprendre un truc neuf ? 😬",
+    "On parie que tu zappes encore ? 🏃💨",
+    "Reste nul, c'est plus simple 🙄",
+    "Trois minutes pour moins bête, cap ? 🧠",
+    "Les vrais ont déjà appris ça 🏆",
+    "Pas curieux pour deux sous ❄️",
+    "Viens combler tes lacunes 😎",
+    "Encore à scroller au lieu d'apprendre 📱💀",
+    "Ta culture dev fait pitié 📚",
+    "Allez le flemmard, une leçon 😤",
+    "Ton ignorance crève les yeux 😈",
+    "Spoiler : tu vas encore zapper 🎈",
+    "Même mamie apprend plus vite 👵🔥"
+];
+
+// kind = "lesson" → banque apprentissage ; sinon (quiz / défaut) → banque quiz.
+function randomNudge(rng, kind) {
     rng = rng || Math.random;
-    var idx = Math.floor(rng() * LOCAL_NUDGES.length);
+    var bank = (kind === "lesson" || kind === "learning") ? LOCAL_NUDGES_LEARNING : LOCAL_NUDGES;
+    var idx = Math.floor(rng() * bank.length);
     if (idx < 0) idx = 0;
-    if (idx >= LOCAL_NUDGES.length) idx = LOCAL_NUDGES.length - 1;
-    return LOCAL_NUDGES[idx];
+    if (idx >= bank.length) idx = bank.length - 1;
+    return bank[idx];
+}
+
+// Type de contenu affiché sur la pastille → "lesson" (leçon à lire) ou "quiz" (QCM à répondre).
+// Pilote le choix de la banque locale ET du contexte du prompt claude.
+function nudgeKind(contentType) {
+    return contentType === "lesson" ? "lesson" : "quiz";
+}
+
+// Contexte passé à buildNudgePrompt selon le mode/contenu courant. En mode apprentissage on dit
+// explicitement à claude qu'il s'agit d'une LEÇON (ou d'un quiz DU sujet) pour qu'il chambre dans
+// le bon registre. En mode quiz : undefined → buildNudgePrompt garde son défaut « mini-quiz ».
+function buildNudgeContext(mode, contentType, subject) {
+    if (mode !== "learning") return undefined;
+    var s = (subject && subject.trim() !== "") ? subject.trim() : "ton sujet";
+    if (contentType === "lesson") return "une nouvelle leçon de " + s;
+    return "un quiz de " + s + " pour vérifier tes acquis";
 }
 
 // Emoji expressif en tête de pastille (varie à chaque message).

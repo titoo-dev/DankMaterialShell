@@ -20,6 +20,8 @@ function loadEngine() {
         + " randomNudge: typeof randomNudge !== 'undefined' ? randomNudge : undefined,"
         + " randomEmoji: typeof randomEmoji !== 'undefined' ? randomEmoji : undefined,"
         + " randomNudgeAngle: typeof randomNudgeAngle !== 'undefined' ? randomNudgeAngle : undefined,"
+        + " nudgeKind: typeof nudgeKind !== 'undefined' ? nudgeKind : undefined,"
+        + " buildNudgeContext: typeof buildNudgeContext !== 'undefined' ? buildNudgeContext : undefined,"
         + " buildNudgePrompt: typeof buildNudgePrompt !== 'undefined' ? buildNudgePrompt : undefined,"
         + " parseNudge: typeof parseNudge !== 'undefined' ? parseNudge : undefined,"
         + " animationIndex: typeof animationIndex !== 'undefined' ? animationIndex : undefined,"
@@ -146,6 +148,35 @@ test("randomNudge renvoie toujours un preset non vide", () => {
         const n = E.randomNudge(() => r);
         assert.ok(typeof n === "string" && n.length > 0);
     }
+});
+test("randomNudge sans kind = banque quiz (rétro-compat) ", () => {
+    assert.equal(E.randomNudge(() => 0), E.randomNudge(() => 0, "quiz"));
+});
+test("randomNudge('learning') utilise une banque distincte du quiz", () => {
+    assert.notEqual(E.randomNudge(() => 0, "learning"), E.randomNudge(() => 0, "quiz"));
+});
+test("randomNudge('learning') ne pousse jamais une sémantique quiz (clic/réponse)", () => {
+    for (let r = 0; r < 1; r += 0.05) {
+        const n = E.randomNudge(() => r, "learning");
+        assert.ok(typeof n === "string" && n.length > 0);
+        assert.doesNotMatch(n, /cliqu|répond|quiz/i, `nudge learning à sémantique quiz : ${n}`);
+    }
+});
+test("nudgeKind: lesson → 'lesson', sinon 'quiz'", () => {
+    assert.equal(E.nudgeKind("lesson"), "lesson");
+    assert.equal(E.nudgeKind("quiz"), "quiz");
+    assert.equal(E.nudgeKind(undefined), "quiz");
+});
+test("buildNudgeContext: apprentissage + leçon → contexte leçon du sujet", () => {
+    assert.match(E.buildNudgeContext("learning", "lesson", "Vim"), /leçon de Vim/);
+});
+test("buildNudgeContext: apprentissage + quiz → contexte quiz du sujet (pas 'leçon')", () => {
+    const c = E.buildNudgeContext("learning", "quiz", "Vim");
+    assert.match(c, /quiz de Vim/i);
+    assert.doesNotMatch(c, /leçon/i);
+});
+test("buildNudgeContext: mode quiz → undefined (défaut mini-quiz de buildNudgePrompt)", () => {
+    assert.equal(E.buildNudgeContext("quiz", "quiz", ""), undefined);
 });
 test("cleanNudge prend la première ligne non vide et retire les guillemets", () => {
     assert.equal(E.cleanNudge('\n  "Clique-moi 👀"  \nautre ligne'), "Clique-moi 👀");

@@ -81,8 +81,12 @@ PluginComponent {
     // — claude choisit l'animation qui matche l'expression. On applique le résultat (ou un repli
     // local si claude échoue) PUIS on appelle onReady() : la pastille n'apparaît qu'une fois prête,
     // sans bascule d'animation. onReady est optionnel (re-nudge : rafraîchit la pastille déjà visible).
-    function fetchNudge(onReady, context) {
-        var fbText = QuizEngine.randomNudge();
+    function fetchNudge(onReady) {
+        // kind + contexte dérivés de l'état courant (mode + contenu affiché) → la pastille chambre
+        // dans le bon registre (leçon vs quiz), y compris au re-nudge où aucun argument n'est passé.
+        var kind = QuizEngine.nudgeKind(overlay.contentType);
+        var context = QuizEngine.buildNudgeContext(root.mode, overlay.contentType, root.learningSubject);
+        var fbText = QuizEngine.randomNudge(undefined, kind);
         var fbEmoji = QuizEngine.randomEmoji();
         var fbAnim = Math.floor(Math.random() * Math.max(1, overlay.animCount));
         Proc.runCommand("quizWidget.nudge", [QuizEngine.claudeBinary(Quickshell.env("HOME")), "-p", QuizEngine.buildNudgePrompt(undefined, context)], function (stdout, exitCode) {
@@ -245,7 +249,7 @@ PluginComponent {
             }
             root.fetchNudge(function () {
                 overlay.showPending();
-            }, "une nouvelle leçon de " + subject);
+            });
         }, notion ? notion : undefined);
     }
 
