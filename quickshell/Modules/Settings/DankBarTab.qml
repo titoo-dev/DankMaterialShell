@@ -249,6 +249,15 @@ Item {
                     checked: SettingsData.dynamicIslandHideOnFullscreen
                     onToggled: SettingsData.set("dynamicIslandHideOnFullscreen", checked)
                 }
+
+                DankToggle {
+                    width: parent.width
+                    text: I18n.tr("Tailscale status")
+                    description: I18n.tr("Show Tailscale connection status in the island: a peer-count indicator at rest, live-activity pops on connect/disconnect and exit-node changes, and a tap-to-open device panel.")
+                    enabled: SettingsData.dynamicIslandEnabled
+                    checked: SettingsData.dynamicIslandTailscale
+                    onToggled: SettingsData.set("dynamicIslandTailscale", checked)
+                }
             }
 
             SettingsCard {
