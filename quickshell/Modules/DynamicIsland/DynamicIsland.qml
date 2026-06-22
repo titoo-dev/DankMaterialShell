@@ -43,6 +43,7 @@ Scope {
         if (PrivacyService.screensharingActive) return "screenshare"
         if (PrivacyService.microphoneActive) return "mic"
         if (PrivacyService.cameraActive) return "cam"
+        if (tsNeedsAttention) return "tailscale"
         if (batAvailable && !charging && batPct <= 20) return "battery"
         return ""
     }
@@ -50,6 +51,7 @@ Scope {
         if (satKind === "screenshare") return "screen_share"
         if (satKind === "mic") return "mic"
         if (satKind === "cam") return "videocam"
+        if (satKind === "tailscale") return tsConnected ? "device_hub" : "vpn_key_off"
         if (satKind === "battery") return Theme.getBatteryIcon(batPct, charging, batAvailable)
         return ""
     }
@@ -496,6 +498,36 @@ Scope {
         }
     }
 
+    // Live Activity: Tailscale connection + exit-node + health transitions.
+    // Guarded by `ready` (skip the startup snapshot) and the feature toggle.
+    Connections {
+        target: TailscaleService
+        enabled: root.tsFeature
+        function onConnectedChanged() {
+            if (!root.ready) return
+            if (TailscaleService.connected)
+                root.pushActivity("device_hub", I18n.tr("Tailscale") + " • " + root.tsPeerCount + " " + I18n.tr("online"))
+            else
+                root.pushActivity("vpn_key_off", I18n.tr("Tailscale disconnected"))
+        }
+        function onUsingExitNodeChanged() {
+            if (!root.ready) return
+            root.pushActivity("public", TailscaleService.usingExitNode
+                ? (I18n.tr("Exit node") + ": " + TailscaleService.exitNodeName)
+                : I18n.tr("Exit node off"))
+        }
+        function onNeedsAttentionChanged() {
+            if (!root.ready || !TailscaleService.needsAttention) return
+            const k = TailscaleService.statusKind
+            const msg = k === "needsLogin" ? I18n.tr("Tailscale needs login")
+                : k === "needsAuth" ? I18n.tr("Tailscale needs device approval")
+                : k === "stopped" ? I18n.tr("Tailscale stopped")
+                : k === "error" ? I18n.tr("Tailscale unreachable")
+                : I18n.tr("Tailscale: no peers reachable")
+            root.pushActivity("warning", msg, { priority: 2 })
+        }
+    }
+
     // Super+I (via `dms ipc call island toggle`) -> expand/collapse focused island
     Connections {
         target: IslandHub
@@ -882,6 +914,8 @@ Scope {
                 onClicked: {
                     if (root.satKind === "mic" || root.satKind === "cam" || root.satKind === "screenshare")
                         root.openPanel("privacy")
+                    else if (root.satKind === "tailscale")
+                        root.openPanel("tailscale")
                     else
                         root.mode = "expanded"
                     root.bump()
