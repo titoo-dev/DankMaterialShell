@@ -565,6 +565,27 @@ Scope {
         }
     }
 
+    // Live Activity: Taildrop send/receive feedback. Referencing TaildropService
+    // here also instantiates the singleton, so its receive poller runs.
+    Connections {
+        target: TaildropService
+        function onSendStarted(label, peerHost) {
+            root.pushActivity("cloud_upload", I18n.tr("Sending") + " " + label + " → " + peerHost)
+        }
+        function onSendFinished(label, peerHost, ok, error) {
+            if (ok) {
+                root.pushActivity("cloud_done", I18n.tr("Sent") + " ✓ → " + peerHost)
+            } else if (TaildropService.needsOperatorSetup) {
+                root.pushActivity("warning", I18n.tr("Taildrop: run sudo tailscale set --operator=$USER"), { priority: 2, duration: 5000 })
+            } else {
+                root.pushActivity("error", I18n.tr("Send failed") + ": " + (error || peerHost), { priority: 2 })
+            }
+        }
+        function onReceived(name) {
+            root.pushActivity("cloud_download", "📥 " + name)
+        }
+    }
+
     // Super+I (via `dms ipc call island toggle`) -> expand/collapse focused island
     Connections {
         target: IslandHub
