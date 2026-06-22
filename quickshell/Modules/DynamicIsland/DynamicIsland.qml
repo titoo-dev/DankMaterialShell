@@ -299,6 +299,10 @@ Scope {
     // playback started/stopped — only the rest modes follow the player
     onPlayingChanged: if (!hovered && !pinned && mode !== "presenter" && mode !== "expanded") mode = restMode()
 
+    // keep the calendar-countdown singleton alive (it polls + drives the "agenda"
+    // activity); reading a prop instantiates the lazy singleton
+    readonly property bool _agendaCountdownAlive: CalendarCountdownService.enabled
+
     // generic live-activities drive the activity rest mode + a completion flash
     Connections {
         target: ActivityService
