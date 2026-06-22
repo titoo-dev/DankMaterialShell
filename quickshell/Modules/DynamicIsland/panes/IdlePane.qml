@@ -169,6 +169,29 @@ Item {
                 onClicked: island.openPanel("tailscale")
             }
         }
+        Row {  // Bluetooth device battery (lowest connected device with battery)
+            spacing: 3
+            anchors.verticalCenter: parent.verticalCenter
+            readonly property var lowest: {
+                const ds = BluetoothService.allDevicesWithBattery
+                let best = null
+                for (var i = 0; i < ds.length; i++)
+                    if (!best || ds[i].battery < best.battery) best = ds[i]
+                return best
+            }
+            visible: lowest !== null
+            DankIcon {
+                name: "bluetooth"
+                size: Theme.iconSize - 7
+                color: parent.lowest && parent.lowest.battery <= 0.2 ? Theme.error : island.subText
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            StyledText {
+                text: parent.lowest ? Math.round(parent.lowest.battery * 100) + "%" : ""
+                color: island.textColor; font.pixelSize: Theme.fontSizeSmall
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
         Item {  // Shelf: parked items, click drills into the shelf view
             visible: ShelfService.count > 0
             width: shelfChip.implicitWidth; height: 22
