@@ -30,7 +30,11 @@ Column {
         visible: false   // non-visual: keep it out of the Column layout
         sourceComponent: Component { Ref { service: TailscaleService } }
     }
-    onTsActiveChanged: if (tsActive) TailscaleService.getStatus()
+    onTsActiveChanged: if (tsActive) {
+        TailscaleService.getStatus()
+        TailscaleService.refreshExitInfo()
+        TailscaleService.pingMyOnline()
+    }
 
     // header: back · device_hub · title · refresh
     RowLayout {
@@ -62,7 +66,7 @@ Column {
             iconSize: 16
             iconColor: Theme.surfaceVariantText
             tooltipText: I18n.tr("Refresh")
-            onClicked: TailscaleService.refresh(null)
+            onClicked: { TailscaleService.refresh(null); TailscaleService.refreshExitInfo(); TailscaleService.pingMyOnline() }
         }
     }
 
@@ -185,6 +189,62 @@ Column {
         }
     }
 
+    // ---- exit-node selector ----
+    Column {
+        width: parent.width
+        spacing: Theme.spacingXS
+        visible: TailscaleService.connected && (TailscaleService.exitNodePeers.length > 0 || TailscaleService.usingExitNode)
+
+        RowLayout {
+            width: parent.width
+            spacing: Theme.spacingS
+            DankIcon {
+                name: "public"
+                size: 16
+                color: TailscaleService.usingExitNode ? Theme.primary : Theme.surfaceVariantText
+                Layout.alignment: Qt.AlignVCenter
+            }
+            StyledText {
+                Layout.fillWidth: true
+                font.pixelSize: Theme.fontSizeSmall
+                color: tsCol.island.textColor
+                elide: Text.ElideRight
+                text: TailscaleService.usingExitNode ? (I18n.tr("Exit node") + ": " + TailscaleService.exitNodeName) : I18n.tr("Exit node")
+            }
+            DankButton {
+                visible: TailscaleService.usingExitNode
+                text: I18n.tr("Disconnect")
+                buttonHeight: 26
+                backgroundColor: Theme.surfaceContainerHigh
+                onClicked: TailscaleService.clearExitNode()
+            }
+        }
+        StyledText {
+            width: parent.width
+            visible: TailscaleService.exitNodeError.length > 0
+            font.pixelSize: 10
+            color: Theme.error
+            wrapMode: Text.WordWrap
+            text: TailscaleService.exitNodeError
+        }
+        Flow {
+            width: parent.width
+            spacing: Theme.spacingXS
+            Repeater {
+                model: TailscaleService.exitNodePeers
+                delegate: DankButton {
+                    required property var modelData
+                    readonly property bool active: TailscaleService.activeExitNode && TailscaleService.activeExitNode.tailscaleIp === modelData.tailscaleIp
+                    text: (modelData.hostname || modelData.tailscaleIp) + (active ? " ✓" : "")
+                    buttonHeight: 26
+                    backgroundColor: active ? Theme.primary : Theme.surfaceContainerHigh
+                    textColor: active ? Theme.onPrimary : Theme.surfaceText
+                    onClicked: active ? TailscaleService.clearExitNode() : TailscaleService.setExitNode(modelData)
+                }
+            }
+        }
+    }
+
     // search
     DankTextField {
         width: parent.width
@@ -285,6 +345,27 @@ Column {
                                 font.pixelSize: 10
                                 color: Theme.surfaceTextMedium
                             }
+                            StyledText {
+                                readonly property var p: TailscaleService.pings[modelData.tailscaleIp]
+                                visible: modelData.online && p !== undefined
+                                text: {
+                                    if (!p) return ""
+                                    if (p.state === "pending") return "…"
+                                    if (p.state === "fail") return "—"
+                                    return p.ms + " ms · " + (p.route === "relay" ? I18n.tr("relay") : I18n.tr("direct"))
+                                }
+                                font.pixelSize: 10
+                                color: Theme.surfaceVariantText
+                            }
+                        }
+                        DankActionButton {
+                            visible: TailscaleService.isMine(modelData) && (modelData.tailscaleIp || "").length > 0
+                            iconName: modelData.hostname === SettingsData.taildropDefaultPeer ? "star" : "star_border"
+                            buttonSize: 20
+                            iconSize: 13
+                            iconColor: modelData.hostname === SettingsData.taildropDefaultPeer ? Theme.primary : Theme.surfaceVariantText
+                            tooltipText: I18n.tr("Default Taildrop device")
+                            onClicked: SettingsData.set("taildropDefaultPeer", SettingsData.taildropDefaultPeer === modelData.hostname ? "" : modelData.hostname)
                         }
                         DankActionButton {
                             iconName: "content_copy"
