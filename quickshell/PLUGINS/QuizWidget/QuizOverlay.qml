@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Common
 import qs.Widgets
+import "QuizEngine.js" as QuizEngine
 
 PanelWindow {
     id: overlay
@@ -28,7 +29,12 @@ PanelWindow {
     property int selected: -1
 
     onAnimIndexChanged: pill.resetPillTransforms()
-    onModeChanged: if (overlay.mode === "pending") pill.resetPillTransforms()
+    onModeChanged: {
+        if (overlay.mode === "pending")
+            pill.resetPillTransforms();
+        if (overlay.mode === "open" || overlay.mode === "feedback")
+            content.forceActiveFocus();
+    }
 
     function showPending() { overlay.selected = -1; overlay.mode = "pending"; overlay.visible = true; }
     function showOnboarding() { overlay.mode = "onboarding"; overlay.visible = true; }
@@ -57,6 +63,39 @@ PanelWindow {
 
     Item {
         id: content
+        focus: true
+        Keys.onPressed: (event) => {
+            var token;
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                token = "ENTER";
+            else if (event.key === Qt.Key_Escape)
+                token = "ESC";
+            else if (event.text && event.text.length === 1)
+                token = event.text.toUpperCase();
+            else
+                return;
+            var act = QuizEngine.keyAction(token, overlay.mode, overlay.contentType, lessonCard.inputActive);
+            if (act === "")
+                return;
+            event.accepted = true;
+            if (act.indexOf("select") === 0) {
+                var i = Number(act.charAt(6));
+                if (overlay.question && overlay.question.choices && i < overlay.question.choices.length)
+                    overlay.selected = i;
+            } else if (act === "submit") {
+                if (overlay.selected >= 0) { overlay.mode = "feedback"; overlay.quizAnswered(); }
+            } else if (act === "next") {
+                overlay.lessonDone(); overlay.reset();
+            } else if (act === "ask") {
+                lessonCard.openAsk();
+            } else if (act === "closeAsk") {
+                lessonCard.closeAsk();
+            } else if (act === "snooze") {
+                overlay.snoozeRequested(300000); overlay.reset();
+            } else if (act === "close") {
+                overlay.reset();
+            }
+        }
         anchors.fill: parent
         anchors.margins: overlay.shadowPad
         implicitWidth: onboardingCard.visible ? onboardingCard.implicitWidth
