@@ -1,75 +1,156 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "../../../Common/Markdown.js" as Markdown
 
-// Ask-the-island drill view: a Spotlight-style field that sends to claude -p and
-// shows the answer (plain text v1).
+// Ask-the-island: a Spotlight-style prompt that sends to claude -p and renders the
+// answer as themed rich text (headings, lists, inline + fenced code panels).
 Column {
     id: askCol
     property var island: null
     anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-    spacing: Theme.spacingS
+    spacing: Theme.spacingM
     opacity: island.panelView === "ask" ? 1 : 0
     visible: opacity > 0
     transform: Translate { x: island.panelView === "ask" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
+    function hex6(c) {
+        function p(x) { var v = Math.round(x * 255).toString(16); return v.length < 2 ? "0" + v : v; }
+        return "#" + p(c.r) + p(c.g) + p(c.b);
+    }
+    readonly property var mdOpts: ({
+        codeColor: hex6(Theme.primary),
+        codeBg: hex6(Theme.surfaceContainerHighest),
+        mono: Theme.monoFontFamily,
+        linkColor: hex6(Theme.primary)
+    })
+    readonly property bool hasOutput: AskService.loading || AskService.answer.length > 0 || AskService.error.length > 0
+
     readonly property bool askActive: island && island.mode === "expanded" && island.panelView === "ask"
     onAskActiveChanged: if (askActive) askField.forceActiveFocus()
 
-    RowLayout {
+    // ---- hero: the prompt field (Spotlight-style) ----
+    Rectangle {
         width: parent.width
-        spacing: Theme.spacingS
-        DankIcon { name: "auto_awesome"; size: 18; color: Theme.primary; Layout.alignment: Qt.AlignVCenter }
+        height: 48
+        radius: height / 2
+        color: Theme.surfaceContainerHigh
+        border.width: 1
+        border.color: askField.activeFocus ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.25)
+        Behavior on border.color { ColorAnimation { duration: Theme.shortDuration } }
+
+        DankIcon {
+            id: spark
+            anchors.left: parent.left; anchors.leftMargin: Theme.spacingL
+            anchors.verticalCenter: parent.verticalCenter
+            name: "auto_awesome"; size: 20
+            color: askField.activeFocus ? Theme.primary : Theme.surfaceVariantText
+            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+        }
         DankTextField {
             id: askField
-            Layout.fillWidth: true
+            anchors.left: spark.right; anchors.leftMargin: Theme.spacingM
+            anchors.right: parent.right; anchors.rightMargin: Theme.spacingL
+            anchors.verticalCenter: parent.verticalCenter
+            backgroundColor: "transparent"
+            normalBorderColor: "transparent"
+            focusedBorderColor: "transparent"
+            font.pixelSize: Theme.fontSizeLarge
             placeholderText: I18n.tr("Ask anything…")
             onAccepted: AskService.ask(text)
         }
     }
-    // clipboard claude actions (operate on the current clipboard, user-initiated)
+
+    // ---- clipboard quick actions ----
     Row {
         width: parent.width
-        spacing: Theme.spacingXS
-        DankButton {
-            text: I18n.tr("Summarize")
-            buttonHeight: 26
-            backgroundColor: Theme.surfaceContainerHigh
-            onClicked: AskService.askClipboard(I18n.tr("Summarize this text in a few bullet points"))
-        }
-        DankButton {
-            text: I18n.tr("Translate")
-            buttonHeight: 26
-            backgroundColor: Theme.surfaceContainerHigh
-            onClicked: AskService.askClipboard(I18n.tr("Translate this text to English"))
-        }
-        DankButton {
-            text: I18n.tr("Explain")
-            buttonHeight: 26
-            backgroundColor: Theme.surfaceContainerHigh
-            onClicked: AskService.askClipboard(I18n.tr("Explain this text simply"))
-        }
-    }
-    DankFlickable {
-        width: parent.width
-        height: Math.min(contentHeight, 300)
-        contentHeight: ansCol.implicitHeight
-        clip: true
-        visible: AskService.loading || AskService.answer.length > 0 || AskService.error.length > 0
-        Column {
-            id: ansCol
-            width: parent.width
-            StyledText {
-                width: parent.width
-                wrapMode: Text.WordWrap
-                font.pixelSize: Theme.fontSizeSmall
-                color: AskService.error.length > 0 ? Theme.error : Theme.surfaceText
-                text: AskService.loading ? "💭 " + I18n.tr("Thinking…")
-                    : (AskService.error.length > 0 ? AskService.error : AskService.answer)
+        spacing: Theme.spacingS
+        Repeater {
+            model: [
+                { lbl: I18n.tr("Summarize"), icon: "summarize",  prompt: I18n.tr("Summarize this text in a few bullet points") },
+                { lbl: I18n.tr("Translate"), icon: "translate",  prompt: I18n.tr("Translate this text to English") },
+                { lbl: I18n.tr("Explain"),   icon: "lightbulb",  prompt: I18n.tr("Explain this text simply") }
+            ]
+            delegate: DankButton {
+                text: modelData.lbl
+                iconName: modelData.icon
+                iconSize: 14
+                buttonHeight: 30
+                backgroundColor: hovered ? Theme.primaryHover : Theme.surfaceContainerHigh
+                textColor: hovered ? Theme.primary : Theme.surfaceText
+                onClicked: AskService.askClipboard(modelData.prompt)
             }
         }
+    }
+
+    // ---- hairline separator (only with output) ----
+    Rectangle {
+        width: parent.width; height: 1
+        visible: askCol.hasOutput
+        color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.22)
+    }
+
+    // ---- thinking state ----
+    Row {
+        spacing: Theme.spacingS
+        visible: AskService.loading
+        DankIcon {
+            name: "auto_awesome"; size: 18; color: Theme.primary
+            anchors.verticalCenter: parent.verticalCenter
+            SequentialAnimation on opacity {
+                running: AskService.loading; loops: Animation.Infinite
+                NumberAnimation { to: 0.35; duration: 700; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.0;  duration: 700; easing.type: Easing.InOutSine }
+            }
+        }
+        StyledText {
+            text: I18n.tr("Thinking…")
+            color: Theme.surfaceVariantText
+            font.pixelSize: Theme.fontSizeMedium
+            anchors.verticalCenter: parent.verticalCenter
+        }
+    }
+
+    // ---- error ----
+    StyledText {
+        width: parent.width
+        visible: !AskService.loading && AskService.error.length > 0
+        text: AskService.error
+        color: Theme.error
+        font.pixelSize: Theme.fontSizeSmall
+        wrapMode: Text.WordWrap
+    }
+
+    // ---- answer (rich markdown) ----
+    DankFlickable {
+        width: parent.width
+        height: Math.min(answerText.implicitHeight, 340)
+        contentHeight: answerText.implicitHeight
+        clip: true
+        visible: !AskService.loading && AskService.answer.length > 0
+        StyledText {
+            id: answerText
+            width: parent.width - Theme.spacingS
+            text: Markdown.toRichText(AskService.answer, askCol.mdOpts)
+            textFormat: Text.RichText
+            wrapMode: Text.WordWrap
+            font.pixelSize: Theme.fontSizeMedium
+            color: Theme.surfaceText
+            onLinkActivated: link => Quickshell.execDetached(["xdg-open", link])
+        }
+    }
+
+    // ---- empty hint ----
+    StyledText {
+        width: parent.width
+        visible: !askCol.hasOutput
+        text: I18n.tr("Ask a question, or run an action on your clipboard.")
+        color: Theme.surfaceVariantText
+        font.pixelSize: Theme.fontSizeSmall
+        wrapMode: Text.WordWrap
     }
 }

@@ -33,11 +33,11 @@ function toRichText(md, opts) {
         return "@@MDPH" + (ph.length - 1) + "@@";
     }
 
-    // fenced code blocks ```lang\n ... ``` → padded full-width panel (table cell bg)
+    // fenced code blocks ```lang\n ... ``` → styled <pre> panel (proven to render
+    // text + background in Qt's rich-text engine; nested tables drop the content)
     s = s.replace(/```[a-zA-Z0-9+#.\-]*\n?([\s\S]*?)```/g, function (m, code) {
         var body = _escape(code.replace(/\s+$/, ""));
-        return stash('<table width="100%" cellpadding="8" cellspacing="0" style="background-color:' + cb
-              + '; margin:6px 0"><tr><td><pre style="' + codeStyle + '; margin:0">' + body + '</pre></td></tr></table>');
+        return stash('<pre style="' + codeStyle + '; padding:6px">' + body + '</pre>');
     });
     // inline code `...`
     s = s.replace(/`([^`\n]+)`/g, function (m, code) {
