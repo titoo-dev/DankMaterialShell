@@ -1,0 +1,84 @@
+import QtQuick
+import QtQuick.Layouts
+import qs.Common
+import qs.Services
+import qs.Widgets
+
+// Activities drill view: lists every live activity with progress + a dismiss button.
+Column {
+    id: actCol
+    property var island: null
+    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+    spacing: Theme.spacingS
+    opacity: island.panelView === "activities" ? 1 : 0
+    visible: opacity > 0
+    transform: Translate { x: island.panelView === "activities" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
+    Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+
+    RowLayout {
+        width: parent.width
+        spacing: Theme.spacingS
+        DankActionButton {
+            iconName: "chevron_left"; buttonSize: 30; iconSize: 20
+            iconColor: actCol.island.textColor
+            onClicked: actCol.island.panelView = "controls"
+        }
+        StyledText {
+            text: I18n.tr("Activities")
+            font.pixelSize: Theme.fontSizeMedium; font.weight: Font.Bold
+            color: actCol.island.textColor; Layout.fillWidth: true
+        }
+    }
+    StyledText {
+        width: parent.width
+        visible: ActivityService.activities.length === 0
+        horizontalAlignment: Text.AlignHCenter
+        topPadding: Theme.spacingM; bottomPadding: Theme.spacingM
+        text: I18n.tr("No activities")
+        font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText
+    }
+    Repeater {
+        model: ActivityService.activities
+        delegate: Rectangle {
+            required property var modelData
+            width: parent.width
+            height: aRow.implicitHeight + Theme.spacingS * 2
+            radius: Theme.cornerRadius
+            color: Theme.surfaceContainerHighest
+            RowLayout {
+                id: aRow
+                anchors.fill: parent; anchors.margins: Theme.spacingS; spacing: Theme.spacingS
+                DankIcon {
+                    name: modelData.state === "done" ? "check_circle" : modelData.state === "failed" ? "error" : modelData.icon
+                    size: 18
+                    color: modelData.state === "done" ? Theme.success : modelData.state === "failed" ? Theme.error : Theme.primary
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                Column {
+                    Layout.fillWidth: true; spacing: 2
+                    StyledText {
+                        text: modelData.label
+                        font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
+                        color: Theme.surfaceText; width: parent.width; elide: Text.ElideRight
+                    }
+                    Rectangle {
+                        visible: modelData.state === "running" && modelData.progress >= 0
+                        width: parent.width; height: 4; radius: 2
+                        color: Qt.rgba(Theme.surfaceVariantText.r, Theme.surfaceVariantText.g, Theme.surfaceVariantText.b, 0.3)
+                        Rectangle { height: parent.height; radius: 2; width: parent.width * (modelData.progress / 100); color: Theme.primary }
+                    }
+                    StyledText {
+                        visible: modelData.state === "running" && modelData.progress < 0
+                        text: I18n.tr("running…")
+                        font.pixelSize: 10; color: Theme.surfaceVariantText
+                    }
+                }
+                DankActionButton {
+                    iconName: "close"; buttonSize: 20; iconSize: 12
+                    iconColor: Theme.surfaceVariantText
+                    onClicked: ActivityService.stop(modelData.id)
+                }
+            }
+        }
+    }
+}

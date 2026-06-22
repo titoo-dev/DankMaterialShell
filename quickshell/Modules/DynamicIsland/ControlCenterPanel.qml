@@ -301,7 +301,8 @@ import "panels"
                     "apps": appsComp, "clipboard": clipComp, "emoji": emojiComp,
                     "power": powerComp, "monitor": monComp, "wallpaper": wpComp,
                     "mixer": mixerComp, "privacy": privacyComp, "shelf": shelfComp,
-                    "tailscale": tsComp, "dropchoose": dropChooseComp
+                    "tailscale": tsComp, "dropchoose": dropChooseComp,
+                    "activities": activitiesComp
                 })
                 Component { id: wifiComp;  WifiPanel          { island: ccPanel.island } }
                 Component { id: btComp;    BluetoothPanel     { island: ccPanel.island } }
@@ -320,6 +321,7 @@ import "panels"
                 Component { id: shelfComp; ShelfPanel         { island: ccPanel.island } }
                 Component { id: tsComp;    TailscalePanel     { island: ccPanel.island } }
                 Component { id: dropChooseComp; DropChoosePanel { island: ccPanel.island } }
+                Component { id: activitiesComp; ActivityPanel  { island: ccPanel.island } }
 
                 Loader {
                     id: drillLoader
