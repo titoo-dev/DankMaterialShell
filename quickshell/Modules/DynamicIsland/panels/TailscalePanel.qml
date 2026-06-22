@@ -66,9 +66,108 @@ Column {
         }
     }
 
+    // ---- not-connected state card (login / activate / errors) ----
+    Column {
+        width: parent.width
+        spacing: Theme.spacingS
+        visible: !TailscaleService.connected
+        topPadding: Theme.spacingM
+
+        DankIcon {
+            anchors.horizontalCenter: parent.horizontalCenter
+            name: {
+                if (TailscaleService.authUrl.length > 0)
+                    return "open_in_browser"
+                const k = TailscaleService.statusKind
+                if (k === "needsLogin" || k === "needsAuth")
+                    return "person_off"
+                if (k === "stopped")
+                    return "cloud_off"
+                if (k === "starting")
+                    return "sync"
+                return "vpn_key_off"
+            }
+            size: 40
+            color: Theme.surfaceVariantText
+            RotationAnimation on rotation {
+                running: TailscaleService.statusKind === "starting" || (TailscaleService.loginInProgress && TailscaleService.authUrl.length === 0)
+                from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+            }
+        }
+
+        StyledText {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: Theme.fontSizeMedium
+            font.weight: Font.Bold
+            color: tsCol.island.textColor
+            wrapMode: Text.WordWrap
+            text: {
+                if (TailscaleService.loginInProgress && TailscaleService.authUrl.length === 0)
+                    return I18n.tr("Connecting… approve in the dialog")
+                if (TailscaleService.authUrl.length > 0)
+                    return I18n.tr("Authenticate in your browser")
+                const k = TailscaleService.statusKind
+                if (k === "needsLogin" || k === "needsAuth")
+                    return I18n.tr("No active account")
+                if (k === "stopped")
+                    return I18n.tr("Tailscale is stopped")
+                if (k === "starting")
+                    return I18n.tr("Connecting…")
+                return I18n.tr("Tailscale unavailable")
+            }
+        }
+
+        StyledText {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            visible: TailscaleService.loginError.length > 0
+            font.pixelSize: Theme.fontSizeSmall
+            color: Theme.error
+            wrapMode: Text.WordWrap
+            text: TailscaleService.loginError
+        }
+
+        // primary action: Sign in / Activate / Retry
+        DankButton {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: TailscaleService.authUrl.length === 0
+                && TailscaleService.statusKind !== "starting"
+                && !(TailscaleService.loginInProgress && TailscaleService.authUrl.length === 0)
+            iconName: "login"
+            text: {
+                if (TailscaleService.loginError.length > 0)
+                    return I18n.tr("Retry")
+                if (TailscaleService.statusKind === "stopped")
+                    return I18n.tr("Activate")
+                return I18n.tr("Sign in")
+            }
+            onClicked: TailscaleService.login()
+        }
+
+        // auth-url actions: open browser / copy link
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: Theme.spacingS
+            visible: TailscaleService.authUrl.length > 0
+            DankButton {
+                iconName: "open_in_new"
+                text: I18n.tr("Open browser")
+                onClicked: Quickshell.execDetached(["xdg-open", TailscaleService.authUrl])
+            }
+            DankButton {
+                iconName: "content_copy"
+                text: I18n.tr("Copy link")
+                backgroundColor: Theme.surfaceContainerHigh
+                onClicked: Quickshell.execDetached(["dms", "cl", "copy", TailscaleService.authUrl])
+            }
+        }
+    }
+
     // status line: tailnet + exit-node
     StyledText {
         width: parent.width
+        visible: TailscaleService.connected
         elide: Text.ElideRight
         font.pixelSize: Theme.fontSizeSmall
         color: Theme.surfaceVariantText
@@ -94,7 +193,7 @@ Column {
         showClearButton: true
         text: tsCol.searchQuery
         onTextEdited: tsCol.searchQuery = text
-        visible: TailscaleService.available
+        visible: TailscaleService.connected
     }
 
     // filter chips
@@ -103,7 +202,7 @@ Column {
         currentIndex: tsCol.filterIndex
         showCounts: true
         chipHeight: 26
-        visible: TailscaleService.available
+        visible: TailscaleService.connected
         model: [
             { "label": I18n.tr("My Online"), "count": TailscaleService.myOnlinePeers.length },
             { "label": I18n.tr("Online"),    "count": TailscaleService.onlinePeers.length },
@@ -118,7 +217,7 @@ Column {
         height: Math.min(contentHeight, 260)
         contentHeight: peerCol.implicitHeight
         clip: true
-        visible: TailscaleService.available
+        visible: TailscaleService.connected
 
         Column {
             id: peerCol
