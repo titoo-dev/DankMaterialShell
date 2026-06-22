@@ -400,6 +400,7 @@ test("keyAction — quiz open: Entrée valide, S reporte, Échap ferme", () => {
 test("keyAction — quiz feedback: Entrée et Échap ferment", () => {
   assert.equal(E.keyAction("ENTER", "feedback", "quiz", false), "close");
   assert.equal(E.keyAction("ESC", "feedback", "quiz", false), "close");
+  assert.equal(E.keyAction("S", "feedback", "quiz", false), "snooze");
 });
 test("keyAction — leçon: Entrée/N suivant, Q/? questions, Échap ferme", () => {
   assert.equal(E.keyAction("ENTER", "open", "lesson", false), "next");
