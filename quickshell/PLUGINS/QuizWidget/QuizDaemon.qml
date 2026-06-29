@@ -158,9 +158,12 @@ PluginComponent {
         }
     }
 
+    // Relance d'attention sur une pastille ignorée : recalée sur l'Intervalle configuré
+    // (workMinutes) plutôt qu'un 5 min codé en dur — on ne re-sollicite jamais plus souvent
+    // que la cadence voulue par l'utilisateur.
     Timer {
         id: renudgeTimer
-        interval: 5 * 60 * 1000
+        interval: Math.max(1, root.workMinutes) * 60 * 1000
         repeat: true
         running: overlay.mode === "pending"
         onTriggered: {
@@ -169,8 +172,10 @@ PluginComponent {
         }
     }
 
-    // Première quiz peu après le démarrage (sujets déjà configurés) ou après l'onboarding,
-    // pour une gratification immédiate ; ensuite la cadence pomodoro normale prend le relais.
+    // Génération rapide (30 s) après une ACTION DÉLIBÉRÉE de l'utilisateur — fin d'onboarding ou
+    // bascule de mode/sujet à chaud — pour un retour immédiat. Le DÉMARRAGE, lui, ne prend plus ce
+    // raccourci : c'est workTimer (qui tourne dès le chargement, intervalle = workMinutes) qui fournit
+    // la première leçon, en respectant l'Intervalle configuré (pas de leçon-surprise 30 s après le lancement).
     Timer {
         id: firstQuizTimer
         interval: 30 * 1000
@@ -397,17 +402,16 @@ PluginComponent {
     Component.onCompleted: {
         Qt.callLater(function () {
             root.loadSettings();
+            // Pas de raccourci au démarrage : workTimer (running dès le chargement, intervalle =
+            // workMinutes) fournit la première leçon/quiz en respectant l'Intervalle. On ne déclenche
+            // ici que l'onboarding si aucun sujet n'est encore configuré (mode quiz).
             if (root.mode === "learning") {
-                if ((root.learningSubject || "").trim() !== "" && !root.paused)
-                    firstQuizTimer.restart();
                 console.info("QuizDaemon: started, mode learning, sujet", JSON.stringify(root.learningSubject), (root.learningHistory ? root.learningHistory.length : 0), "notions");
             } else {
                 var nCat = root.selectedTopics ? root.selectedTopics.length : 0;
                 var nCustom = root.customTopics ? root.customTopics.length : 0;
                 if (nCat === 0 && nCustom === 0)
                     overlay.showOnboarding();
-                else if (!root.paused)
-                    firstQuizTimer.restart();
                 console.info("QuizDaemon: started, mode quiz,", nCat, "catalogue +", nCustom, "libres");
             }
             root._settingsReady = true;
