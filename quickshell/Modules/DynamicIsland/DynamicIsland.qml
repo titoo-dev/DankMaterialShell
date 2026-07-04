@@ -479,7 +479,11 @@ Scope {
     // busy there — which also fixes the old showSplash stomping the hub.
     property var _activities: []
     function pushActivity(icon, label, opts) {
-        if (!ready || !isFocusedScreen || mode === "expanded") return
+        if (!ready || !isFocusedScreen) return
+        // into history even when the splash itself is suppressed (expanded
+        // panel open) — that's exactly the "what did I miss?" case
+        ActivityService.record(icon, label)
+        if (mode === "expanded") return
         const a = {
             icon: icon, label: label,
             priority: (opts && opts.priority !== undefined) ? opts.priority : 1,

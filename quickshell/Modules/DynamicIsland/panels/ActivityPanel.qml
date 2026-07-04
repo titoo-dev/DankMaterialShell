@@ -18,7 +18,7 @@ Column {
     DrillHeader { island: actCol.island; title: I18n.tr("Activities") }
     StyledText {
         width: parent.width
-        visible: ActivityService.activities.length === 0
+        visible: ActivityService.activities.length === 0 && ActivityService.recents.length === 0
         horizontalAlignment: Text.AlignHCenter
         topPadding: Theme.spacingM; bottomPadding: Theme.spacingM
         text: I18n.tr("No activities")
@@ -64,8 +64,43 @@ Column {
                     iconName: "close"; buttonSize: 20; iconSize: 12
                     radius: buttonSize / 2
                     iconColor: Theme.surfaceVariantText
-                    onClicked: ActivityService.stop(modelData.id)
+                    onClicked: ActivityService.dismiss(modelData.id)
                 }
+            }
+        }
+    }
+
+    // ---- Recents: the last glanceable pops (splashes are fire-and-forget) ----
+    StyledText {
+        visible: ActivityService.recents.length > 0
+        topPadding: Theme.spacingS
+        text: I18n.tr("Recent")
+        color: Theme.surfaceVariantText
+        font.pixelSize: Theme.fontSizeSmall - 2; font.bold: true
+        font.capitalization: Font.AllUppercase
+    }
+    Repeater {
+        model: ActivityService.recents.slice(0, 8)
+        delegate: RowLayout {
+            required property var modelData
+            width: parent.width
+            spacing: Theme.spacingS
+            DankIcon {
+                name: modelData.icon; size: 16
+                color: Theme.surfaceVariantText
+                Layout.alignment: Qt.AlignVCenter
+            }
+            StyledText {
+                Layout.fillWidth: true
+                text: modelData.label
+                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.surfaceText
+                elide: Text.ElideRight
+            }
+            StyledText {
+                text: Qt.formatTime(new Date(modelData.ts), "HH:mm")
+                font.pixelSize: Theme.fontSizeSmall - 2
+                color: Theme.surfaceVariantText
             }
         }
     }

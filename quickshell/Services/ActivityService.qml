@@ -21,6 +21,21 @@ Singleton {
         return activities.length > 0 ? activities[0] : null;
     }
     signal activityFinished(string id, bool ok)
+    signal activityDismissed(string id)
+
+    // glanceable history: splashes are fire-and-forget, so keep the last few
+    // here for the Activities drill ("what just popped?"). Newest first,
+    // RAM only. each: { icon, label, ts }
+    property var recents: []
+    function record(icon, label) {
+        if (!label || label.length === 0)
+            return;
+        const arr = recents.slice();
+        arr.unshift({ icon: (icon && icon.length > 0) ? icon : "info", label: label, ts: Date.now() });
+        if (arr.length > 20)
+            arr.length = 20;
+        recents = arr;
+    }
 
     function _find(id) {
         for (var i = 0; i < activities.length; i++)
@@ -42,9 +57,12 @@ Singleton {
             state: "running",
             _expireAt: Date.now() + 3600000
         };
+        // refresh-style producers (agenda) call start() repeatedly: update in
+        // place so a repeated start never steals primary from another activity
         if (i >= 0)
-            arr.splice(i, 1);
-        arr.unshift(entry);
+            arr[i] = entry;
+        else
+            arr.unshift(entry);
         activities = arr;
     }
     function progress(id, pct) {
@@ -84,7 +102,14 @@ Singleton {
             e.progress = 100;
         arr[i] = e;
         activities = arr;
+        record(e.icon, (ok ? "✓ " : "✗ ") + e.label);
         activityFinished(id, ok);
+    }
+    // user-initiated removal (panel ✕) — unlike stop(), it notifies the
+    // producer so it can quit ticking blind (ghost alarm) or resurrecting
+    function dismiss(id) {
+        activityDismissed(id);
+        stop(id);
     }
     function stop(id) {
         const i = _find(id);

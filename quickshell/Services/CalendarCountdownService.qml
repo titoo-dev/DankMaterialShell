@@ -13,6 +13,9 @@ Singleton {
     readonly property var log: Log.scoped("CalendarCountdownService")
     readonly property int windowMin: 15
     readonly property bool enabled: SettingsData.islandAgendaCountdown && CalendarService.khalAvailable
+    // start time (ms) of a dismissed event: the 30s refresh must not resurrect
+    // it, but the NEXT event gets a countdown again
+    property double _snoozedStart: 0
 
     function _nextEvent() {
         const now = new Date();
@@ -41,7 +44,7 @@ Singleton {
             return;
         }
         const e = _nextEvent();
-        if (!e) {
+        if (!e || e.start.getTime() === root._snoozedStart) {
             ActivityService.stop("agenda");
             return;
         }
@@ -52,6 +55,16 @@ Singleton {
         } else {
             ActivityService.update("agenda", "📅 " + e.title + " · " + I18n.tr("in %1 min").arg(Math.ceil(mins)));
             ActivityService.progress("agenda", Math.max(0, Math.min(100, Math.round((root.windowMin - mins) / root.windowMin * 100))));
+        }
+    }
+
+    Connections {
+        target: ActivityService
+        function onActivityDismissed(id) {
+            if (id !== "agenda")
+                return;
+            const e = root._nextEvent();
+            root._snoozedStart = e ? e.start.getTime() : 0;
         }
     }
 

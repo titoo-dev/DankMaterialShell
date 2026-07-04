@@ -111,6 +111,12 @@ Singleton {
             ActivityService.stop(id);
             return "ISLAND_ACTIVITY:stop:" + id;
         }
+        // like the panel's ✕: removes AND notifies the producer (cancels the
+        // timer, snoozes the agenda) — activityStop only removes the entry
+        function activityDismiss(id: string): string {
+            ActivityService.dismiss(id);
+            return "ISLAND_ACTIVITY:dismiss:" + id;
+        }
         // countdown timer / Pomodoro (drives the "timer" activity):
         //   dms ipc call island timerStart 25 "Pomodoro"
         //   dms ipc call island timerCancel

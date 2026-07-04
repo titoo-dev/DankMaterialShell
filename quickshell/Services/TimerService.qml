@@ -55,6 +55,16 @@ Singleton {
         }
     }
 
+    // dismissing the pill cancels the countdown — otherwise it keeps ticking
+    // invisibly and still fires the alarm sound at the end
+    Connections {
+        target: ActivityService
+        function onActivityDismissed(id) {
+            if (id === "timer")
+                root.endTime = 0;
+        }
+    }
+
     Timer {
         id: tick
         interval: 1000
