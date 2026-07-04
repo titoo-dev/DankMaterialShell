@@ -15,21 +15,7 @@ Column {
     transform: Translate { x: island.panelView === "activities" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
-    RowLayout {
-        width: parent.width
-        spacing: Theme.spacingS
-        DankActionButton {
-            iconName: "chevron_left"; buttonSize: 30; iconSize: 20
-            radius: buttonSize / 2
-            iconColor: actCol.island.textColor
-            onClicked: actCol.island.panelView = "controls"
-        }
-        StyledText {
-            text: I18n.tr("Activities")
-            font.pixelSize: Theme.fontSizeMedium; font.weight: Font.Bold
-            color: actCol.island.textColor; Layout.fillWidth: true
-        }
-    }
+    DrillHeader { island: actCol.island; title: I18n.tr("Activities") }
     StyledText {
         width: parent.width
         visible: ActivityService.activities.length === 0

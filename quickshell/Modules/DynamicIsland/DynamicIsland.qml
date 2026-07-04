@@ -251,7 +251,17 @@ Scope {
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
     property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer" | "privacy" | "shelf" | "tailscale"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
-    onPanelViewChanged: if (panelView !== "wifi") wifiNeedsKeyboard = false
+    onPanelViewChanged: {
+        if (panelView !== "wifi") wifiNeedsKeyboard = false
+        // a search field that held focus may just have been unloaded — hand
+        // focus back to the Escape catcher, but never steal it from a field
+        // that claimed it (kb views focus their own input)
+        Qt.callLater(() => {
+            const w = escCatcher.Window.window
+            if (mode === "expanded" && w && !w.activeFocusItem)
+                escCatcher.forceActiveFocus()
+        })
+    }
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
 
@@ -638,6 +648,18 @@ Scope {
         }
     }
 
+    // Escape steps back one level: drill view -> hub -> closed (same walk as
+    // the IPC `back`). Wired to the stage-level escCatcher, so it works in the
+    // mouse-only views too, not just the search-driven ones.
+    function escapeBack() {
+        if (mode === "expanded" && panelView !== "controls") {
+            panelView = "controls"
+        } else {
+            pinned = false
+            settle()
+        }
+    }
+
     // a pinned-expanded island left on another screen would keep swallowing that
     // screen's input — whenever THIS screen opens, everyone else folds
     function _collapseIfBystander() {
@@ -751,15 +773,14 @@ Scope {
     // air gap between the screen's top edge and the floating capsule
     readonly property real floatGap: 6
 
-    // keyboard-driven drill views (the controller-level list; the pill window
-    // derives its keyboardFocus from it)
-    readonly property var _kbViews: ["apps", "clipboard", "emoji", "wallpaper", "ask"]
-    // the Wi-Fi view grabs the keyboard only while an inline password prompt is
-    // open (set by WifiPanel) — without it the field can never receive input
+    // set by WifiPanel while its inline password prompt is open (kept as a
+    // focus-timing signal; the grab itself is now held for every expanded view)
     property bool wifiNeedsKeyboard: false
-    // single source of truth for "the pill window holds the keyboard"
+    // single source of truth for "the pill window holds the keyboard".
+    // EVERY expanded view grabs (not just the search-driven ones): the island
+    // is modal while open (scrim click-outside), and holding the keyboard is
+    // what makes Escape work universally — calendar, power, monitor included.
     readonly property bool kbGrabActive: mode === "expanded"
-        && (_kbViews.indexOf(panelView) !== -1 || (panelView === "wifi" && wifiNeedsKeyboard))
     // On Hyprland, keyboard focus comes from the hyprland-focus-grab protocol
     // (same pattern as DankModal): OnDemand + HyprlandFocusGrab engages
     // immediately on open and releases cleanly on close while the pill window
@@ -883,6 +904,16 @@ Scope {
         id: stage
         anchors.fill: parent
         readonly property real cx: width / 2
+
+        // universal Escape: with the keyboard grab held for every expanded
+        // view, a bare Escape must always land somewhere — this catcher takes
+        // focus whenever no drill search field claims it (those fields have
+        // their own Escape handlers and win while focused)
+        Item {
+            id: escCatcher
+            focus: true
+            Keys.onEscapePressed: root.escapeBack()
+        }
 
         // island body: fill + coloured outline (no elevation shadow). State
         // lives in the border: privacy capture = error, media/chip = accent,

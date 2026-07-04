@@ -158,16 +158,17 @@ Item {
         color: Theme.surfaceVariant
         // streams without a duration (radio, some browsers) get no scrubber (macOS)
         visible: island.mediaLen > 0
-        property int tick: 0
         property bool seeking: false
         property real seekFrac: 0
+        // island.mediaTick is the shared 1 s heartbeat (timestamps use it too) —
+        // no second timer for the same cadence; while seeking, shownFrac reads
+        // seekFrac so the ticking frac stays hidden anyway
         readonly property real frac: {
-            trackBar.tick
+            island.mediaTick
             const len = MprisController.activePlayerStableLength
             return (island.player && len > 0) ? Math.min(1, island.player.position / len) : 0
         }
         readonly property real shownFrac: seeking ? seekFrac : frac
-        Timer { interval: 1000; repeat: true; running: island.mode === "media" && island.playing && !trackBar.seeking; onTriggered: trackBar.tick++ }
         Rectangle {
             width: parent.width * trackBar.shownFrac; height: parent.height; radius: parent.radius
             color: island.accent

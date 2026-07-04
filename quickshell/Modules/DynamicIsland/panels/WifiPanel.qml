@@ -47,59 +47,42 @@ Column {
     }
 
     // header: back · title · radio toggle
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: backBtn
+    DrillHeader {
+        island: wifiCol.island; title: "Wi-Fi"
+        Rectangle {  // refresh: rescan networks (icon spins while scanning)
             width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: backArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: backArea.pressed ? 0.9 : 1.0
+            anchors.verticalCenter: parent.verticalCenter
+            enabled: NetworkService.wifiEnabled
+            opacity: enabled ? 1 : 0.4
+            color: refreshArea.containsMouse ? Theme.primaryHover : "transparent"
+            scale: refreshArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: backArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
-        }
-        StyledText {
-            anchors.left: backBtn.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
-            text: "Wi-Fi"; color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-        }
-        Row {
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: Theme.spacingXS
-            Rectangle {  // refresh: rescan networks (icon spins while scanning)
-                width: 30; height: 30; radius: width / 2
-                anchors.verticalCenter: parent.verticalCenter
-                enabled: NetworkService.wifiEnabled
-                opacity: enabled ? 1 : 0.4
-                color: refreshArea.containsMouse ? Theme.primaryHover : "transparent"
-                scale: refreshArea.pressed ? 0.9 : 1.0
-                Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                DankIcon {
-                    id: wifiRefreshIcon
-                    anchors.centerIn: parent; name: "refresh"; size: 18; color: island.textColor
-                    RotationAnimation on rotation {
-                        running: NetworkService.isScanning
-                        from: 0; to: 360; duration: 900; loops: Animation.Infinite
-                        onRunningChanged: if (!running) wifiRefreshIcon.rotation = 0
-                    }
-                }
-                MouseArea {
-                    id: refreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: if (NetworkService.wifiEnabled) NetworkService.scanWifiNetworks()
+            DankIcon {
+                id: wifiRefreshIcon
+                anchors.centerIn: parent; name: "refresh"; size: 18; color: island.textColor
+                RotationAnimation on rotation {
+                    running: NetworkService.isScanning
+                    from: 0; to: 360; duration: 900; loops: Animation.Infinite
+                    onRunningChanged: if (!running) wifiRefreshIcon.rotation = 0
                 }
             }
-            Rectangle {  // radio on/off pill switch
-                width: 44; height: 24; radius: 12
-                anchors.verticalCenter: parent.verticalCenter
-                color: NetworkService.wifiEnabled ? Theme.primary : Theme.surfaceLight
-                Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                Rectangle {
-                    width: 18; height: 18; radius: 9; color: NetworkService.wifiEnabled ? Theme.primaryText : island.subText
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: NetworkService.wifiEnabled ? parent.width - width - 3 : 3
-                    Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
-                }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: NetworkService.toggleWifiRadio() }
+            MouseArea {
+                id: refreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: if (NetworkService.wifiEnabled) NetworkService.scanWifiNetworks()
             }
+        }
+        Rectangle {  // radio on/off pill switch
+            width: 44; height: 24; radius: 12
+            anchors.verticalCenter: parent.verticalCenter
+            color: NetworkService.wifiEnabled ? Theme.primary : Theme.surfaceLight
+            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+            Rectangle {
+                width: 18; height: 18; radius: 9; color: NetworkService.wifiEnabled ? Theme.primaryText : island.subText
+                anchors.verticalCenter: parent.verticalCenter
+                x: NetworkService.wifiEnabled ? parent.width - width - 3 : 3
+                Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
+            }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: NetworkService.toggleWifiRadio() }
         }
     }
 

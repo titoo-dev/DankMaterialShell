@@ -23,20 +23,7 @@ Column {
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
     // header: back + title
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: pwBack
-            width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: pwBackArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: pwBackArea.pressed ? 0.9 : 1.0
-            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: pwBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
-        }
-        StyledText { anchors.left: pwBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Power"); color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true }
-    }
+    DrillHeader { island: powerCol.island; title: I18n.tr("Power") }
 
     // two prominent tiles (Lock / Sleep) then a row of destructive actions
     Row {

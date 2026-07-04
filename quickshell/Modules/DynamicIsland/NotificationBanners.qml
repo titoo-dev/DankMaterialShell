@@ -147,18 +147,12 @@ import qs.Widgets
                         }
                         property real swipe: 0
                         Behavior on swipe { enabled: !bArea.dragging; NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+                        // coloured outline carries the state (island language, no
+                        // elevation): error ring when critical, neutral hairline
+                        // otherwise — and no per-card MultiEffect FBO
                         color: island.islandColor
                         border.width: crit ? 1.5 : 1
-                        border.color: crit ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.22)
-
-                        layer.enabled: true
-                        layer.effect: MultiEffect {
-                            shadowEnabled: true
-                            shadowColor: bCard.crit ? Theme.error : "#000000"
-                            shadowBlur: bCard.crit ? 1.0 : 0.7
-                            shadowVerticalOffset: 3
-                            shadowOpacity: bCard.crit ? 0.5 : 0.32
-                        }
+                        border.color: crit ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
                         Rectangle {  // glass material
                             anchors.fill: parent; radius: parent.radius; color: "transparent"
                             gradient: Gradient {

@@ -50,25 +50,11 @@ Column {
     }
 
     // header: back · title
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: pvBack
-            width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: pvBackArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: pvBackArea.pressed ? 0.9 : 1.0
-            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: pvBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
-        }
-        StyledText {
-            anchors.left: pvBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
-            text: I18n.tr("Privacy"); color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-        }
+    DrillHeader {
+        island: privCol.island; title: I18n.tr("Privacy")
         // live status chip mirroring the satellite's pulse
         Rectangle {
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenter: parent.verticalCenter
             visible: privCol.captures.length > 0
             width: pvLive.implicitWidth + Theme.spacingM; height: 24; radius: 12
             color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.15)

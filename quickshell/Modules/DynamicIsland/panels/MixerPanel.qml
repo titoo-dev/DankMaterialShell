@@ -23,23 +23,7 @@ Column {
     PwObjectTracker { objects: mixCol.streams }
 
     // header: back · title
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: mxBack
-            width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: mxBackArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: mxBackArea.pressed ? 0.9 : 1.0
-            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: mxBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
-        }
-        StyledText {
-            anchors.left: mxBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
-            text: I18n.tr("Volume Mixer"); color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-        }
-    }
+    DrillHeader { island: mixCol.island; title: I18n.tr("Volume Mixer") }
 
     // one card per playback stream — adaptive height, capped
     Flickable {

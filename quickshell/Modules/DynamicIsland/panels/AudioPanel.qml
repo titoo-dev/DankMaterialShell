@@ -14,20 +14,7 @@ Column {
     transform: Translate { x: island.panelView === "audio" ? 0 : 24; Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Easing.OutQuad } } }
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: auBack
-            width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: auBackArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: auBackArea.pressed ? 0.9 : 1.0
-            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: auBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
-        }
-        StyledText { anchors.left: auBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Output"); color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true }
-    }
+    DrillHeader { island: audioCol.island; title: I18n.tr("Output") }
 
     Flickable {
         width: parent.width; height: Math.min(auList.height, 240); clip: true

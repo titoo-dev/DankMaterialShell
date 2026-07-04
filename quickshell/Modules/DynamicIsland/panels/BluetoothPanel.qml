@@ -55,64 +55,49 @@ Column {
         })
     }
 
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: btBack
+    // restart discovery to refresh the device list (icon spins while scanning)
+    Timer { id: btRescanTimer; interval: 250; onTriggered: if (BluetoothService.adapter && BluetoothService.enabled) BluetoothService.adapter.discovering = true }
+
+    DrillHeader {
+        island: btCol.island; title: "Bluetooth"
+        Rectangle {  // refresh: re-scan for devices
             width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: btBackArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: btBackArea.pressed ? 0.9 : 1.0
+            anchors.verticalCenter: parent.verticalCenter
+            enabled: BluetoothService.enabled
+            opacity: enabled ? 1 : 0.4
+            color: btRefreshArea.containsMouse ? Theme.primaryHover : "transparent"
+            scale: btRefreshArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: btBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { island.panelView = "controls"; if (BluetoothService.adapter) BluetoothService.adapter.discovering = false } }
+            DankIcon {
+                id: btRefreshIcon
+                anchors.centerIn: parent; name: "refresh"; size: 18; color: island.textColor
+                RotationAnimation on rotation {
+                    running: BluetoothService.discovering
+                    from: 0; to: 360; duration: 900; loops: Animation.Infinite
+                    onRunningChanged: if (!running) btRefreshIcon.rotation = 0
+                }
+            }
+            MouseArea {
+                id: btRefreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (!BluetoothService.adapter || !BluetoothService.enabled) return
+                    BluetoothService.adapter.discovering = false   // restart for a fresh sweep
+                    btRescanTimer.restart()
+                }
+            }
         }
-        StyledText { anchors.left: btBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter; text: "Bluetooth"; color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true }
-
-        // restart discovery to refresh the device list (icon spins while scanning)
-        Timer { id: btRescanTimer; interval: 250; onTriggered: if (BluetoothService.adapter && BluetoothService.enabled) BluetoothService.adapter.discovering = true }
-
-        Row {
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: Theme.spacingXS
-            Rectangle {  // refresh: re-scan for devices
-                width: 30; height: 30; radius: width / 2
+        Rectangle {  // radio on/off pill switch
+            anchors.verticalCenter: parent.verticalCenter
+            width: 44; height: 24; radius: 12
+            color: BluetoothService.enabled ? Theme.primary : Theme.surfaceLight
+            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+            Rectangle {
+                width: 18; height: 18; radius: 9; color: BluetoothService.enabled ? Theme.primaryText : island.subText
                 anchors.verticalCenter: parent.verticalCenter
-                enabled: BluetoothService.enabled
-                opacity: enabled ? 1 : 0.4
-                color: btRefreshArea.containsMouse ? Theme.primaryHover : "transparent"
-                scale: btRefreshArea.pressed ? 0.9 : 1.0
-                Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                DankIcon {
-                    id: btRefreshIcon
-                    anchors.centerIn: parent; name: "refresh"; size: 18; color: island.textColor
-                    RotationAnimation on rotation {
-                        running: BluetoothService.discovering
-                        from: 0; to: 360; duration: 900; loops: Animation.Infinite
-                        onRunningChanged: if (!running) btRefreshIcon.rotation = 0
-                    }
-                }
-                MouseArea {
-                    id: btRefreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (!BluetoothService.adapter || !BluetoothService.enabled) return
-                        BluetoothService.adapter.discovering = false   // restart for a fresh sweep
-                        btRescanTimer.restart()
-                    }
-                }
+                x: BluetoothService.enabled ? parent.width - width - 3 : 3
+                Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
             }
-            Rectangle {  // radio on/off pill switch
-                anchors.verticalCenter: parent.verticalCenter
-                width: 44; height: 24; radius: 12
-                color: BluetoothService.enabled ? Theme.primary : Theme.surfaceLight
-                Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                Rectangle {
-                    width: 18; height: 18; radius: 9; color: BluetoothService.enabled ? Theme.primaryText : island.subText
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: BluetoothService.enabled ? parent.width - width - 3 : 3
-                    Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
-                }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (BluetoothService.adapter) BluetoothService.adapter.enabled = !BluetoothService.enabled } }
-            }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (BluetoothService.adapter) BluetoothService.adapter.enabled = !BluetoothService.enabled } }
         }
     }
 

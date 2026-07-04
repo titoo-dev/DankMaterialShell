@@ -54,24 +54,9 @@ Column {
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
 
     // header: back · title · today
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: cBack
-            width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: cBackArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: cBackArea.pressed ? 0.9 : 1.0
-            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: cBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
-        }
-        StyledText {
-            anchors.left: cBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
-            text: I18n.tr("Calendar"); color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
-        }
+    DrillHeader {
+        island: calCol.island; title: I18n.tr("Calendar")
         Rectangle {  // jump back to today
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             width: todayLbl.implicitWidth + Theme.spacingM; height: 28; radius: 14
             color: todayArea.containsMouse ? Theme.primary : Theme.surfaceLight
             Behavior on color { ColorAnimation { duration: Theme.shortDuration } }

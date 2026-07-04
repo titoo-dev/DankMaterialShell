@@ -34,21 +34,10 @@ Column {
     }
 
     // header: back + title, with live uptime on the right
-    Item {
-        width: parent.width; height: 34
-        Rectangle {
-            id: monBack
-            width: 30; height: 30; radius: width / 2
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            color: monBackArea.containsMouse ? Theme.primaryHover : "transparent"
-            scale: monBackArea.pressed ? 0.9 : 1.0
-            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: monBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
-        }
-        StyledText { anchors.left: monBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("System"); color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true }
+    DrillHeader {
+        island: monCol.island; title: I18n.tr("System")
         StyledText {
-            anchors.right: parent.right; anchors.rightMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenter: parent.verticalCenter
             text: DgopService.shortUptime ? ("↑ " + DgopService.shortUptime) : ""
             color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1
         }
