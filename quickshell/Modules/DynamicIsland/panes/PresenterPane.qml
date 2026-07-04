@@ -9,7 +9,7 @@ import qs.Widgets
 Item {
     id: presenterPane
     property var island: null
-    width: 320 - Theme.spacingL * 2
+    width: (island ? island.presenterW : 320) - Theme.spacingL * 2
     height: parent.height
     anchors.centerIn: parent
     opacity: island.mode === "presenter" ? 1 : 0

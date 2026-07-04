@@ -41,13 +41,28 @@ Row {
         Shape {  // progress
             anchors.fill: parent; antialiasing: true
             visible: island.mediaLen > 0
+            // ease the once-a-second position ticks, but SNAP on any rewind
+            // (track change, seek back) — easing a shrinking sweep plays the
+            // whole ring backwards for 900 ms
+            NumberAnimation { id: chipArcAnim; target: chipArc; property: "sweepAngle"; duration: 900; easing.type: Easing.OutSine }
             ShapePath {
                 strokeWidth: 2; capStyle: ShapePath.RoundCap; fillColor: "transparent"
                 strokeColor: island.accent
                 PathAngleArc {
+                    id: chipArc
                     centerX: 14; centerY: 14; radiusX: 12.5; radiusY: 12.5
-                    startAngle: -90; sweepAngle: 360 * island.mediaFrac
-                    Behavior on sweepAngle { NumberAnimation { duration: 900; easing.type: Easing.OutSine } }
+                    startAngle: -90
+                    readonly property real target: 360 * island.mediaFrac
+                    onTargetChanged: {
+                        chipArcAnim.stop()
+                        if (target < sweepAngle) {
+                            sweepAngle = target
+                        } else {
+                            chipArcAnim.to = target
+                            chipArcAnim.start()
+                        }
+                    }
+                    Component.onCompleted: sweepAngle = target
                 }
             }
         }

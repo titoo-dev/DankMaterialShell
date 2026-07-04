@@ -199,12 +199,24 @@ Column {
                         }
                         DankTextField {
                             id: pwField
-                            width: parent.width - 40
+                            width: parent.width - 80
                             height: 30
-                            echoMode: TextInput.Password
+                            property bool reveal: false
+                            echoMode: reveal ? TextInput.Normal : TextInput.Password
                             placeholderText: I18n.tr("Password")
                             leftIconName: "lock"
                             onAccepted: parent.submit()
+                            onVisibleChanged: if (!visible) reveal = false
+                        }
+                        Rectangle {  // reveal toggle
+                            width: 32; height: 30; radius: height / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: pwField.reveal ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16) : (revealArea.containsMouse ? Theme.surfaceLight : Theme.surfaceVariant)
+                            DankIcon { anchors.centerIn: parent; name: pwField.reveal ? "visibility_off" : "visibility"; size: 16; color: pwField.reveal ? Theme.primary : island.textColor }
+                            MouseArea {
+                                id: revealArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: pwField.reveal = !pwField.reveal
+                            }
                         }
                         Rectangle {
                             width: 32; height: 30; radius: height / 2

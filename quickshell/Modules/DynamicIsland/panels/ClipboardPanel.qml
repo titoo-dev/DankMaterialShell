@@ -9,6 +9,9 @@ import qs.Widgets
 Column {
     id: clipCol
     property var island: null
+    // hold the service watch while the view exists — with refCount at 0 the
+    // daemon connection is gated off and the list goes stale
+    readonly property QtObject _clipRef: Ref { service: ClipboardService }
     readonly property var entries: {
         const all = ClipboardService.clipboardEntries || []
         const q = clipSearch.text.toLowerCase().trim()

@@ -209,7 +209,7 @@ Column {
                         anchors.right: avAdd.left; anchors.rightMargin: Theme.spacingS
                         anchors.verticalCenter: parent.verticalCenter; spacing: 0
                         StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: modelData.name || modelData.deviceName || I18n.tr("Unknown Device"); color: island.textColor; font.pixelSize: Theme.fontSizeSmall }
-                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: parent.parent.isPairing ? I18n.tr("Pairing…") : (modelData.signalStrength > 0 ? (I18n.tr("Tap to pair") + "  •  " + modelData.signalStrength + "%") : I18n.tr("Tap to pair")); color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2 }
+                        StyledText { width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; text: parent.parent.isPairing ? I18n.tr("Pairing…") : (modelData.signalStrength > 0 ? (I18n.tr("Click to pair") + "  •  " + modelData.signalStrength + "%") : I18n.tr("Click to pair")); color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2 }
                     }
                     // add / spinner affordance
                     DankIcon {

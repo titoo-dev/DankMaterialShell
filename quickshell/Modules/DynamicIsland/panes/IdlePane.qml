@@ -270,7 +270,7 @@ Item {
         Row {
             spacing: 4; visible: island.batAvailable; anchors.verticalCenter: parent.verticalCenter
             DankIcon {
-                name: island.charging ? "battery_charging_full" : "battery_full"
+                name: Theme.getBatteryIcon(island.batPct, island.charging, island.batAvailable)
                 size: Theme.iconSize - 5
                 color: island.charging ? Theme.primary : island.subText
                 anchors.verticalCenter: parent.verticalCenter

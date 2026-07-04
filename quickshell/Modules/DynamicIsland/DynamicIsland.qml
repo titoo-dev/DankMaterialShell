@@ -385,11 +385,18 @@ Scope {
             // $1 = text, $2 = target window address captured BEFORE the island
             // opened (may be empty → fall back to whatever is active now)
             Quickshell.execDetached(["sh", "-c",
-                "a=\"$2\"; "
-                + "if [ -z \"$a\" ]; then a=$(hyprctl activewindow | awk 'NR==1{print $2}'); fi; "
-                + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; "
+                // hyprctl exists only under Hyprland (stock OR the lua fork, whose
+                // dispatch grammar differs) — try both forms, and skip the whole
+                // focus/introspection block on other compositors (niri: focus
+                // returns to the previous window by itself once the grab drops).
+                "hypr=0; command -v hyprctl >/dev/null 2>&1 && [ -n \"$HYPRLAND_INSTANCE_SIGNATURE\" ] && hypr=1; "
+                + "a=\"$2\"; "
+                + "if [ \"$hypr\" = \"1\" ]; then "
+                +   "if [ -z \"$a\" ]; then a=$(hyprctl activewindow | awk 'NR==1{print $2}'); fi; "
+                +   "[ -n \"$a\" ] && { hyprctl dispatch focuswindow \"address:0x${a#0x}\" >/dev/null 2>&1 || hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; }; "
+                + "fi; "
                 + "sleep 0.12; "
-                + "info=$([ -n \"$a\" ] && hyprctl clients | grep -A 30 \"Window $a \"); "
+                + "info=$([ \"$hypr\" = \"1\" ] && [ -n \"$a\" ] && hyprctl clients | grep -A 30 \"Window $a \"); "
                 + "xwl=0; printf %s \"$info\" | grep -m1 -q 'xwayland: 1' && xwl=1; "
                 + "cls=$(printf %s \"$info\" | grep -m1 'class:' | awk '{print $2}'); "
                 + "isterm=0; printf %s \"$cls\" | grep -qiE 'ghostty|kitty|foot|alacritty|wezterm|konsole|xterm|urxvt|tilix|terminal' && isterm=1; "
@@ -631,11 +638,24 @@ Scope {
         }
     }
 
+    // a pinned-expanded island left on another screen would keep swallowing that
+    // screen's input — whenever THIS screen opens, everyone else folds
+    function _collapseIfBystander() {
+        if (isFocusedScreen)
+            return false
+        if (pinned || mode === "expanded") {
+            pinned = false
+            panelView = "controls"
+            settle()
+        }
+        return true
+    }
+
     // Super+I (via `dms ipc call island toggle`) -> expand/collapse focused island
     Connections {
         target: IslandHub
         function onToggleRequested() {
-            if (!root.isFocusedScreen)
+            if (root._collapseIfBystander())
                 return
             if (root.mode === "expanded" && root.pinned) {
                 root.pinned = false
@@ -647,15 +667,14 @@ Scope {
         }
         // expand always opens (idempotent), unlike toggle
         function onExpandRequested() {
-            if (!root.isFocusedScreen)
+            if (root._collapseIfBystander())
                 return
             root.pinned = true
             root.mode = "expanded"
         }
-        // collapse the island no matter what it is showing
+        // collapse EVERY island, not just the focused one — `island close` must
+        // never leave a pinned island behind on another screen
         function onCloseRequested() {
-            if (!root.isFocusedScreen)
-                return
             root.pinned = false
             root.panelView = "controls"
             root.settle()
@@ -674,7 +693,7 @@ Scope {
         // open straight to a drill view (e.g. Super+Space -> Spotlight); pressing
         // the same bind again while it's showing toggles the island shut
         function onOpenViewRequested(view) {
-            if (!root.isFocusedScreen)
+            if (root._collapseIfBystander())
                 return
             if (root.mode === "expanded" && root.panelView === view && root.pinned) {
                 root.pinned = false
@@ -693,6 +712,9 @@ Scope {
 
     // ---------- target geometry per mode ----------
     readonly property real screenW: modelData?.width ?? 1920
+    // presenter pill width, shared with PresenterPane (fixed so the level bar
+    // keeps its proportion while the pane fades)
+    readonly property real presenterW: 320
     readonly property real pillW: {
         switch (mode) {
         case "chip":      return 220
@@ -707,7 +729,7 @@ Scope {
             const need = idlePane.wsWidth + idlePane.clusterWidth + 90 + Theme.spacingL * 2 + Theme.spacingM * 2
             return Math.max(480, Math.min(need, screenW - 40))
         }
-        case "presenter": return 320
+        case "presenter": return presenterW
         case "activity":  return Math.max(220, Math.min(activityPane.contentWidth + Theme.spacingL * 2, screenW - 40))
         default:          return Math.max(92, compactPane.contentWidth + Theme.spacingL * 2)  // compact
         }

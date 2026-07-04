@@ -17,8 +17,10 @@ Column {
     property int selDay: new Date().getDate()
     // JS weekday (0=Sun..6=Sat) the user's locale starts its week on
     readonly property int firstDowJs: Qt.locale().firstDayOfWeek % 7
-    // bump to force event lookups to re-read after CalendarService updates
-    property int eventsRev: CalendarService.eventsByDate ? Object.keys(CalendarService.eventsByDate).length : 0
+    // dependency handle forcing event lookups to re-read after CalendarService
+    // updates — the service REASSIGNS eventsByDate wholesale, so binding the
+    // object identity is exact (a key count would miss same-size updates)
+    readonly property var eventsRev: CalendarService.eventsByDate
 
     function todayDate() { return new Date() }
     function cellDate(i) {

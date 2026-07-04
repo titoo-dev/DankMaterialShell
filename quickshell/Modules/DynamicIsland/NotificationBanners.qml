@@ -53,10 +53,16 @@ import qs.Widgets
             readonly property real gap: 10
             readonly property real peek: 9   // visible sliver per stacked card when collapsed
 
-            // measured card heights (index -> px), to lay the spread out without a flow layout
+            // measured card heights (group key -> px), to lay the spread out without
+            // a flow layout — keyed by group so a mid-deck dismissal can't shift
+            // heights onto the wrong card
             property var hmap: ({})
-            function setH(i, h) { var m = hmap; m[i] = h; hmap = m }
-            function cardH(i) { return (hmap[i] !== undefined && hmap[i] > 0) ? hmap[i] : 104 }
+            function setH(key, h) { var m = hmap; m[key] = h; hmap = m }
+            function cardH(i) {
+                const g = items[i]
+                const h = g ? hmap[g.key] : undefined
+                return (h !== undefined && h > 0) ? h : 104
+            }
 
             readonly property real expandedH: { var s = 0; for (var i = 0; i < n; i++) s += cardH(i); return s + Math.max(0, n - 1) * gap }
             readonly property real collapsedH: cardH(n - 1) + Math.min(n - 1, 2) * peek
@@ -93,12 +99,8 @@ import qs.Widgets
                     z: 100 - r
                     transformOrigin: Item.Top
 
-                    onHeightChanged: bannerArea.setH(index, height)
-                    Component.onCompleted: bannerArea.setH(index, height)
-                    // indices shift when a middle card is dismissed — re-publish
-                    // this card's height under its new rank
-                    readonly property int idx: index
-                    onIdxChanged: bannerArea.setH(idx, height)
+                    onHeightChanged: if (modelData) bannerArea.setH(modelData.key, height)
+                    Component.onCompleted: if (modelData) bannerArea.setH(modelData.key, height)
 
                     // ---- placement: spread vs collapsed deck ----
                     readonly property real spreadY: {
