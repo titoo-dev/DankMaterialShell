@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
@@ -12,7 +11,7 @@ import qs.Widgets
 import "panes"
 
 // Dynamic Island "style" for DankMaterialShell — a floating capsule detached
-// from the screen edge (air gap + soft elevation shadow), full pill radius at
+// from the screen edge (air gap + coloured state outline), full pill radius at
 // rest. Inherits all DMS features (Theme, services, menus). Compact at rest so
 // it stays out of the way; springy, modern morph between states.
 //
@@ -863,32 +862,11 @@ Scope {
         anchors.fill: parent
         readonly property real cx: width / 2
 
-        // album-art ambient glow: a heavily-blurred copy of the cover art behind the
-        // pill → a soft color bloom in the album's real colors (Apple Music vibe).
-        // GPU-only, no colour extraction. Sits OUTSIDE the input mask (passthrough).
-        Item {
-            id: artGlow
-            anchors.centerIn: pill
-            width: pill.width + 56
-            height: pill.height + 56
-            opacity: (!root.pillSuppressed && root.player && root.player.trackArtUrl && (root.mode === "media" || root.mode === "chip")) ? 0.45 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.mediumDuration } }
-            layer.enabled: true
-            layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 64; autoPaddingEnabled: true }
-            Image {
-                anchors.fill: parent
-                source: root.player ? (root.player.trackArtUrl ?? "") : ""
-                fillMode: Image.PreserveAspectCrop
-                visible: status === Image.Ready
-                cache: true; asynchronous: true
-            }
-        }
-
-        // island body: fill + hairline border + floating elevation shadow.
-        // A plain GPU Rectangle sitting behind the pill (the transparent,
-        // clipped content host), mirroring its geometry/transforms so they
-        // morph in lockstep.
+        // island body: fill + coloured outline (no elevation shadow). State
+        // lives in the border: privacy capture = error, media/chip = accent,
+        // otherwise a neutral hairline. A plain GPU Rectangle sitting behind
+        // the pill (the transparent, clipped content host), mirroring its
+        // geometry/transforms so they morph in lockstep.
         Rectangle {
             id: islandBody
             x: pill.x
@@ -897,10 +875,12 @@ Scope {
             height: pill.height
             radius: pill.radius
             color: root.islandColor
-            border.width: pill.alertBorder ? 1.5 : 1
+            border.width: (pill.alertBorder || root.glowActive) ? 1.5 : 1
             border.color: pill.alertBorder
                 ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7)
-                : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.18)
+                : root.glowActive
+                    ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.65)
+                    : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, root.mode === "expanded" ? 0.30 : 0.22)
             Behavior on border.color { ColorAnimation { duration: Theme.mediumDuration } }
             antialiasing: true
             visible: pill.visible
@@ -909,20 +889,6 @@ Scope {
             transform: Scale {
                 origin.x: islandBody.width / 2; origin.y: islandBody.height / 2
                 xScale: pill.squashX; yScale: pill.squashY
-            }
-            // soft diffuse shadow selling the float — deepens while expanded
-            // (higher elevation), morphs into an accent glow during media/chip
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: root.glowActive ? root.accent : "#000000"
-                shadowBlur: 1.0
-                shadowVerticalOffset: root.glowActive ? 0 : (root.mode === "expanded" ? 8 : 5)
-                shadowScale: root.glowActive ? 1.04 : 1.0
-                shadowOpacity: root.glowActive ? 0.55 : (root.mode === "expanded" ? 0.42 : 0.32)
-                Behavior on shadowColor { ColorAnimation { duration: Theme.mediumDuration } }
-                Behavior on shadowOpacity { NumberAnimation { duration: Theme.mediumDuration } }
-                Behavior on shadowVerticalOffset { NumberAnimation { duration: Theme.mediumDuration } }
             }
         }
 
@@ -984,11 +950,6 @@ Scope {
             scale: 0.5 + 0.5 * Math.max(0, out)
             opacity: Math.max(0, Math.min(1, out)) * pill.opacity
             visible: out > 0.02 && pill.visible
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                shadowEnabled: true; shadowColor: "#000000"
-                shadowBlur: 0.8; shadowVerticalOffset: 3; shadowOpacity: 0.4
-            }
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
