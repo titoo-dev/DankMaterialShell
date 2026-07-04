@@ -32,11 +32,13 @@ Singleton {
         root.totalMs = m * 60000;
         root.endTime = Date.now() + root.totalMs;
         root.label = (label && label.length > 0) ? label : I18n.tr("Timer");
+        SessionData.setIslandTimer(root.endTime, root.totalMs, root.label);
         ActivityService.start("timer", root.label + "  " + _fmt(root.totalMs), "timer");
         tick.restart();
     }
     function cancel() {
         root.endTime = 0;
+        SessionData.setIslandTimer(0, 0, "");
         ActivityService.stop("timer");
     }
     // toggle: start a timer if none is running, otherwise cancel the running one
@@ -48,6 +50,7 @@ Singleton {
     }
     function _finish() {
         root.endTime = 0;
+        SessionData.setIslandTimer(0, 0, "");
         ActivityService.done("timer", "⏰ " + root.label);
         if (AudioService.criticalNotificationSound) {
             AudioService.criticalNotificationSound.stop();
@@ -61,8 +64,28 @@ Singleton {
         target: ActivityService
         function onActivityDismissed(id) {
             if (id === "timer")
-                root.endTime = 0;
+                root.cancel();
         }
+    }
+
+    // a countdown persisted by a previous shell instance picks up where it
+    // left off (SessionData loads its file async — wait for it)
+    readonly property bool sessionLoaded: SessionData._hasLoaded
+    onSessionLoadedChanged: if (sessionLoaded) _rehydrate()
+    Component.onCompleted: if (sessionLoaded) _rehydrate()
+    function _rehydrate() {
+        if (root.active || SessionData.islandTimerEnd <= 0)
+            return;
+        if (SessionData.islandTimerEnd <= Date.now()) {   // rang while the shell was down
+            SessionData.setIslandTimer(0, 0, "");
+            return;
+        }
+        root.totalMs = SessionData.islandTimerTotal > 0 ? SessionData.islandTimerTotal
+                                                        : SessionData.islandTimerEnd - Date.now();
+        root.endTime = SessionData.islandTimerEnd;
+        root.label = SessionData.islandTimerLabel.length > 0 ? SessionData.islandTimerLabel : I18n.tr("Timer");
+        ActivityService.start("timer", root.label, "timer");
+        tick.restart();
     }
 
     Timer {

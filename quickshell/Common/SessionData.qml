@@ -105,6 +105,17 @@ Singleton {
         }
     }
 
+    // island Pomodoro (TimerService) — a running countdown survives shell restarts
+    property real islandTimerEnd: 0
+    property real islandTimerTotal: 0
+    property string islandTimerLabel: ""
+    function setIslandTimer(endMs, totalMs, label) {
+        islandTimerEnd = endMs;
+        islandTimerTotal = totalMs;
+        islandTimerLabel = label;
+        saveSettings();
+    }
+
     property string wallpaperPath: ""
     property bool perMonitorWallpaper: false
     property var monitorWallpapers: ({})

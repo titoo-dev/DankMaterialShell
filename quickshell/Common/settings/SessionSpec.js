@@ -96,7 +96,11 @@ var SPEC = {
     niriOverviewLastMode: { def: "apps" },
 
     settingsSidebarExpandedIds: { def: "," },
-    settingsSidebarCollapsedIds: { def: "," }
+    settingsSidebarCollapsedIds: { def: "," },
+
+    islandTimerEnd: { def: 0 },
+    islandTimerTotal: { def: 0 },
+    islandTimerLabel: { def: "" }
 };
 
 function getValidKeys() {

@@ -321,6 +321,9 @@ Scope {
     // activity); reading a prop instantiates the lazy singleton
     readonly property bool _agendaCountdownAlive: CalendarCountdownService.enabled
     readonly property bool _recTimerAlive: RecordingTimerService.enabled
+    // instantiate TimerService at startup so a persisted countdown rehydrates
+    // without waiting for the first IPC call
+    readonly property bool _timerAlive: TimerService.active
 
     // severe-weather alert pop (WMO wCode entering a severe set)
     property int _lastWeatherAlertCode: 0
