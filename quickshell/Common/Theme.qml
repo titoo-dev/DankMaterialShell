@@ -462,7 +462,7 @@ Singleton {
                 "surfaceContainer": getMatugenColor("surface_container", "#1e2023"),
                 "surfaceContainerHigh": getMatugenColor("surface_container_high", "#292b2f"),
                 "surfaceContainerHighest": getMatugenColor("surface_container_highest", "#343740"),
-                "error": "#F2B8B5",
+                "error": getMatugenColor("error", isLightMode ? "#B3261E" : "#F2B8B5"),
                 "warning": "#FF9800",
                 "info": "#2196F3",
                 "success": "#4CAF50"
