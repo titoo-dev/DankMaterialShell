@@ -40,7 +40,6 @@ var SPEC = {
     padHours12Hour: { def: false },
     dynamicIslandEnabled: { def: true },
     dynamicIslandBlur: { def: false },
-    dynamicIslandNotchMode: { def: false },
     dynamicIslandHideOnFullscreen: { def: true },
     dynamicIslandTailscale: { def: true },
     taildropReceive: { def: true },

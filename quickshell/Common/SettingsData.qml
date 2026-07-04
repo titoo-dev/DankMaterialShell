@@ -184,7 +184,6 @@ Singleton {
     property bool padHours12Hour: false
     property bool dynamicIslandEnabled: true
     property bool dynamicIslandBlur: false
-    property bool dynamicIslandNotchMode: false
     property bool dynamicIslandHideOnFullscreen: true
     property bool dynamicIslandTailscale: true
     property bool taildropReceive: true

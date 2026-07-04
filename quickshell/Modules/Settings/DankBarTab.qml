@@ -234,15 +234,6 @@ Item {
 
                 DankToggle {
                     width: parent.width
-                    text: I18n.tr("Notch mode")
-                    description: I18n.tr("Dock the island flush to the top edge with squared top corners, like a MacBook notch.")
-                    enabled: SettingsData.dynamicIslandEnabled
-                    checked: SettingsData.dynamicIslandNotchMode
-                    onToggled: SettingsData.set("dynamicIslandNotchMode", checked)
-                }
-
-                DankToggle {
-                    width: parent.width
                     text: I18n.tr("Hide on fullscreen")
                     description: I18n.tr("Hide the island on a monitor while it shows a fullscreen window (movies, focus). Volume/brightness OSD and notification banners still appear.")
                     enabled: SettingsData.dynamicIslandEnabled

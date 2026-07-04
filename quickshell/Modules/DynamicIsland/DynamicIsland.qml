@@ -11,9 +11,10 @@ import qs.Services
 import qs.Widgets
 import "panes"
 
-// Dynamic Island "style" for DankMaterialShell — minimalist rounded-rectangle.
-// Inherits all DMS features (Theme, services, menus). Compact at rest so it
-// stays out of the way; springy, modern morph between states.
+// Dynamic Island "style" for DankMaterialShell — a floating capsule detached
+// from the screen edge (air gap + soft elevation shadow), full pill radius at
+// rest. Inherits all DMS features (Theme, services, menus). Compact at rest so
+// it stays out of the way; springy, modern morph between states.
 //
 // One Scope per monitor owning FOUR independent layer surfaces (pill strip,
 // banners, scrim, edge glow) instead of one permanent full-screen overlay —
@@ -723,11 +724,11 @@ Scope {
         default:          return 28   // compact
         }
     }
-    readonly property real pillRadius: (mode === "compact" || mode === "chip" || mode === "activity") ? 12 : 22
-    // notch mode: flush to the top edge, only the bottom corners round (MacBook look)
-    readonly property bool notchMode: SettingsData.dynamicIslandNotchMode
-    // radius of the concave flare where the notch meets the screen's top edge
-    readonly property real notchCornerR: 13
+    // full capsule at rest (radius = half the height); a soft fixed radius when
+    // expanded so list content isn't hugged by the corner curves
+    readonly property real pillRadius: mode === "expanded" ? 28 : pillH / 2
+    // air gap between the screen's top edge and the floating capsule
+    readonly property real floatGap: 6
 
     // keyboard-driven drill views (the controller-level list; the pill window
     // derives its keyboardFocus from it)
@@ -884,46 +885,44 @@ Scope {
             }
         }
 
-        // unified island body: fill + border + glow drawn as ONE silhouette so
-        // every effect traces the true shape (incl. the concave macOS notch
-        // flares), instead of the rectangular content host. Sits behind the
-        // pill, mirroring its geometry/transforms so they morph in lockstep.
-        readonly property real notchFlare: root.notchMode ? root.notchCornerR : 0
-        NotchVisual {
-            id: notchVisual
-            notchMode: root.notchMode
-            flare: root.notchCornerR
-            cornerRadius: pill.radius
-            x: pill.x - stage.notchFlare
+        // island body: fill + hairline border + floating elevation shadow.
+        // A plain GPU Rectangle sitting behind the pill (the transparent,
+        // clipped content host), mirroring its geometry/transforms so they
+        // morph in lockstep.
+        Rectangle {
+            id: islandBody
+            x: pill.x
             y: pill.y
-            width: pill.width + stage.notchFlare * 2
+            width: pill.width
             height: pill.height
-            fillColor: root.islandColor
-            strokeWidth: pill.alertBorder ? 1.5 : 1
-            strokeColor: pill.alertBorder
+            radius: pill.radius
+            color: root.islandColor
+            border.width: pill.alertBorder ? 1.5 : 1
+            border.color: pill.alertBorder
                 ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7)
-                : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.22)
-            Behavior on strokeColor { ColorAnimation { duration: Theme.mediumDuration } }
+                : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.18)
+            Behavior on border.color { ColorAnimation { duration: Theme.mediumDuration } }
             antialiasing: true
             visible: pill.visible
             opacity: pill.opacity
             scale: pill.scale
             transform: Scale {
-                origin.x: notchVisual.width / 2; origin.y: notchVisual.height / 2
+                origin.x: islandBody.width / 2; origin.y: islandBody.height / 2
                 xScale: pill.squashX; yScale: pill.squashY
             }
-            // dark elevation shadow, morphing into an accent glow during
-            // media/chip/notif — now cast by the real notch silhouette
+            // soft diffuse shadow selling the float — deepens while expanded
+            // (higher elevation), morphs into an accent glow during media/chip
             layer.enabled: true
             layer.effect: MultiEffect {
                 shadowEnabled: true
                 shadowColor: root.glowActive ? root.accent : "#000000"
-                shadowBlur: root.glowActive ? 1.0 : 0.8
-                shadowVerticalOffset: root.glowActive ? 0 : 4
+                shadowBlur: 1.0
+                shadowVerticalOffset: root.glowActive ? 0 : (root.mode === "expanded" ? 8 : 5)
                 shadowScale: root.glowActive ? 1.04 : 1.0
-                shadowOpacity: root.glowActive ? 0.55 : 0.4
+                shadowOpacity: root.glowActive ? 0.55 : (root.mode === "expanded" ? 0.42 : 0.32)
                 Behavior on shadowColor { ColorAnimation { duration: Theme.mediumDuration } }
                 Behavior on shadowOpacity { NumberAnimation { duration: Theme.mediumDuration } }
+                Behavior on shadowVerticalOffset { NumberAnimation { duration: Theme.mediumDuration } }
             }
         }
 
@@ -1031,7 +1030,7 @@ Scope {
         Rectangle {
             id: pill
             x: stage.cx - width / 2
-            y: root.notchMode ? 0 : 4
+            y: root.floatGap
             width: root.pillW
             height: root.pillH
             radius: root.pillRadius
@@ -1083,22 +1082,18 @@ Scope {
                 }
             }
 
-            // glass material: bright specular rim along the top edge + a soft
-            // inner shadow at the bottom → "floating glass" depth (macOS vibrancy)
+            // glass material: a whisper of specular light along the top edge +
+            // a soft inner shadow at the bottom → "floating glass" depth
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
                 radius: pill.radius
-                topLeftRadius: root.notchMode ? 0 : pill.radius
-                topRightRadius: root.notchMode ? 0 : pill.radius
-                bottomLeftRadius: pill.radius
-                bottomRightRadius: pill.radius
                 z: 0
                 gradient: Gradient {
-                    GradientStop { position: 0.0;  color: Qt.rgba(1, 1, 1, root.notchMode ? 0.05 : 0.11) }
+                    GradientStop { position: 0.0;  color: Qt.rgba(1, 1, 1, 0.09) }
                     GradientStop { position: 0.10; color: Qt.rgba(1, 1, 1, 0.0) }
                     GradientStop { position: 0.82; color: Qt.rgba(0, 0, 0, 0.0) }
-                    GradientStop { position: 1.0;  color: Qt.rgba(0, 0, 0, 0.10) }
+                    GradientStop { position: 1.0;  color: Qt.rgba(0, 0, 0, 0.08) }
                 }
             }
 

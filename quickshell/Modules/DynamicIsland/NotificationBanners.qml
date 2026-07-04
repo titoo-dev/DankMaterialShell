@@ -14,7 +14,7 @@ import qs.Widgets
             property var island: null
             width: 392
             anchors.top: parent.top; anchors.right: parent.right
-            anchors.topMargin: island.notchMode ? 8 : 14
+            anchors.topMargin: 14
             anchors.rightMargin: 16
             visible: island.isFocusedScreen && n > 0
 
