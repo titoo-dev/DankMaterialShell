@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# island-run — run any command as a live activity in the Dynamic Island.
+#
+#   island-run [-l LABEL] [-i ICON] [-p] [--] CMD [ARGS...]
+#
+#   -l LABEL   pill label (default: the command's name)
+#   -i ICON    Material Symbols icon name (default: terminal)
+#   -p         scan the command's output for "NN%" tokens and drive the
+#              pill's progress bar (rsync --info=progress2, wget, …).
+#              Note: merges stderr into stdout to see all progress writers.
+#
+# The pill flashes green/red with the command's exit status (preserved).
+#   island-run -l Backup -p -- rsync -a --info=progress2 ~/src/ /mnt/backup/
+set -u -o pipefail
+
+label="" icon="terminal" parse=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -l) label=$2; shift 2 ;;
+        -i) icon=$2; shift 2 ;;
+        -p) parse=1; shift ;;
+        --) shift; break ;;
+        -*) echo "island-run: unknown flag $1" >&2; exit 2 ;;
+        *) break ;;
+    esac
+done
+if [ $# -eq 0 ]; then
+    echo "usage: island-run [-l label] [-i icon] [-p] -- cmd [args...]" >&2
+    exit 2
+fi
+[ -n "$label" ] || label=$(basename "$1")
+id="run-$$"
+
+ipc() { dms ipc call island "$@" >/dev/null 2>&1 || true; }
+
+ipc activityStart "$id" "$label" "$icon"
+# Ctrl-C / kill: the command dies with us — leave a red pill, not a ghost
+trap 'ipc activityFail "$id" "$label · interrupted"; exit 130' INT TERM
+
+if [ "$parse" = 1 ]; then
+    "$@" 2>&1 | tr '\r' '\n' | {
+        last=""
+        while IFS= read -r line; do
+            printf '%s\n' "$line"
+            if [[ $line =~ ([0-9]+)(\.[0-9]+)?% ]]; then
+                pct=${BASH_REMATCH[1]}
+                if [ "$pct" != "$last" ]; then
+                    last=$pct
+                    ipc activityProgress "$id" "$pct"
+                fi
+            fi
+        done
+    }
+    rc=$?
+else
+    "$@"
+    rc=$?
+fi
+
+trap - INT TERM
+if [ "$rc" -eq 0 ]; then
+    ipc activityDone "$id" ""
+else
+    ipc activityFail "$id" "$label · exit $rc"
+fi
+exit "$rc"

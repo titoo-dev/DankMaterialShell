@@ -79,16 +79,16 @@ Singleton {
         }
         // generic live-activity control (see ActivityService). One verb per action
         // because the IPC bridge requires every declared arg to be provided:
-        //   dms ipc call island activityStart    <id> "<label>"
+        //   dms ipc call island activityStart    <id> "<label>" [icon]
         //   dms ipc call island activityProgress <id> <0-100>
         //   dms ipc call island activityUpdate   <id> "<label>"
         //   dms ipc call island activityDone     <id> "<label>"
         //   dms ipc call island activityFail     <id> "<label>"
         //   dms ipc call island activityStop     <id>
-        function activityStart(id: string, label: string): string {
+        function activityStart(id: string, label: string, icon: string): string {
             if (!id || id.length === 0)
                 return "ISLAND_ERROR:activity-needs-id";
-            ActivityService.start(id, label, "");
+            ActivityService.start(id, label, icon);
             return "ISLAND_ACTIVITY:start:" + id;
         }
         function activityProgress(id: string, pct: string): string {
