@@ -27,7 +27,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: pwBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: pwBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: pwBackArea.pressed ? 0.9 : 1.0
@@ -76,17 +76,22 @@ Column {
         Rectangle {
             readonly property bool danger: modelData.key === "poweroff" || modelData.key === "reboot"
             readonly property bool armed: powerCol.armedKey === modelData.key
-            width: parent.width; height: 44; radius: 12
-            color: armed ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.22)
-                 : rArea.containsMouse ? (danger ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.16) : Theme.surfaceLight) : "transparent"
+            width: parent.width; height: 44; radius: height / 2
+            color: armed ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.16)
+                 : rArea.containsMouse ? Theme.surfaceLight : "transparent"
             Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
             scale: rArea.pressed ? 0.97 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-            DankIcon {
+            Rectangle {  // icon disc: destructive actions tinted error
                 id: rIco
-                anchors.left: parent.left; anchors.leftMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter
-                name: modelData.icon; size: 19
-                color: armed || (danger && rArea.containsMouse) ? Theme.error : (rArea.containsMouse ? island.accent : island.textColor)
+                width: 30; height: 30; radius: width / 2
+                anchors.left: parent.left; anchors.leftMargin: 7; anchors.verticalCenter: parent.verticalCenter
+                color: (danger || armed) ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, armed ? 0.20 : 0.16) : Theme.surfaceVariant
+                Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                DankIcon {
+                    anchors.centerIn: parent; name: modelData.icon; size: 17; filled: true
+                    color: (danger || armed) ? Theme.error : island.textColor
+                }
             }
             StyledText {
                 anchors.left: rIco.right; anchors.leftMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter

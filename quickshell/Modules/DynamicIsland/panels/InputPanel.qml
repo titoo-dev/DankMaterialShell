@@ -18,7 +18,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: inBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: inBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: inBackArea.pressed ? 0.9 : 1.0
@@ -45,7 +45,7 @@ Column {
                 model: AudioService.typedSources
                 Rectangle {
                     readonly property bool isCur: AudioService.source && modelData && AudioService.source.name === modelData.name
-                    width: inList.width; height: 46; radius: 12
+                    width: inList.width; height: 46; radius: height / 2
                     color: (inRowA.containsMouse || isCur) ? Theme.surfaceLight : "transparent"
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                     DankIcon {

@@ -27,7 +27,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: mxBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: mxBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: mxBackArea.pressed ? 0.9 : 1.0
@@ -85,7 +85,7 @@ Column {
                     }
                     Rectangle {  // per-stream mute
                         id: mxMute
-                        width: 28; height: 28; radius: 9
+                        width: 28; height: 28; radius: width / 2
                         anchors.right: parent.right; anchors.rightMargin: Theme.spacingS; anchors.top: parent.top; anchors.topMargin: 5
                         color: mxMuteArea.containsMouse ? Theme.primaryHover : "transparent"
                         DankIcon {
@@ -98,13 +98,14 @@ Column {
                             onClicked: if (modelData.audio) modelData.audio.muted = !modelData.audio.muted
                         }
                     }
-                    DankSlider {
+                    CapsuleSlider {
                         anchors.left: parent.left; anchors.right: parent.right
                         anchors.leftMargin: Theme.spacingM; anchors.rightMargin: Theme.spacingM
                         anchors.bottom: parent.bottom; anchors.bottomMargin: 2
                         height: 26
-                        value: modelData.audio ? Math.round(modelData.audio.volume * 100) : 0
-                        onSliderValueChanged: newValue => { if (modelData.audio) modelData.audio.volume = newValue / 100 }
+                        dim: parent.muted
+                        frac: modelData.audio ? modelData.audio.volume : 0
+                        onMoved: f => { if (modelData.audio) modelData.audio.volume = f }
                     }
                 }
             }

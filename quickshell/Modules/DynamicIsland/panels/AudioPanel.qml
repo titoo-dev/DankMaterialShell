@@ -18,7 +18,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: auBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: auBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: auBackArea.pressed ? 0.9 : 1.0
@@ -45,7 +45,7 @@ Column {
                 model: AudioService.typedSinks
                 Rectangle {
                     readonly property bool isCur: AudioService.sink && modelData && AudioService.sink.name === modelData.name
-                    width: auList.width; height: 46; radius: 12
+                    width: auList.width; height: 46; radius: height / 2
                     color: (auRowA.containsMouse || isCur) ? Theme.surfaceLight : "transparent"
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                     DankIcon {

@@ -20,6 +20,7 @@ Column {
         spacing: Theme.spacingS
         DankActionButton {
             iconName: "chevron_left"; buttonSize: 30; iconSize: 20
+            radius: buttonSize / 2
             iconColor: actCol.island.textColor
             onClicked: actCol.island.panelView = "controls"
         }
@@ -75,6 +76,7 @@ Column {
                 }
                 DankActionButton {
                     iconName: "close"; buttonSize: 20; iconSize: 12
+                    radius: buttonSize / 2
                     iconColor: Theme.surfaceVariantText
                     onClicked: ActivityService.stop(modelData.id)
                 }

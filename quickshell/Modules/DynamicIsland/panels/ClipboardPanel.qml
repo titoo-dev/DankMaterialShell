@@ -67,7 +67,7 @@ Column {
         width: parent.width; height: 40
         Rectangle {
             id: clBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: clBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: clBackArea.pressed ? 0.9 : 1.0
@@ -80,6 +80,8 @@ Column {
             anchors.left: clBack.right; anchors.leftMargin: Theme.spacingXS
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             height: 36
+            cornerRadius: height / 2
+            backgroundColor: Theme.surfaceLight
             leftIconName: "content_paste"
             placeholderText: I18n.tr("Search clipboard")
             ignoreUpDownKeys: true   // ↑/↓ drive the list selection, not the caret
@@ -107,7 +109,7 @@ Column {
                 Rectangle {
                     id: clipRow
                     readonly property bool sel: index === clipCol.selIndex
-                    width: clipList.width; height: 52; radius: 12
+                    width: clipList.width; height: 52; radius: 14
                     color: (sel || clipRowArea.containsMouse) ? Theme.surfaceLight : Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4)
                     border.width: sel ? 1 : 0
                     border.color: Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.5)

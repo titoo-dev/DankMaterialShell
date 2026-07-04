@@ -43,6 +43,7 @@ Column {
         DankActionButton {
             iconName: "chevron_left"
             buttonSize: 30
+            radius: buttonSize / 2
             iconSize: 20
             iconColor: tsCol.island.textColor
             onClicked: tsCol.island.panelView = "controls"
@@ -63,6 +64,7 @@ Column {
         DankActionButton {
             iconName: "sync"
             buttonSize: 28
+            radius: buttonSize / 2
             iconSize: 16
             iconColor: Theme.surfaceVariantText
             tooltipText: I18n.tr("Refresh")
@@ -135,6 +137,7 @@ Column {
         // primary action: Sign in / Activate / Retry
         DankButton {
             anchors.horizontalCenter: parent.horizontalCenter
+            radius: buttonHeight / 2
             visible: TailscaleService.authUrl.length === 0
                 && TailscaleService.statusKind !== "starting"
                 && !(TailscaleService.loginInProgress && TailscaleService.authUrl.length === 0)
@@ -156,11 +159,13 @@ Column {
             visible: TailscaleService.authUrl.length > 0
             DankButton {
                 iconName: "open_in_new"
+                radius: buttonHeight / 2
                 text: I18n.tr("Open browser")
                 onClicked: Quickshell.execDetached(["xdg-open", TailscaleService.authUrl])
             }
             DankButton {
                 iconName: "content_copy"
+                radius: buttonHeight / 2
                 text: I18n.tr("Copy link")
                 backgroundColor: Theme.surfaceContainerHigh
                 onClicked: Quickshell.execDetached(["dms", "cl", "copy", TailscaleService.authUrl])
@@ -215,6 +220,7 @@ Column {
                 visible: TailscaleService.usingExitNode
                 text: I18n.tr("Disconnect")
                 buttonHeight: 26
+                radius: buttonHeight / 2
                 backgroundColor: Theme.surfaceContainerHigh
                 onClicked: TailscaleService.clearExitNode()
             }
@@ -237,6 +243,7 @@ Column {
                     readonly property bool active: TailscaleService.activeExitNode && TailscaleService.activeExitNode.tailscaleIp === modelData.tailscaleIp
                     text: (modelData.hostname || modelData.tailscaleIp) + (active ? " ✓" : "")
                     buttonHeight: 26
+                    radius: buttonHeight / 2
                     backgroundColor: active ? Theme.primary : Theme.surfaceContainerHigh
                     textColor: active ? Theme.onPrimary : Theme.surfaceText
                     onClicked: active ? TailscaleService.clearExitNode() : TailscaleService.setExitNode(modelData)
@@ -362,6 +369,7 @@ Column {
                             visible: TailscaleService.isMine(modelData) && (modelData.tailscaleIp || "").length > 0
                             iconName: modelData.hostname === SettingsData.taildropDefaultPeer ? "star" : "star_border"
                             buttonSize: 20
+                            radius: buttonSize / 2
                             iconSize: 13
                             iconColor: modelData.hostname === SettingsData.taildropDefaultPeer ? Theme.primary : Theme.surfaceVariantText
                             tooltipText: I18n.tr("Default Taildrop device")
@@ -370,6 +378,7 @@ Column {
                         DankActionButton {
                             iconName: "content_copy"
                             buttonSize: 20
+                            radius: buttonSize / 2
                             iconSize: 11
                             iconColor: Theme.surfaceVariantText
                             tooltipText: I18n.tr("Copy")

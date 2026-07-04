@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -27,6 +28,9 @@ import "panels"
                 // absorb clicks inside the panel so interacting doesn't collapse it
                 // (it collapses on pointer-leave via hideTimer, like macOS)
                 MouseArea { anchors.fill: parent }
+
+                // fat capsule sliders live in panels/CapsuleSlider.qml (shared
+                // with the mixer/audio drill views)
 
                 Column {
                     id: ccColumn
@@ -126,21 +130,41 @@ import "panels"
                                     : key === "dnd" ? "do_not_disturb_on"
                                     : (Theme.isLightMode ? "light_mode" : "dark_mode")
                                 readonly property string lbl: key === "wifi" ? "Wi-Fi" : key === "bt" ? "Bluetooth" : key === "dnd" ? I18n.tr("Focus") : I18n.tr("Theme")
-                                width: ccTiles.tileW; height: 54; radius: 16
-                                color: on ? Theme.primary : Theme.surfaceLight
+                                id: tile
+                                // quiet glass capsule; only the icon disc lights up when on
+                                width: ccTiles.tileW; height: 44; radius: 22
+                                color: tileArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
                                 Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                                scale: tileArea.pressed ? 0.93 : 1.0
+                                scale: tileArea.pressed ? 0.95 : 1.0
                                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                                Column {
-                                    anchors.centerIn: parent; spacing: 2
-                                    DankIcon { anchors.horizontalCenter: parent.horizontalCenter; name: parent.parent.ic; size: 20; color: parent.parent.on ? Theme.primaryText : island.textColor }
-                                    StyledText { anchors.horizontalCenter: parent.horizontalCenter; text: parent.parent.lbl; font.pixelSize: Theme.fontSizeSmall - 2; color: parent.parent.on ? Theme.primaryText : island.subText }
+                                Row {
+                                    anchors.left: parent.left; anchors.leftMargin: 6
+                                    anchors.right: parent.right; anchors.rightMargin: 6
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 7
+                                    Rectangle {
+                                        width: 32; height: 32; radius: 16
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: tile.on ? island.accent : Theme.surfaceVariant
+                                        Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                        DankIcon { anchors.centerIn: parent; name: tile.ic; size: 17; filled: true; color: tile.on ? Theme.primaryText : island.subText }
+                                    }
+                                    StyledText {
+                                        width: parent.width - 32 - 7 - ((tile.key === "wifi" || tile.key === "bt") ? 14 : 0)
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: tile.lbl
+                                        elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                                        font.pixelSize: Theme.fontSizeSmall - 1
+                                        color: tile.on ? island.textColor : island.subText
+                                        Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                    }
                                 }
-                                // small chevron hinting the tile drills into a detail view
+                                // chevron: these tiles drill into a detail view
                                 DankIcon {
-                                    visible: parent.key === "wifi" || parent.key === "bt"
-                                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 5
-                                    name: "chevron_right"; size: 13; color: parent.on ? Theme.primaryText : island.subText
+                                    visible: tile.key === "wifi" || tile.key === "bt"
+                                    anchors.right: parent.right; anchors.rightMargin: 7
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    name: "chevron_right"; size: 14; color: island.subText
                                 }
                                 MouseArea {
                                     id: tileArea; anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -155,62 +179,52 @@ import "panels"
                         }
                     }
 
-                    // ---- brightness + volume sliders ----
-                    DankSlider {
+                    // ---- brightness + volume: fat capsule sliders ----
+                    CapsuleSlider {
                         width: parent.width
-                        leftIcon: "brightness_6"
-                        value: DisplayService.brightnessLevel
-                        onSliderValueChanged: newValue => DisplayService.setBrightness(newValue, "", true)
+                        icon: "brightness_6"
+                        frac: DisplayService.brightnessLevel / 100
+                        onMoved: f => DisplayService.setBrightness(Math.round(f * 100), "", true)
                     }
                     Row {
                         width: parent.width; spacing: Theme.spacingS
-                        DankSlider {
-                            width: parent.width - 120
-                            leftIcon: island.muted ? "volume_off" : "volume_up"
-                            value: island.volPct
-                            onSliderValueChanged: newValue => { if (island.audioNode) island.audioNode.volume = newValue / 100 }
+                        CapsuleSlider {
+                            width: parent.width - (36 + Theme.spacingS) * 3
+                            icon: island.muted ? "volume_off" : (island.volPct < 50 ? "volume_down" : "volume_up")
+                            dim: island.muted
+                            frac: island.volPct / 100
+                            onMoved: f => { if (island.audioNode) island.audioNode.volume = f }
                         }
-                        Rectangle {  // per-app volume mixer (drills into the mixer view)
-                            width: 32; height: 32; radius: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: mixArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
-                            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                            scale: mixArea.pressed ? 0.9 : 1.0
-                            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                            DankIcon { anchors.centerIn: parent; name: "tune"; size: 17; color: mixArea.containsMouse ? island.accent : island.textColor }
-                            MouseArea { id: mixArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "mixer" }
-                        }
-                        Rectangle {  // output device picker (drills into the audio view)
-                            width: 32; height: 32; radius: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: outArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
-                            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                            scale: outArea.pressed ? 0.9 : 1.0
-                            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                            DankIcon { anchors.centerIn: parent; name: "speaker"; size: 17; color: outArea.containsMouse ? island.accent : island.textColor }
-                            MouseArea { id: outArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "audio" }
-                        }
-                        Rectangle {  // input device picker (drills into the input view)
-                            width: 32; height: 32; radius: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: inArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
-                            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                            scale: inArea.pressed ? 0.9 : 1.0
-                            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                            DankIcon { anchors.centerIn: parent; name: "mic"; size: 17; color: inArea.containsMouse ? island.accent : island.textColor }
-                            MouseArea { id: inArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "input" }
+                        Repeater {
+                            model: [
+                                { icon: "tune",    view: "mixer", tip: I18n.tr("Volume mixer") },
+                                { icon: "speaker", view: "audio", tip: I18n.tr("Output device") },
+                                { icon: "mic",     view: "input", tip: I18n.tr("Input device") }
+                            ]
+                            Rectangle {
+                                width: 36; height: 36; radius: 18
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: audBtnArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
+                                Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                scale: audBtnArea.pressed ? 0.9 : 1.0
+                                Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+                                DankIcon { anchors.centerIn: parent; name: modelData.icon; size: 17; color: audBtnArea.containsMouse ? island.accent : island.textColor }
+                                ToolTip.visible: audBtnArea.containsMouse; ToolTip.text: modelData.tip; ToolTip.delay: 400
+                                MouseArea { id: audBtnArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = modelData.view }
+                            }
                         }
                     }
 
                     // ---- now playing (when a player is active) ----
                     Rectangle {
-                        width: parent.width; height: 48; radius: 14
+                        width: parent.width; height: 52; radius: 26
                         color: Theme.surfaceLight
                         visible: island.player
-                        Rectangle {
+                        ClippingRectangle {
                             id: ccArt
-                            width: 34; height: 34; radius: 9; clip: true
-                            anchors.left: parent.left; anchors.leftMargin: Theme.spacingS; anchors.verticalCenter: parent.verticalCenter
+                            // true rounded clip (bbox `clip` left the corners square)
+                            width: 38; height: 38; radius: 19
+                            anchors.left: parent.left; anchors.leftMargin: 7; anchors.verticalCenter: parent.verticalCenter
                             color: Theme.primaryBackground
                             Image { id: ccArtImg; anchors.fill: parent; source: island.player ? (island.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; cache: false; asynchronous: true; visible: status === Image.Ready }
                             // fall back on the real load status — art URLs are often transient tmp files that vanish
@@ -226,7 +240,7 @@ import "panels"
                         Row {
                             id: ccTransport
                             anchors.right: parent.right; anchors.rightMargin: Theme.spacingS; anchors.verticalCenter: parent.verticalCenter
-                            spacing: 0
+                            spacing: 2
                             Repeater {
                                 // STATIC model — see MediaPane: keeps the buttons alive across play/pause
                                 model: ["prev", "play", "next"]
@@ -243,12 +257,14 @@ import "panels"
                                         else if (modelData === "prev") island.player.previous()
                                         else island.player.next()
                                     }
-                                    width: 32; height: 32; radius: 10
-                                    color: ccBtn.containsMouse && en ? Theme.primaryHover : "transparent"
+                                    width: big ? 34 : 30; height: width; radius: width / 2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    // same hierarchy as the media view: filled play disc, ghost sides
+                                    color: big ? island.accent : (ccBtn.containsMouse && en ? Theme.primaryHover : "transparent")
                                     opacity: en ? 1 : 0.35
                                     scale: ccBtn.pressed && en ? 0.86 : 1.0
                                     Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                                    DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 22 : 18; color: island.accent }
+                                    DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 20 : 16; filled: true; color: parent.big ? Theme.primaryText : island.textColor }
                                     MouseArea { id: ccBtn; anchors.fill: parent; hoverEnabled: true; enabled: parent.en; cursorShape: Qt.PointingHandCursor; onClicked: parent.act() }
                                 }
                             }
@@ -256,6 +272,10 @@ import "panels"
                     }
 
                     // ---- footer: island-native drill views ----
+                    Rectangle {   // hairline separating the controls from the app dock
+                        width: parent.width; height: 1
+                        color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
+                    }
                     Row {
                         width: parent.width
                         Repeater {

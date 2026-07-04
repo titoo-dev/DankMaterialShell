@@ -56,7 +56,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: cBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: cBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: cBackArea.pressed ? 0.9 : 1.0
@@ -83,7 +83,7 @@ Column {
         width: parent.width; height: 30
         Rectangle {
             id: prevBtn
-            width: 28; height: 28; radius: 9
+            width: 28; height: 28; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: prevArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: prevArea.pressed ? 0.9 : 1.0
@@ -98,7 +98,7 @@ Column {
         }
         Rectangle {
             id: nextBtn
-            width: 28; height: 28; radius: 9
+            width: 28; height: 28; radius: width / 2
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             color: nextArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: nextArea.pressed ? 0.9 : 1.0
@@ -141,8 +141,14 @@ Column {
                 Rectangle {
                     anchors.centerIn: parent
                     width: parent.width - 4; height: parent.height - 4; radius: width / 2
-                    color: parent.isSel ? Theme.primary : (parent.isToday ? Theme.primarySelected : (dayArea.containsMouse ? Theme.surfaceHover : "transparent"))
+                    color: parent.isToday && !parent.isSel ? Theme.primarySelected : (dayArea.containsMouse ? Theme.surfaceHover : "transparent")
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                    Rectangle {  // selection: accent disc behind the day number
+                        visible: parent.parent.isSel
+                        anchors.centerIn: parent
+                        width: 28; height: 28; radius: width / 2
+                        color: Theme.primary
+                    }
                     StyledText {
                         anchors.centerIn: parent
                         text: parent.parent.d.getDate()
@@ -155,7 +161,7 @@ Column {
                     visible: parent.hasEv
                     width: 4; height: 4; radius: 2
                     anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 2
-                    color: parent.isSel ? Theme.primaryText : island.accent
+                    color: island.accent
                 }
                 MouseArea {
                     id: dayArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

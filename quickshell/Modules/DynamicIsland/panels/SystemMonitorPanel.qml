@@ -38,7 +38,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: monBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: monBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: monBackArea.pressed ? 0.9 : 1.0

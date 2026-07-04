@@ -177,7 +177,7 @@ Column {
         width: parent.width; height: 40
         Rectangle {
             id: aBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: aBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: aBackArea.pressed ? 0.9 : 1.0
@@ -190,6 +190,8 @@ Column {
             anchors.left: aBack.right; anchors.leftMargin: Theme.spacingXS
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             height: 36
+            cornerRadius: height / 2
+            backgroundColor: Theme.surfaceLight
             leftIconName: "search"
             placeholderText: I18n.tr("Apps, actions, clipboard, =math…")
             ignoreUpDownKeys: true            // let ↑/↓ drive list navigation instead of the caret
@@ -216,7 +218,7 @@ Column {
             Repeater {
                 model: appCol.results.slice(0, appCol.maxRows)
                 Rectangle {
-                    width: appList.width; height: appCol.rowH; radius: 12
+                    width: appList.width; height: appCol.rowH; radius: height / 2
                     readonly property bool selected: index === appCol.selIndex
                     readonly property string kind: modelData.kind
                     color: selected ? Theme.primarySelected : (appRowArea.containsMouse ? Theme.surfaceLight : "transparent")
@@ -241,7 +243,7 @@ Column {
                     }
                     Rectangle {
                         visible: kind === "calc" || kind === "clip"
-                        width: 34; height: 34; radius: 10
+                        width: 34; height: 34; radius: width / 2
                         anchors.left: parent.left; anchors.leftMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter
                         color: Theme.primaryBackground
                         DankIcon {

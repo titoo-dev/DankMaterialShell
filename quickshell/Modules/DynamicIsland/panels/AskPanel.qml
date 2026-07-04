@@ -38,7 +38,7 @@ Column {
         width: parent.width
         height: 48
         radius: height / 2
-        color: Theme.surfaceContainerHigh
+        color: Theme.surfaceLight
         border.width: 1
         border.color: askField.activeFocus ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.25)
         Behavior on border.color { ColorAnimation { duration: Theme.shortDuration } }
@@ -54,7 +54,7 @@ Column {
         DankTextField {
             id: askField
             anchors.left: spark.right; anchors.leftMargin: Theme.spacingM
-            anchors.right: parent.right; anchors.rightMargin: Theme.spacingL
+            anchors.right: askSend.left; anchors.rightMargin: Theme.spacingS
             anchors.verticalCenter: parent.verticalCenter
             backgroundColor: "transparent"
             normalBorderColor: "transparent"
@@ -62,6 +62,20 @@ Column {
             font.pixelSize: Theme.fontSizeLarge
             placeholderText: I18n.tr("Ask anything…")
             onAccepted: AskService.ask(text)
+        }
+        Rectangle {  // the view's one accent-filled primary action: send
+            id: askSend
+            width: 32; height: 32; radius: width / 2
+            anchors.right: parent.right; anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            color: Theme.primary
+            opacity: askField.text.length > 0 ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+            scale: askSendArea.pressed ? 0.9 : 1.0
+            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+            DankIcon { anchors.centerIn: parent; name: "arrow_upward"; size: 18; color: Theme.primaryText }
+            MouseArea { id: askSendArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: AskService.ask(askField.text) }
         }
     }
 
@@ -80,7 +94,8 @@ Column {
                 iconName: modelData.icon
                 iconSize: 14
                 buttonHeight: 30
-                backgroundColor: hovered ? Theme.primaryHover : Theme.surfaceContainerHigh
+                radius: buttonHeight / 2
+                backgroundColor: hovered ? Theme.primaryHover : Theme.surfaceLight
                 textColor: hovered ? Theme.primary : Theme.surfaceText
                 onClicked: AskService.askClipboard(modelData.prompt)
             }

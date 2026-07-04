@@ -59,7 +59,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: btBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: btBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: btBackArea.pressed ? 0.9 : 1.0
@@ -75,7 +75,7 @@ Column {
         Row {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: Theme.spacingXS
             Rectangle {  // refresh: re-scan for devices
-                width: 30; height: 30; radius: 9
+                width: 30; height: 30; radius: width / 2
                 anchors.verticalCenter: parent.verticalCenter
                 enabled: BluetoothService.enabled
                 opacity: enabled ? 1 : 0.4
@@ -136,7 +136,7 @@ Column {
                 Rectangle {
                     readonly property bool isConn: modelData.connected
                     readonly property bool isBusy: modelData.state === BluetoothDeviceState.Connecting || modelData.state === BluetoothDeviceState.Disconnecting
-                    width: btList.width; height: 46; radius: 12
+                    width: btList.width; height: 46; radius: height / 2
                     color: (btRowA.containsMouse || isConn) ? Theme.surfaceLight : "transparent"
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                     DankIcon {
@@ -195,7 +195,7 @@ Column {
                 model: ScriptModel { values: BluetoothService.enabled ? btCol.availableDevices : []; objectProp: "address" }
                 Rectangle {
                     readonly property bool isPairing: modelData.pairing || (btCol.pairingAddrs[modelData.address] === true)
-                    width: btList.width; height: 46; radius: 12
+                    width: btList.width; height: 46; radius: height / 2
                     color: avRowA.containsMouse ? Theme.surfaceLight : "transparent"
                     opacity: isPairing ? 0.7 : 1
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }

@@ -3,6 +3,7 @@ import QtQuick.Effects
 import QtQuick.Shapes
 import Quickshell
 import Quickshell.Services.Notifications
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -118,7 +119,7 @@ import qs.Widgets
                         width: parent.width
                         height: bCol.implicitHeight + 32   // generous vertical padding (16 top/bottom)
                         x: bCard.swipe
-                        radius: 24
+                        radius: 20
                         antialiasing: true
                         readonly property bool crit: bWrap.topNotif ? (bWrap.topNotif.urgency === NotificationUrgency.Critical) : false
                         // inline reply, straight from the banner (the notification
@@ -175,9 +176,11 @@ import qs.Widgets
                             Item {  // header: icon · (app + title + body) · dismiss
                                 width: parent.width
                                 height: Math.max(46, bText.implicitHeight)
-                                Rectangle {
+                                ClippingRectangle {
+                                    // true rounded clip: bbox `clip` let square app
+                                    // icons paint over the corner radius
                                     id: bIco
-                                    width: 46; height: 46; radius: 14; clip: true
+                                    width: 46; height: 46; radius: 14
                                     anchors.left: parent.left; anchors.top: parent.top
                                     color: Theme.primaryBackground
                                     Image {
@@ -262,14 +265,14 @@ import qs.Widgets
                                     visible: bCard.canReply
                                     height: 32; radius: 16
                                     width: bReplyLbl.implicitWidth + Theme.spacingL * 2
-                                    color: bReplyA.containsMouse ? Theme.primary : Theme.primarySelected
+                                    color: bReplyA.containsMouse ? Theme.primaryHover : Theme.surfaceLight
                                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                                     scale: bReplyA.pressed ? 0.93 : 1.0
                                     Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                                     Row {
                                         anchors.centerIn: parent; spacing: 4
-                                        DankIcon { name: "reply"; size: 14; color: bReplyA.containsMouse ? Theme.primaryText : island.accent; anchors.verticalCenter: parent.verticalCenter }
-                                        StyledText { id: bReplyLbl; text: I18n.tr("Reply"); color: bReplyA.containsMouse ? Theme.primaryText : island.accent; font.pixelSize: Theme.fontSizeSmall; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
+                                        DankIcon { name: "reply"; size: 14; color: bReplyA.containsMouse ? island.accent : island.textColor; anchors.verticalCenter: parent.verticalCenter }
+                                        StyledText { id: bReplyLbl; text: I18n.tr("Reply"); color: bReplyA.containsMouse ? island.accent : island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
                                     }
                                     MouseArea { id: bReplyA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: bCard.openReply() }
                                 }
@@ -289,11 +292,11 @@ import qs.Widgets
                                     Rectangle {
                                         height: 32; radius: 16
                                         width: Math.min(bActLbl.implicitWidth + Theme.spacingL * 2, 160)
-                                        color: bActA.containsMouse ? Theme.primary : Theme.primarySelected
+                                        color: bActA.containsMouse ? Theme.primaryHover : Theme.surfaceLight
                                         Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                                         scale: bActA.pressed ? 0.93 : 1.0
                                         Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                                        StyledText { id: bActLbl; anchors.centerIn: parent; width: Math.min(implicitWidth, 160 - Theme.spacingL * 2); text: modelData.text || I18n.tr("Open"); elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; color: bActA.containsMouse ? Theme.primaryText : island.accent; font.pixelSize: Theme.fontSizeSmall; font.bold: true }
+                                        StyledText { id: bActLbl; anchors.centerIn: parent; width: Math.min(implicitWidth, 160 - Theme.spacingL * 2); text: modelData.text || I18n.tr("Open"); elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; color: bActA.containsMouse ? island.accent : island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true }
                                         MouseArea { id: bActA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (modelData && modelData.invoke) modelData.invoke(); if (bWrap.topNotif) bWrap.topNotif.popup = false } }
                                     }
                                 }
@@ -319,7 +322,7 @@ import qs.Widgets
                                     onAccepted: bCard.sendReply(text)
                                 }
                                 Rectangle {  // send
-                                    width: 32; height: 34; radius: 10
+                                    width: 32; height: 34; radius: height / 2
                                     anchors.verticalCenter: parent.verticalCenter
                                     color: bSendA.containsMouse ? Theme.primary : Theme.surfaceVariant
                                     DankIcon { anchors.centerIn: parent; name: "send"; size: 16; color: bSendA.containsMouse ? Theme.primaryText : island.textColor }

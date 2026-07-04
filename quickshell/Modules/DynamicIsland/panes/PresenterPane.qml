@@ -34,36 +34,31 @@ Item {
             island.holdPresenter()
         }
     }
-    // 16 discrete segments (macOS OSD), draggable to set the level directly
+    // thin capsule level bar, draggable to set the level directly
     Item {
         id: segBar
         anchors.left: pIcon.right; anchors.leftMargin: Theme.spacingM
         anchors.right: pVal.left; anchors.rightMargin: Theme.spacingM
         anchors.verticalCenter: parent.verticalCenter
-        height: 10
+        height: 4
         visible: !presenterPane.isSplash
-        readonly property int segs: 16
-        readonly property real segGap: 2
         readonly property bool adjustable: island.presenterKind === "volume" || island.presenterKind === "brightness"
         // Scale against the same denominator the system VolumeOSD uses
         // (island.presenterMax == AudioService.sinkMaxVolume for volume, else 100)
         // so this bar and the OSD bar fill identically for the same level.
         readonly property real frac: Math.max(0, Math.min(1, island.presenterValue / island.presenterMax))
-        Row {
-            anchors.fill: parent
-            spacing: segBar.segGap
-            Repeater {
-                model: segBar.segs
-                Rectangle {
-                    width: (segBar.width - (segBar.segs - 1) * segBar.segGap) / segBar.segs
-                    height: parent.height; radius: 2
-                    color: (index + 0.5) / segBar.segs <= segBar.frac ? island.accent : Theme.surfaceVariant
-                    Behavior on color { ColorAnimation { duration: 80 } }
-                }
-            }
+        Rectangle {  // track
+            anchors.fill: parent; radius: height / 2
+            color: Theme.surfaceVariant
+        }
+        Rectangle {  // fill
+            width: parent.width * segBar.frac
+            height: parent.height; radius: height / 2
+            color: island.accent
+            Behavior on width { NumberAnimation { duration: 80 } }
         }
         MouseArea {
-            anchors.fill: parent; anchors.topMargin: -10; anchors.bottomMargin: -10
+            anchors.fill: parent; anchors.topMargin: -13; anchors.bottomMargin: -13
             enabled: segBar.adjustable
             cursorShape: Qt.PointingHandCursor
             preventStealing: true

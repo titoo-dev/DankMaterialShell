@@ -47,16 +47,16 @@ Row {
         width: Math.min(implicitWidth, 200)
     }
     Item {  // progress: determinate fill OR indeterminate slider
-        width: 48; height: 6
+        width: 48; height: 4
         anchors.verticalCenter: parent.verticalCenter
         visible: activityRow.act && activityRow.act.state === "running"
         Rectangle {
-            anchors.fill: parent; radius: 3
-            color: Qt.rgba(island.subText.r, island.subText.g, island.subText.b, 0.3)
+            anchors.fill: parent; radius: height / 2
+            color: Theme.surfaceVariant
         }
         Rectangle {
             visible: activityRow.act && activityRow.act.progress >= 0
-            height: parent.height; radius: 3
+            height: parent.height; radius: height / 2
             width: parent.width * ((activityRow.act ? Math.max(0, activityRow.act.progress) : 0) / 100)
             color: island.accent
             Behavior on width { NumberAnimation { duration: Theme.shortDuration } }
@@ -64,7 +64,7 @@ Row {
         Rectangle {
             id: indeterminate
             visible: activityRow.act && activityRow.act.progress < 0
-            height: parent.height; radius: 3; width: parent.width * 0.4
+            height: parent.height; radius: height / 2; width: parent.width * 0.4
             color: island.accent
             SequentialAnimation on x {
                 running: indeterminate.visible

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -38,7 +39,7 @@ Column {
         width: parent.width; height: 40
         Rectangle {
             id: shBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: shBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: shBackArea.pressed ? 0.9 : 1.0
@@ -56,7 +57,7 @@ Column {
             }
         }
         Rectangle {  // clear all
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             visible: shelfCol.entries.length > 0
             color: shClearArea.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.18) : "transparent"
@@ -111,7 +112,7 @@ Column {
                 model: shelfCol.entries
                 Rectangle {
                     id: shelfRow
-                    width: shelfList.width; height: 52; radius: 12
+                    width: shelfList.width; height: 52; radius: 14
                     color: shelfRowArea.containsMouse ? Theme.surfaceLight : Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4)
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
 
@@ -141,9 +142,10 @@ Column {
                         }
                     }
 
-                    Rectangle {
+                    ClippingRectangle {
                         id: shelfIco
-                        width: 36; height: 36; radius: 10; clip: true
+                        // true rounded clip (bbox `clip` left the corners square)
+                        width: 36; height: 36; radius: 10
                         anchors.left: parent.left; anchors.leftMargin: Theme.spacingS; anchors.verticalCenter: parent.verticalCenter
                         color: Theme.primaryBackground
                         Image {

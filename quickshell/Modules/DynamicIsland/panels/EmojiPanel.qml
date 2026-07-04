@@ -163,7 +163,7 @@ Column {
         width: parent.width; height: 40
         Rectangle {
             id: emBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: emBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: emBackArea.pressed ? 0.9 : 1.0
@@ -176,6 +176,8 @@ Column {
             anchors.left: emBack.right; anchors.leftMargin: Theme.spacingXS
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             height: 36
+            cornerRadius: height / 2
+            backgroundColor: Theme.surfaceLight
             leftIconName: "search"
             placeholderText: I18n.tr("Search emoji")
             ignoreUpDownKeys: true
@@ -215,7 +217,7 @@ Column {
 
     // skin-tone variant strip (right-click / long-press a hand emoji to open)
     Rectangle {
-        width: parent.width; height: visible ? 46 : 0; radius: 12
+        width: parent.width; height: visible ? 46 : 0; radius: height / 2
         visible: emojiCol.toneBase !== ""
         color: Theme.surfaceLight
         Row {

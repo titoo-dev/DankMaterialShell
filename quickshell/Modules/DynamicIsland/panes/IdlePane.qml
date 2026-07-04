@@ -127,7 +127,7 @@ Item {
             StyledText { text: island.weatherTemp; color: island.textColor; font.pixelSize: Theme.fontSizeSmall; anchors.verticalCenter: parent.verticalCenter }
         }
         DankIcon {  // VPN
-            name: "vpn_lock"; size: Theme.iconSize - 6; color: island.accent
+            name: "vpn_lock"; size: Theme.iconSize - 6; color: island.textColor
             visible: island.vpnOn; anchors.verticalCenter: parent.verticalCenter
         }
         Item {  // Tailscale: peer count, exit-node glyph, click → panel
@@ -158,7 +158,7 @@ Item {
                     visible: island.tsUsingExitNode
                     name: "public"
                     size: Theme.iconSize - 8
-                    color: island.accent
+                    color: island.textColor
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }

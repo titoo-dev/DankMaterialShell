@@ -23,35 +23,40 @@ Item {
         spacing: Theme.spacingS
 
         Rectangle {
+            id: zoneLeft
             Layout.fillWidth: true
             Layout.fillHeight: true
             radius: Theme.cornerRadius
             readonly property bool hot: dropChoose.island._dropHalf === "left"
-            color: hot ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18) : Theme.surfaceContainerHigh
+            // quiet glass; the hovered half gets a half-alpha accent border, never a full fill
+            color: hot ? Theme.primaryHover : Theme.surfaceLight
             border.width: hot ? 1 : 0
-            border.color: Theme.primary
+            border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.5)
+            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
             Column {
                 anchors.centerIn: parent
                 spacing: 2
-                DankIcon { name: "inventory_2"; size: 22; color: Theme.surfaceText; anchors.horizontalCenter: parent.horizontalCenter }
-                StyledText { text: I18n.tr("Shelf"); font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; anchors.horizontalCenter: parent.horizontalCenter }
+                DankIcon { name: "inventory_2"; size: 22; color: zoneLeft.hot ? Theme.primary : Theme.surfaceText; anchors.horizontalCenter: parent.horizontalCenter }
+                StyledText { text: I18n.tr("Shelf"); font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: zoneLeft.hot ? Theme.primary : Theme.surfaceText; anchors.horizontalCenter: parent.horizontalCenter }
             }
         }
         Rectangle {
+            id: zoneRight
             Layout.fillWidth: true
             Layout.fillHeight: true
             radius: Theme.cornerRadius
             readonly property bool hot: dropChoose.island._dropHalf === "right"
-            color: hot ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18) : Theme.surfaceContainerHigh
+            color: hot ? Theme.primaryHover : Theme.surfaceLight
             border.width: hot ? 1 : 0
-            border.color: Theme.primary
+            border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.5)
+            Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
             Column {
                 anchors.centerIn: parent
                 spacing: 2
-                DankIcon { name: "send_to_mobile"; size: 22; color: Theme.primary; anchors.horizontalCenter: parent.horizontalCenter }
+                DankIcon { name: "send_to_mobile"; size: 22; color: zoneRight.hot ? Theme.primary : Theme.surfaceText; anchors.horizontalCenter: parent.horizontalCenter }
                 StyledText {
                     text: "→ " + (TailscaleService.defaultPeer ? (TailscaleService.defaultPeer.hostname || "") : "")
-                    font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.primary
+                    font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: zoneRight.hot ? Theme.primary : Theme.surfaceText
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
             }

@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -20,7 +21,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: nBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: nBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: nBackArea.pressed ? 0.9 : 1.0
@@ -61,13 +62,14 @@ Column {
                 model: NotificationService.notifications
                 Rectangle {
                     id: nRow
-                    width: nlist.width; height: 66; radius: 12
+                    width: nlist.width; height: 66; radius: 14
                     color: nRowArea.containsMouse ? Theme.surfaceLight : Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4)
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
 
-                    Rectangle {
+                    ClippingRectangle {
                         id: nRowIco
-                        width: 38; height: 38; radius: 11; clip: true
+                        // true rounded clip (bbox `clip` left the corners square)
+                        width: 38; height: 38; radius: 11
                         anchors.left: parent.left; anchors.leftMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter
                         color: Theme.primaryBackground
                         Image {

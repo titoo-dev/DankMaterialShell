@@ -51,7 +51,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: backBtn
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: backArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: backArea.pressed ? 0.9 : 1.0
@@ -66,7 +66,7 @@ Column {
         Row {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing: Theme.spacingXS
             Rectangle {  // refresh: rescan networks (icon spins while scanning)
-                width: 30; height: 30; radius: 9
+                width: 30; height: 30; radius: width / 2
                 anchors.verticalCenter: parent.verticalCenter
                 enabled: NetworkService.wifiEnabled
                 opacity: enabled ? 1 : 0.4
@@ -130,10 +130,11 @@ Column {
                     readonly property bool showError: !isConnected && !isConnecting && wifiCol.lastTriedSsid === modelData.ssid && (NetworkService.lastConnectionError || "").length > 0
                     width: netCol.width
                     height: pwOpen ? 84 : 46
-                    radius: 12
+                    radius: pwOpen ? 16 : 23
                     color: (rowArea.containsMouse || isConnected) ? Theme.surfaceLight : "transparent"
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                     Behavior on height { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
+                    Behavior on radius { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
 
                     DankIcon {
                         id: sigIcon
@@ -206,7 +207,7 @@ Column {
                             onAccepted: parent.submit()
                         }
                         Rectangle {
-                            width: 32; height: 30; radius: 9
+                            width: 32; height: 30; radius: height / 2
                             anchors.verticalCenter: parent.verticalCenter
                             color: goArea.containsMouse ? Theme.primary : Theme.surfaceVariant
                             DankIcon { anchors.centerIn: parent; name: "arrow_forward"; size: 16; color: goArea.containsMouse ? Theme.primaryText : island.textColor }
