@@ -114,7 +114,9 @@ Column {
         folder: wpCol.wallpaperDir ? "file://" + wpCol.wallpaperDir.split('/').map(s => encodeURIComponent(s)).join('/') : ""
     }
 
-    // folder picker — same native modal the DankDash wallpaper tab uses
+    // folder picker — same native modal the DankDash wallpaper tab uses.
+    // The island's keyboard grab must stand down while it is open, or the
+    // browser never receives input (the Hyprland focus grab wins otherwise).
     FileBrowserSurfaceModal {
         id: wpBrowser
         browserTitle: I18n.tr("Select Wallpaper Directory", "wallpaper directory file browser title")
@@ -122,6 +124,9 @@ Column {
         browserType: "wallpaper"
         showHiddenFiles: false
         fileExtensions: ["*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif", "*.webp", "*.jxl", "*.avif", "*.heif", "*.exr"]
+        onOpened: island.kbSuppressed = true
+        onDialogClosed: { island.kbSuppressed = false; wpGrid.forceActiveFocus() }
+        Component.onDestruction: island.kbSuppressed = false
         onFileSelected: path => {
             const clean = path.replace(/^file:\/\//, '')
             wpCol.setCurrentWallpaper(clean)
@@ -179,9 +184,12 @@ Column {
             model: wpModel
             // one pre-created row: buffered delegates are kept INVISIBLE by the
             // view, so they can't grab-save their thumbnail cache anyway — a
-            // deep buffer just burns full-size decodes on cold cache
+            // deep buffer just burns full-size decodes on cold cache.
+            // NO reuseItems: recycling delegates while the folder switches left
+            // stale thumbnails on reassigned cells (duplicate-looking grid) and
+            // already caused the wrong-file-applied click race — the grid holds
+            // a few dozen cheap cells, pooling buys nothing here
             cacheBuffer: Math.ceil(cellHeight)
-            reuseItems: true
 
             // keyboard cursor: drive currentIndex + keep it scrolled into view.
             // built-in key nav is off so our handlers own arrows/hjkl/Enter/Esc.

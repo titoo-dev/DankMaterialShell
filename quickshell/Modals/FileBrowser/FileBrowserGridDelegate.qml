@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Effects
+import Quickshell.Widgets
 import qs.Common
 import qs.Widgets
 
@@ -160,62 +160,45 @@ StyledRect {
             height: weMode ? 165 : (iconSizes[iconSizeIndex] - 8)
             anchors.horizontalCenter: parent.horizontalCenter
 
-            Image {
-                id: gridPreviewImage
+            // preview rendered through a true rounded clip — the previous
+            // hidden-Image → MultiEffect → layered-mask chain could come up
+            // blank (three interacting offscreen textures); a visible Image
+            // inside a ClippingRectangle has no failure mode
+            ClippingRectangle {
                 anchors.fill: parent
                 anchors.margins: 2
-                property var weExtensions: [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tga", ".jxl", ".avif", ".heif", ".exr"]
-                property int weExtIndex: 0
-                property string imagePath: {
-                    if (weMode && delegateRoot.fileIsDir)
-                        return delegateRoot.filePath + "/preview" + weExtensions[weExtIndex];
-                    if (!delegateRoot.fileIsDir && isImage)
-                        return delegateRoot.filePath;
-                    if (_videoThumb)
-                        return _videoThumb;
-                    return "";
-                }
-                source: imagePath ? "file://" + imagePath.split('/').map(s => encodeURIComponent(s)).join('/') : ""
-                onStatusChanged: {
-                    if (weMode && delegateRoot.fileIsDir && status === Image.Error) {
-                        if (weExtIndex < weExtensions.length - 1) {
-                            weExtIndex++;
-                        } else {
-                            imagePath = "";
+                radius: Theme.cornerRadius
+                color: "transparent"
+                visible: gridPreviewImage.status === Image.Ready && ((!delegateRoot.fileIsDir && (isImage || isVideo)) || (weMode && delegateRoot.fileIsDir))
+
+                Image {
+                    id: gridPreviewImage
+                    anchors.fill: parent
+                    property var weExtensions: [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tga", ".jxl", ".avif", ".heif", ".exr"]
+                    property int weExtIndex: 0
+                    property string imagePath: {
+                        if (weMode && delegateRoot.fileIsDir)
+                            return delegateRoot.filePath + "/preview" + weExtensions[weExtIndex];
+                        if (!delegateRoot.fileIsDir && isImage)
+                            return delegateRoot.filePath;
+                        if (_videoThumb)
+                            return _videoThumb;
+                        return "";
+                    }
+                    source: imagePath ? "file://" + imagePath.split('/').map(s => encodeURIComponent(s)).join('/') : ""
+                    onStatusChanged: {
+                        if (weMode && delegateRoot.fileIsDir && status === Image.Error) {
+                            if (weExtIndex < weExtensions.length - 1) {
+                                weExtIndex++;
+                            } else {
+                                imagePath = "";
+                            }
                         }
                     }
-                }
-                fillMode: Image.PreserveAspectCrop
-                sourceSize.width: weMode ? 225 : iconSizes[iconSizeIndex]
-                sourceSize.height: weMode ? 225 : iconSizes[iconSizeIndex]
-                asynchronous: true
-                visible: false
-            }
-
-            MultiEffect {
-                anchors.fill: parent
-                anchors.margins: 2
-                source: gridPreviewImage
-                maskEnabled: true
-                maskSource: gridImageMask
-                visible: gridPreviewImage.status === Image.Ready && ((!delegateRoot.fileIsDir && (isImage || isVideo)) || (weMode && delegateRoot.fileIsDir))
-                maskThresholdMin: 0.5
-                maskSpreadAtMin: 1
-            }
-
-            Item {
-                id: gridImageMask
-                anchors.fill: parent
-                anchors.margins: 2
-                layer.enabled: true
-                layer.smooth: true
-                visible: false
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.cornerRadius
-                    color: "black"
-                    antialiasing: true
+                    fillMode: Image.PreserveAspectCrop
+                    sourceSize.width: weMode ? 225 : iconSizes[iconSizeIndex]
+                    sourceSize.height: weMode ? 225 : iconSizes[iconSizeIndex]
+                    asynchronous: true
                 }
             }
 

@@ -820,11 +820,14 @@ Scope {
     // set by WifiPanel while its inline password prompt is open (kept as a
     // focus-timing signal; the grab itself is now held for every expanded view)
     property bool wifiNeedsKeyboard: false
+    // a child modal (wallpaper folder browser, …) needs the keyboard: the
+    // island must stand down or its focus grab starves the modal of input
+    property bool kbSuppressed: false
     // single source of truth for "the pill window holds the keyboard".
     // EVERY expanded view grabs (not just the search-driven ones): the island
     // is modal while open (scrim click-outside), and holding the keyboard is
     // what makes Escape work universally — calendar, power, monitor included.
-    readonly property bool kbGrabActive: mode === "expanded"
+    readonly property bool kbGrabActive: mode === "expanded" && !kbSuppressed
     // On Hyprland, keyboard focus comes from the hyprland-focus-grab protocol
     // (same pattern as DankModal): OnDemand + HyprlandFocusGrab engages
     // immediately on open and releases cleanly on close while the pill window
