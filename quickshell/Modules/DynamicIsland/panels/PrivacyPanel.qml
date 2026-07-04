@@ -139,6 +139,10 @@ Column {
                     id: pvMuteArea
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { if (parent.parent.pwNode && parent.parent.pwNode.audio) parent.parent.pwNode.audio.muted = !parent.parent.pwNode.audio.muted }
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: I18n.tr("Mute")
+                    Accessible.checked: parent.parent.isMuted
+                    Accessible.onPressAction: clicked(null)
                 }
             }
         }

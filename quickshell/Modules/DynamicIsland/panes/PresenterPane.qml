@@ -33,6 +33,10 @@ Item {
             if (island.audioNode) island.audioNode.muted = !island.audioNode.muted
             island.holdPresenter()
         }
+        Accessible.role: Accessible.CheckBox
+        Accessible.name: I18n.tr("Mute")
+        Accessible.checked: island.muted
+        Accessible.onPressAction: clicked(null)
     }
     // thin capsule level bar, draggable to set the level directly
     Item {
@@ -74,6 +78,8 @@ Item {
             }
             onPressed: mouse => apply(mouse.x)
             onPositionChanged: mouse => { if (pressed) apply(mouse.x) }
+            Accessible.role: Accessible.Slider
+            Accessible.name: island.presenterKind === "brightness" ? I18n.tr("Brightness") : I18n.tr("Volume")
         }
     }
     StyledText {

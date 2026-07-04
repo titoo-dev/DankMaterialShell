@@ -58,6 +58,9 @@ Item {
                     island.closeIsland()
                 }
             }
+            Accessible.role: Accessible.Button
+            Accessible.name: I18n.tr("Open player")
+            Accessible.onPressAction: clicked(null)
         }
     }
     Column {
@@ -143,6 +146,9 @@ Item {
                     id: cArea; anchors.fill: parent; hoverEnabled: true
                     enabled: parent.en; cursorShape: Qt.PointingHandCursor
                     onClicked: parent.act()
+                    Accessible.role: Accessible.Button
+                    Accessible.name: parent.label
+                    Accessible.onPressAction: parent.act()
                 }
             }
         }
@@ -154,7 +160,10 @@ Item {
         anchors.left: art.right; anchors.leftMargin: Theme.spacingM
         anchors.right: controls.left; anchors.rightMargin: Theme.spacingM
         anchors.bottom: parent.bottom; anchors.bottomMargin: 15
-        height: 3; radius: 1.5
+        // tactile affordance: the line thickens under the pointer / while seeking
+        height: (seekArea.containsMouse || seeking) ? 5 : 3
+        Behavior on height { NumberAnimation { duration: Theme.shortDuration } }
+        radius: height / 2
         color: Theme.surfaceVariant
         // streams without a duration (radio, some browsers) get no scrubber (macOS)
         visible: island.mediaLen > 0
@@ -201,6 +210,8 @@ Item {
                 trackBar.seeking = false
             }
             onCanceled: trackBar.seeking = false
+            Accessible.role: Accessible.Slider
+            Accessible.name: I18n.tr("Seek")
             // wheel on the scrubber = relative seek (macOS: ±5 s)
             onWheel: wheel => {
                 const len = MprisController.activePlayerStableLength

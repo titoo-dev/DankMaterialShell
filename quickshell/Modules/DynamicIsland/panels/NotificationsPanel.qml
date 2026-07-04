@@ -25,7 +25,14 @@ Column {
             color: clrArea.containsMouse ? Theme.primary : Theme.surfaceLight
             Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
             StyledText { id: clrLabel; anchors.centerIn: parent; text: I18n.tr("Clear all"); font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true; color: clrArea.containsMouse ? Theme.primaryText : island.subText }
-            MouseArea { id: clrArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: NotificationService.clearAllNotifications() }
+            MouseArea {
+                id: clrArea; anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: NotificationService.clearAllNotifications()
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Clear all")
+                Accessible.onPressAction: clicked(null)
+            }
         }
     }
 
@@ -95,7 +102,14 @@ Column {
                         opacity: nRowArea.containsMouse ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
                         DankIcon { anchors.centerIn: parent; name: "close"; size: 15; color: nClose.containsMouse ? Theme.error : island.subText }
-                        MouseArea { id: nClose; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: NotificationService.dismissNotification(modelData) }
+                        MouseArea {
+                            id: nClose; anchors.fill: parent; anchors.margins: -6
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: NotificationService.dismissNotification(modelData)
+                            Accessible.role: Accessible.Button
+                            Accessible.name: I18n.tr("Dismiss")
+                            Accessible.onPressAction: clicked(null)
+                        }
                     }
                     MouseArea {
                         id: nRowArea; anchors.fill: parent; hoverEnabled: true; z: -1
@@ -111,6 +125,9 @@ Column {
                             }
                             if (def && def.invoke) { def.invoke(); NotificationService.dismissNotification(modelData) }
                         }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: I18n.tr("Open notification")
+                        Accessible.onPressAction: clicked(null)
                     }
         }
     }

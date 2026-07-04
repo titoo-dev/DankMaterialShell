@@ -108,11 +108,13 @@ Column {
                     readonly property bool isConnected: modelData.ssid === NetworkService.currentWifiSSID
                     readonly property bool isConnecting: NetworkService.isConnecting && NetworkService.connectingSSID === modelData.ssid
                     readonly property bool needsPw: modelData.secured && !modelData.saved && !isConnected
+                    // 802.1X: the prompt also needs an identity (username) field
+                    readonly property bool isEnterprise: modelData.enterprise === true
                     readonly property bool pwOpen: wifiCol.pwSsid === modelData.ssid
                     // show the last connection error inline, on the network that failed
                     readonly property bool showError: !isConnected && !isConnecting && wifiCol.lastTriedSsid === modelData.ssid && (NetworkService.lastConnectionError || "").length > 0
                     width: netCol.width
-                    height: pwOpen ? 84 : 46
+                    height: pwOpen ? (isEnterprise ? 122 : 84) : 46
                     radius: pwOpen ? 16 : 23
                     color: (rowArea.containsMouse || isConnected) ? Theme.surfaceLight : "transparent"
                     Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
@@ -152,8 +154,10 @@ Column {
                         }
                     }
                     MouseArea {
-                        id: rowArea; anchors.fill: parent; anchors.bottomMargin: netRow.pwOpen ? 40 : 0
+                        id: rowArea; anchors.fill: parent; anchors.bottomMargin: netRow.pwOpen ? (netRow.isEnterprise ? 78 : 40) : 0
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.ssid || I18n.tr("Unknown")
                         onClicked: {
                             if (netRow.isConnected || netRow.isConnecting) return
                             if (netRow.needsPw) {
@@ -163,52 +167,77 @@ Column {
                                 NetworkService.connectToWifi(modelData.ssid)
                             }
                         }
+                        Accessible.onPressAction: clicked(null)
                     }
-                    // inline password entry for secured & unsaved networks
-                    Row {
+                    // inline credential entry for secured & unsaved networks —
+                    // identity + password for 802.1X, password alone otherwise
+                    Column {
                         visible: netRow.pwOpen
-                        // focus the field as soon as the prompt opens (the island's
+                        // focus the first field as soon as the prompt opens (the island's
                         // keyboard grab engages via island.wifiNeedsKeyboard)
-                        onVisibleChanged: { if (visible) { pwField.text = ""; pwField.forceActiveFocus() } else { pwField.text = "" } }
+                        onVisibleChanged: {
+                            idField.text = ""; pwField.text = ""
+                            if (visible) (netRow.isEnterprise ? idField : pwField).forceActiveFocus()
+                        }
                         anchors.left: parent.left; anchors.right: parent.right; anchors.margins: Theme.spacingM
                         anchors.bottom: parent.bottom; anchors.bottomMargin: 6
-                        spacing: Theme.spacingS
+                        spacing: Theme.spacingXS
                         function submit() {
                             if (pwField.text.length === 0) return
+                            if (netRow.isEnterprise && idField.text.length === 0) { idField.forceActiveFocus(); return }
                             wifiCol.lastTriedSsid = modelData.ssid
-                            NetworkService.connectToWifi(modelData.ssid, pwField.text)
-                            pwField.text = ""
+                            NetworkService.connectToWifi(modelData.ssid, pwField.text, netRow.isEnterprise ? idField.text : "")
+                            idField.text = ""; pwField.text = ""
                             wifiCol.pwSsid = ""
                         }
                         DankTextField {
-                            id: pwField
-                            width: parent.width - 80
-                            height: 30
-                            property bool reveal: false
-                            echoMode: reveal ? TextInput.Normal : TextInput.Password
-                            placeholderText: I18n.tr("Password")
-                            leftIconName: "lock"
-                            onAccepted: parent.submit()
-                            onVisibleChanged: if (!visible) reveal = false
+                            id: idField
+                            visible: netRow.isEnterprise
+                            width: parent.width; height: 30
+                            placeholderText: I18n.tr("Identity (username)")
+                            leftIconName: "person"
+                            onAccepted: pwField.forceActiveFocus()
                         }
-                        Rectangle {  // reveal toggle
-                            width: 32; height: 30; radius: height / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: pwField.reveal ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16) : (revealArea.containsMouse ? Theme.surfaceLight : Theme.surfaceVariant)
-                            DankIcon { anchors.centerIn: parent; name: pwField.reveal ? "visibility_off" : "visibility"; size: 16; color: pwField.reveal ? Theme.primary : island.textColor }
-                            MouseArea {
-                                id: revealArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: pwField.reveal = !pwField.reveal
+                        Row {
+                            width: parent.width
+                            spacing: Theme.spacingS
+                            DankTextField {
+                                id: pwField
+                                width: parent.width - 80
+                                height: 30
+                                property bool reveal: false
+                                echoMode: reveal ? TextInput.Normal : TextInput.Password
+                                placeholderText: I18n.tr("Password")
+                                leftIconName: "lock"
+                                onAccepted: parent.parent.submit()
+                                onVisibleChanged: if (!visible) reveal = false
                             }
-                        }
-                        Rectangle {
-                            width: 32; height: 30; radius: height / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: goArea.containsMouse ? Theme.primary : Theme.surfaceVariant
-                            DankIcon { anchors.centerIn: parent; name: "arrow_forward"; size: 16; color: goArea.containsMouse ? Theme.primaryText : island.textColor }
-                            MouseArea {
-                                id: goArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: parent.parent.submit()
+                            Rectangle {  // reveal toggle
+                                width: 32; height: 30; radius: height / 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: pwField.reveal ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16) : (revealArea.containsMouse ? Theme.surfaceLight : Theme.surfaceVariant)
+                                DankIcon { anchors.centerIn: parent; name: pwField.reveal ? "visibility_off" : "visibility"; size: 16; color: pwField.reveal ? Theme.primary : island.textColor }
+                                MouseArea {
+                                    id: revealArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    Accessible.role: Accessible.CheckBox
+                                    Accessible.name: I18n.tr("Show password")
+                                    Accessible.checked: pwField.reveal
+                                    onClicked: pwField.reveal = !pwField.reveal
+                                    Accessible.onPressAction: clicked(null)
+                                }
+                            }
+                            Rectangle {
+                                width: 32; height: 30; radius: height / 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: goArea.containsMouse ? Theme.primary : Theme.surfaceVariant
+                                DankIcon { anchors.centerIn: parent; name: "arrow_forward"; size: 16; color: goArea.containsMouse ? Theme.primaryText : island.textColor }
+                                MouseArea {
+                                    id: goArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: I18n.tr("Connect")
+                                    onClicked: parent.parent.parent.submit()
+                                    Accessible.onPressAction: clicked(null)
+                                }
                             }
                         }
                     }

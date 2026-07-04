@@ -48,6 +48,9 @@ Column {
                 MouseArea {
                     id: tArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: powerCol.run(modelData.key)
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData.lbl
+                    Accessible.onPressAction: clicked(null)
                 }
             }
         }
@@ -86,7 +89,13 @@ Column {
                 font.pixelSize: Theme.fontSizeSmall; font.bold: true
                 color: armed || (danger && rArea.containsMouse) ? Theme.error : island.textColor
             }
-            MouseArea { id: rArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: powerCol.run(modelData.key) }
+            MouseArea {
+                id: rArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: powerCol.run(modelData.key)
+                Accessible.role: Accessible.Button
+                Accessible.name: modelData.lbl
+                Accessible.onPressAction: clicked(null)
+            }
         }
     }
 

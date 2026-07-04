@@ -183,7 +183,15 @@ Column {
             scale: aBackArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: aBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
+            MouseArea {
+                // -4 not -7: the search field sits Theme.spacingXS away on the right
+                id: aBackArea; anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.panelView = "controls"
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Back")
+                Accessible.onPressAction: clicked(null)
+            }
         }
         DankTextField {
             id: searchField
@@ -299,6 +307,14 @@ Column {
                         id: appRowArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onPositionChanged: appCol.selIndex = index
                         onClicked: appCol.activate(modelData)
+                        Accessible.role: Accessible.Button
+                        Accessible.name: {
+                            if (kind === "app") return modelData.app.name || I18n.tr("Unknown")
+                            if (kind === "action") return modelData.name || ""
+                            if (kind === "clip") return modelData.isImage ? I18n.tr("Image") : (modelData.preview || I18n.tr("Clipboard"))
+                            return "= " + modelData.display
+                        }
+                        Accessible.onPressAction: clicked(null)
                     }
                 }
             }

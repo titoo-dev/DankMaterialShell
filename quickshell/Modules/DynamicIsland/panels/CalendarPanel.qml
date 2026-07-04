@@ -61,7 +61,14 @@ Column {
             color: todayArea.containsMouse ? Theme.primary : Theme.surfaceLight
             Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
             StyledText { id: todayLbl; anchors.centerIn: parent; text: I18n.tr("Today"); font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true; color: todayArea.containsMouse ? Theme.primaryText : island.subText }
-            MouseArea { id: todayArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calCol.reset() }
+            MouseArea {
+                id: todayArea; anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: calCol.reset()
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Today")
+                Accessible.onPressAction: clicked(null)
+            }
         }
     }
 
@@ -76,7 +83,14 @@ Column {
             scale: prevArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 18; color: island.subText }
-            MouseArea { id: prevArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calCol.shiftMonth(-1) }
+            MouseArea {
+                id: prevArea; anchors.fill: parent; anchors.margins: -6
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: calCol.shiftMonth(-1)
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Previous month")
+                Accessible.onPressAction: clicked(null)
+            }
         }
         StyledText {
             anchors.centerIn: parent
@@ -91,7 +105,14 @@ Column {
             scale: nextArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "chevron_right"; size: 18; color: island.subText }
-            MouseArea { id: nextArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calCol.shiftMonth(1) }
+            MouseArea {
+                id: nextArea; anchors.fill: parent; anchors.margins: -6
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: calCol.shiftMonth(1)
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Next month")
+                Accessible.onPressAction: clicked(null)
+            }
         }
     }
 
@@ -153,6 +174,9 @@ Column {
                 MouseArea {
                     id: dayArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { calCol.selYear = parent.d.getFullYear(); calCol.selMonth = parent.d.getMonth(); calCol.selDay = parent.d.getDate() }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "" + parent.d.getDate()
+                    Accessible.onPressAction: clicked(null)
                 }
             }
         }

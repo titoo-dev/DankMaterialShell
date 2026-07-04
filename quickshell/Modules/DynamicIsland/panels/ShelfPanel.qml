@@ -45,7 +45,14 @@ Column {
             scale: shBackArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: shBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
+            MouseArea {
+                id: shBackArea; anchors.fill: parent; anchors.margins: -6
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.panelView = "controls"
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Back")
+                Accessible.onPressAction: clicked(null)
+            }
         }
         Column {
             anchors.left: shBack.right; anchors.leftMargin: Theme.spacingS
@@ -65,7 +72,14 @@ Column {
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "delete_sweep"; size: 18; color: shClearArea.containsMouse ? Theme.error : island.subText }
             ToolTip.visible: shClearArea.containsMouse; ToolTip.text: I18n.tr("Clear shelf"); ToolTip.delay: 400
-            MouseArea { id: shClearArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ShelfService.clear() }
+            MouseArea {
+                id: shClearArea; anchors.fill: parent; anchors.margins: -6
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: ShelfService.clear()
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Clear shelf")
+                Accessible.onPressAction: clicked(null)
+            }
         }
     }
 
@@ -191,14 +205,30 @@ Column {
                             color: shCopyArea.containsMouse ? Theme.primaryHover : "transparent"
                             DankIcon { anchors.centerIn: parent; name: "content_copy"; size: 14; color: shCopyArea.containsMouse ? island.accent : island.subText }
                             ToolTip.visible: shCopyArea.containsMouse; ToolTip.text: I18n.tr("Copy"); ToolTip.delay: 400
-                            MouseArea { id: shCopyArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ShelfService.copyItem(modelData) }
+                            MouseArea {
+                                // vertical-only growth: the remove button is 2 px away horizontally
+                                id: shCopyArea; anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
+                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: ShelfService.copyItem(modelData)
+                                Accessible.role: Accessible.Button
+                                Accessible.name: I18n.tr("Copy")
+                                Accessible.onPressAction: clicked(null)
+                            }
                         }
                         Rectangle {  // remove
                             width: 26; height: 26; radius: 13
                             color: shDelArea.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.18) : "transparent"
                             DankIcon { anchors.centerIn: parent; name: "close"; size: 15; color: shDelArea.containsMouse ? Theme.error : island.subText }
                             ToolTip.visible: shDelArea.containsMouse; ToolTip.text: I18n.tr("Remove"); ToolTip.delay: 400
-                            MouseArea { id: shDelArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ShelfService.remove(index) }
+                            MouseArea {
+                                // vertical-only growth: the copy button is 2 px away horizontally
+                                id: shDelArea; anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
+                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: ShelfService.remove(index)
+                                Accessible.role: Accessible.Button
+                                Accessible.name: I18n.tr("Remove")
+                                Accessible.onPressAction: clicked(null)
+                            }
                         }
                     }
                     MouseArea {
@@ -209,6 +239,9 @@ Column {
                             if (modelData.kind === "text") ShelfService.copyItem(modelData)
                             else ShelfService.openItem(modelData)
                         }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.name || I18n.tr("Shelf item")
+                        Accessible.onPressAction: clicked(null)
                     }
                 }
             }

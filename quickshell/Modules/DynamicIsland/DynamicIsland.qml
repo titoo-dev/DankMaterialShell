@@ -155,21 +155,27 @@ Scope {
     readonly property var trayItems: SystemTray.items ? SystemTray.items.values : []
 
     readonly property var popups: NotificationService.popups ?? []
-    // ambient screen-edge glow pulse whenever a NEW popup arrives (focused screen only)
+    // ambient screen-edge glow pulse whenever a NEW popup arrives (focused screen
+    // only). Identity check on the newest entry, not just a length compare: an
+    // eviction + arrival in the same tick keeps the length constant
     property int _popupCount: 0
+    property var _newestPopup: null
     onPopupsChanged: {
-        if (popups.length > _popupCount && ready && isFocusedScreen && !SessionData.doNotDisturb) {
-            const p = popups[popups.length - 1]
-            const crit = p ? (p.urgency === NotificationUrgency.Critical) : false
+        const newest = popups.length > 0 ? popups[popups.length - 1] : null
+        const arrived = newest && newest !== _newestPopup && popups.length >= _popupCount
+        if (arrived && ready && isFocusedScreen && !SessionData.doNotDisturb) {
+            const crit = newest.urgency === NotificationUrgency.Critical
             edgeGlow.flash(crit ? Theme.error : Theme.primary)
         }
         _popupCount = popups.length
+        _newestPopup = newest
     }
     // macOS model: notifications are independent top-right banners (NotificationBanners),
     // they NEVER take over the island.
 
     readonly property var audioNode: AudioService.sink && AudioService.sink.audio ? AudioService.sink.audio : null
     readonly property int volPct: audioNode ? Math.round(audioNode.volume * 100) : 0
+    readonly property var micNode: AudioService.source && AudioService.source.audio ? AudioService.source.audio : null
     readonly property bool muted: audioNode ? audioNode.muted : false
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
@@ -265,7 +271,7 @@ Scope {
     // open the expanded panel directly on a given detail view
     function openPanel(view) { panelView = view; pinned = true; mode = "expanded" }
 
-    property string presenterKind: "volume"   // "volume" | "brightness" | "battery" | "splash"
+    property string presenterKind: "volume"   // "volume" | "mic" | "brightness" | "battery" | "splash"
     // a "splash" is a glanceable Live-Activity (e.g. Bluetooth connected): icon + label, no bar
     property string splashIcon: "bluetooth_connected"
     property string splashLabel: ""
@@ -275,6 +281,7 @@ Scope {
     readonly property int presenterValue: {
         if (presenterKind === "battery") return batPct
         if (presenterKind === "brightness") return DisplayService.brightnessLevel
+        if (presenterKind === "mic") return (micNode && !micNode.muted) ? Math.round(micNode.volume * 100) : 0
         return muted ? 0 : volPct   // volume
     }
     // Denominator for the presenter bar fill. Volume must scale against the
@@ -287,6 +294,7 @@ Scope {
         if (presenterKind === "splash") return splashIcon
         if (presenterKind === "battery") return Theme.getBatteryIcon(batPct, charging, batAvailable)
         if (presenterKind === "brightness") return "brightness_6"
+        if (presenterKind === "mic") return (micNode && micNode.muted) ? "mic_off" : "mic"
         if (muted) return "volume_off"   // volume
         if (volPct === 0) return "volume_mute"
         return volPct < 50 ? "volume_down" : "volume_up"
@@ -535,6 +543,39 @@ Scope {
         target: DisplayService
         function onBrightnessChanged(showOsd) { if (showOsd) root.showPresenter("brightness") }
     }
+    // ---- the remaining system OSDs, routed through the island so ALL OSDs
+    // speak one visual language (the native ones are gated off in island mode) ----
+    Connections {
+        target: root.micNode
+        function onVolumeChanged() { root.showPresenter("mic") }
+        function onMutedChanged() { root.showPresenter("mic") }
+    }
+    Connections {
+        target: DMSService
+        function onCapsLockStateChanged() {
+            if (SettingsData.osdCapsLockEnabled)
+                root.pushActivity("keyboard_capslock", DMSService.capsLockState ? I18n.tr("Caps Lock on") : I18n.tr("Caps Lock off"))
+        }
+    }
+    Connections {
+        target: SessionService
+        function onInhibitorChanged() {
+            if (SettingsData.osdIdleInhibitorEnabled)
+                root.pushActivity(SessionService.idleInhibited ? "motion_sensor_active" : "motion_sensor_idle",
+                                  SessionService.idleInhibited ? I18n.tr("Keep awake on") : I18n.tr("Keep awake off"))
+        }
+    }
+    Connections {
+        target: PowerProfileWatcher
+        function onProfileChanged(profile) {
+            if (SettingsData.osdPowerProfileEnabled)
+                root.pushActivity(Theme.getPowerProfileIcon(profile), profile)
+        }
+    }
+    Connections {
+        target: AudioService
+        function onAudioOutputCycled(name, icon) { root.pushActivity(icon, name) }
+    }
     // Live Activity: power adapter plugged / unplugged
     onChargingChanged: {
         if (!ready) return
@@ -737,6 +778,9 @@ Scope {
     // presenter pill width, shared with PresenterPane (fixed so the level bar
     // keeps its proportion while the pane fades)
     readonly property real presenterW: 320
+    // Settings → animation speed "None" — the springs/squash/bump have no
+    // duration token to inherit, so they honour reduced motion via this flag
+    readonly property bool reduceMotion: Theme.shortDuration === 0
     readonly property real pillW: {
         switch (mode) {
         case "chip":      return 220
@@ -1064,13 +1108,14 @@ Scope {
 
             // Apple-style morph: gentle overshoot, height a touch bouncier than
             // width so the shape "pops" organically rather than sliding linearly
-            Behavior on width   { SpringAnimation { spring: 5.0; damping: 0.40; mass: 1.0; epsilon: 0.2 } }
-            Behavior on height  { SpringAnimation { spring: 5.4; damping: 0.30; mass: 1.0; epsilon: 0.2 } }
+            // (snaps instantly when the user sets animation speed to None)
+            Behavior on width   { enabled: !root.reduceMotion; SpringAnimation { spring: 5.0; damping: 0.40; mass: 1.0; epsilon: 0.2 } }
+            Behavior on height  { enabled: !root.reduceMotion; SpringAnimation { spring: 5.4; damping: 0.30; mass: 1.0; epsilon: 0.2 } }
             Behavior on radius  { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
 
             property real bumpScale: 1.0
             scale: (bgClick.pressed ? 0.985 : 1.0) * bumpScale
-            Behavior on scale { SpringAnimation { spring: 6; damping: 0.3 } }
+            Behavior on scale { enabled: !root.reduceMotion; SpringAnimation { spring: 6; damping: 0.3 } }
 
             // squash-and-stretch: on every mode change the pill briefly widens &
             // flattens, then springs back — the signature gelatinous Apple morph
@@ -1082,7 +1127,7 @@ Scope {
             }
             Connections {
                 target: root
-                function onModeChanged() { squashAnim.restart() }
+                function onModeChanged() { if (!root.reduceMotion) squashAnim.restart() }
             }
             SequentialAnimation {
                 id: squashAnim
@@ -1127,17 +1172,29 @@ Scope {
             PresenterPane { id: presenterPane; island: root }
 
             // ---- hover (tracks through child MouseAreas) ----
+            // hover INTENT: unfold only after a short dwell, so a cursor merely
+            // passing through the top edge doesn't pop the island open
+            Timer {
+                id: hoverIntent
+                interval: 130
+                onTriggered: {
+                    if (!root.hovered) return
+                    if (root.mode === "compact" || root.mode === "chip") {
+                        root.mode = root.playing ? "media" : "idle"
+                        root.bump()   // tactile pop as the island unfolds under the pointer
+                    }
+                }
+            }
             HoverHandler {
                 id: hoverHandler
                 onHoveredChanged: {
                     root.hovered = hovered
                     if (hovered) {
                         hideTimer.stop()
-                        if (root.mode === "compact" || root.mode === "chip") {
-                            root.mode = root.playing ? "media" : "idle"
-                            root.bump()   // tactile pop as the island unfolds under the pointer
-                        }
+                        if (root.mode === "compact" || root.mode === "chip")
+                            hoverIntent.restart()
                     } else if (!root.pinned) {
+                        hoverIntent.stop()
                         // expanded panel = macOS: stays open until a click outside (scrim),
                         // the back button, or Super+I — NOT on pointer-leave
                         if (root.mode !== "expanded")
@@ -1152,6 +1209,9 @@ Scope {
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: event => {
                     if (root.seekHover) return
+                    // expanded panel owns its wheel events (lists scroll, the
+                    // capsule sliders fine-adjust) — volume would fight them
+                    if (root.mode === "expanded") return
                     if (!root.audioNode) return
                     const step = (event.angleDelta.y > 0 ? 0.05 : -0.05)
                     root.audioNode.volume = Math.max(0, Math.min(1, root.audioNode.volume + step))
@@ -1173,11 +1233,16 @@ Scope {
                 id: bgClick
                 anchors.fill: parent
                 z: -1
-                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
                 cursorShape: Qt.PointingHandCursor
                 onClicked: mouse => {
                     if (mouse.button === Qt.MiddleButton) {
                         if (root.audioNode) root.audioNode.muted = !root.audioNode.muted
+                        return
+                    }
+                    if (mouse.button === Qt.RightButton) {
+                        // quick Focus toggle — the DND splash provides the feedback
+                        SessionData.setDoNotDisturb(!SessionData.doNotDisturb)
                         return
                     }
                     if (root.mode === "expanded") {
@@ -1258,7 +1323,7 @@ Scope {
     }
 
     // subtle "bump" feedback (replaces the old liquid droplet)
-    function bump() { bumpAnim.restart() }
+    function bump() { if (!reduceMotion) bumpAnim.restart() }
     SequentialAnimation {
         id: bumpAnim
         NumberAnimation { target: pill; property: "bumpScale"; to: 1.05; duration: 140; easing.type: Easing.OutBack }

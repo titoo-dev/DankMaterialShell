@@ -173,7 +173,15 @@ Column {
             scale: emBackArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: emBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
+            MouseArea {
+                // -4 not -7: the search field sits Theme.spacingXS away on the right
+                id: emBackArea; anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.panelView = "controls"
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Back")
+                Accessible.onPressAction: clicked(null)
+            }
         }
         DankTextField {
             id: searchField
@@ -217,6 +225,9 @@ Column {
                     MouseArea {
                         id: catArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: { searchField.text = ""; emojiCol.activeCat = modelData.key }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.name
+                        Accessible.onPressAction: clicked(null)
                     }
                 }
             }
@@ -254,6 +265,9 @@ Column {
                             emojiCol.toneBase = ""
                             emojiCol.pick(v)
                         }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: EmojiData.nameOf(EmojiData.withTone(emojiCol.toneBase, modelData)) || I18n.tr("Skin tone")
+                        Accessible.onPressAction: clicked(null)
                     }
                 }
             }
@@ -301,6 +315,9 @@ Column {
                     const base = EmojiData.datasetBase(emojiCol.emojiOf(modelData))
                     if (EmojiData.toneable(base)) emojiCol.toneBase = base
                 }
+                Accessible.role: Accessible.Button
+                Accessible.name: EmojiData.nameOf(emojiCol.emojiOf(modelData)) || emojiCol.emojiOf(modelData)
+                Accessible.onPressAction: emojiCol.pick(modelData)
             }
         }
     }

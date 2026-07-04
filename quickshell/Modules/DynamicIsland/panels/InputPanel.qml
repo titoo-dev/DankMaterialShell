@@ -48,7 +48,13 @@ Column {
                         text: modelData.description || modelData.name || I18n.tr("Input"); color: island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: parent.isCur
                     }
                     DankIcon { id: inChk; anchors.right: parent.right; anchors.rightMargin: Theme.spacingM; anchors.verticalCenter: parent.verticalCenter; name: "check_circle"; size: 16; color: island.accent; visible: parent.isCur }
-                    MouseArea { id: inRowA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: AudioService.setSource(modelData) }
+                    MouseArea {
+                        id: inRowA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: AudioService.setSource(modelData)
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.description || modelData.name || I18n.tr("Input")
+                        Accessible.onPressAction: clicked(null)
+                    }
                 }
             }
         }

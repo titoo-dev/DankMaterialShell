@@ -14,13 +14,20 @@ import qs.Widgets
 Item {
     id: cs
     property string icon: ""
+    property string accessibleName: I18n.tr("Level")
     property real frac: 0
     property bool dim: false   // muted look: grey fill
+    // opt-in: a TAP on the icon zone fires iconClicked (e.g. mute) instead of
+    // seeking; dragging out of the zone falls back to normal value adjustment
+    property bool iconClickable: false
     signal moved(real f)
+    signal iconClicked()
     height: 36
     property real dragFrac: 0
-    readonly property real shownFrac: csArea.pressed ? dragFrac : frac
-    Behavior on frac { enabled: !csArea.pressed; NumberAnimation { duration: 120 } }
+    // true while the press is actually adjusting the value (not an icon tap)
+    property bool adjusting: false
+    readonly property real shownFrac: adjusting ? dragFrac : frac
+    Behavior on frac { enabled: !cs.adjusting; NumberAnimation { duration: 120 } }
     Rectangle {   // track
         anchors.fill: parent
         radius: height / 2
@@ -59,8 +66,37 @@ Item {
         hoverEnabled: true
         preventStealing: true
         cursorShape: Qt.PointingHandCursor
+        property bool iconPress: false
+        property real pressX: 0
         function fAt(mx) { return Math.max(0, Math.min(1, mx / width)) }
-        onPressed: mouse => { cs.dragFrac = fAt(mouse.x); cs.moved(cs.dragFrac) }
-        onPositionChanged: mouse => { if (pressed) { cs.dragFrac = fAt(mouse.x); cs.moved(cs.dragFrac) } }
+        onPressed: mouse => {
+            pressX = mouse.x
+            iconPress = cs.iconClickable && mouse.x <= 36
+            if (!iconPress) {
+                cs.adjusting = true
+                cs.dragFrac = fAt(mouse.x)
+                cs.moved(cs.dragFrac)
+            }
+        }
+        onPositionChanged: mouse => {
+            if (!pressed) return
+            // an icon press that moves becomes a normal drag
+            if (iconPress && Math.abs(mouse.x - pressX) > 5) { iconPress = false; cs.adjusting = true }
+            if (cs.adjusting) { cs.dragFrac = fAt(mouse.x); cs.moved(cs.dragFrac) }
+        }
+        onReleased: {
+            if (iconPress) cs.iconClicked()
+            iconPress = false
+            cs.adjusting = false
+        }
+        onCanceled: { iconPress = false; cs.adjusting = false }
+        // wheel over the capsule = fine adjustment (±5%)
+        onWheel: wheel => {
+            const next = Math.max(0, Math.min(1, cs.frac + (wheel.angleDelta.y > 0 ? 0.05 : -0.05)))
+            cs.moved(next)
+            wheel.accepted = true
+        }
+        Accessible.role: Accessible.Slider
+        Accessible.name: cs.accessibleName
     }
 }

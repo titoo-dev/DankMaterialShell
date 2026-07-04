@@ -250,7 +250,14 @@ import qs.Widgets
                                     opacity: (areaHover.hovered && bWrap.active) ? 1 : 0
                                     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
                                     DankIcon { anchors.centerIn: parent; name: "close"; size: 15; color: bCloseA.containsMouse ? Theme.error : island.subText }
-                                    MouseArea { id: bCloseA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: bWrap.dismissGroup() }
+                                    MouseArea {
+                                        id: bCloseA; anchors.fill: parent; anchors.margins: -6
+                                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: bWrap.dismissGroup()
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: I18n.tr("Dismiss")
+                                        Accessible.onPressAction: clicked(null)
+                                    }
                                 }
                             }
 
@@ -270,7 +277,13 @@ import qs.Widgets
                                         DankIcon { name: "reply"; size: 14; color: bReplyA.containsMouse ? island.accent : island.textColor; anchors.verticalCenter: parent.verticalCenter }
                                         StyledText { id: bReplyLbl; text: I18n.tr("Reply"); color: bReplyA.containsMouse ? island.accent : island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
                                     }
-                                    MouseArea { id: bReplyA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: bCard.openReply() }
+                                    MouseArea {
+                                        id: bReplyA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: bCard.openReply()
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: I18n.tr("Reply")
+                                        Accessible.onPressAction: clicked(null)
+                                    }
                                 }
                                 Repeater {
                                     id: bActions
@@ -293,7 +306,13 @@ import qs.Widgets
                                         scale: bActA.pressed ? 0.93 : 1.0
                                         Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                                         StyledText { id: bActLbl; anchors.centerIn: parent; width: Math.min(implicitWidth, 160 - Theme.spacingL * 2); text: modelData.text || I18n.tr("Open"); elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap; color: bActA.containsMouse ? island.accent : island.textColor; font.pixelSize: Theme.fontSizeSmall; font.bold: true }
-                                        MouseArea { id: bActA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (modelData && modelData.invoke) modelData.invoke(); if (bWrap.topNotif) bWrap.topNotif.popup = false } }
+                                        MouseArea {
+                                            id: bActA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            onClicked: { if (modelData && modelData.invoke) modelData.invoke(); if (bWrap.topNotif) bWrap.topNotif.popup = false }
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: modelData.text || I18n.tr("Open")
+                                            Accessible.onPressAction: clicked(null)
+                                        }
                                     }
                                 }
                             }
@@ -322,7 +341,13 @@ import qs.Widgets
                                     anchors.verticalCenter: parent.verticalCenter
                                     color: bSendA.containsMouse ? Theme.primary : Theme.surfaceVariant
                                     DankIcon { anchors.centerIn: parent; name: "send"; size: 16; color: bSendA.containsMouse ? Theme.primaryText : island.textColor }
-                                    MouseArea { id: bSendA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: bCard.sendReply(bReplyField.text) }
+                                    MouseArea {
+                                        id: bSendA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: bCard.sendReply(bReplyField.text)
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: I18n.tr("Send")
+                                        Accessible.onPressAction: clicked(null)
+                                    }
                                 }
                             }
                         }

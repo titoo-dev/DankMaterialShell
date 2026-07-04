@@ -1249,8 +1249,13 @@ Item {
                     }
                 }
 
+                // In island mode EVERY system OSD is presented by the Dynamic
+                // Island (volume/brightness/mic bars, splashes for caps lock,
+                // keep-awake, power profile, output switch; playback state
+                // lives in the media chip) — a single visual language instead
+                // of native OSDs coexisting with the island's.
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: MediaVolumeOSD {
                         modelData: item
@@ -1258,7 +1263,7 @@ Item {
                 }
 
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: MediaPlaybackOSD {
                         modelData: item
@@ -1266,7 +1271,7 @@ Item {
                 }
 
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: MicVolumeOSD {
                         modelData: item
@@ -1282,7 +1287,7 @@ Item {
                 }
 
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: IdleInhibitorOSD {
                         modelData: item
@@ -1290,7 +1295,7 @@ Item {
                 }
 
                 Variants {
-                    model: SettingsData.osdPowerProfileEnabled ? SettingsData.getFilteredScreens("osd") : []
+                    model: (SettingsData.osdPowerProfileEnabled && !SettingsData.dynamicIslandEnabled) ? SettingsData.getFilteredScreens("osd") : []
 
                     delegate: PowerProfileOSD {
                         modelData: item
@@ -1298,7 +1303,7 @@ Item {
                 }
 
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: CapsLockOSD {
                         modelData: item
@@ -1306,7 +1311,7 @@ Item {
                 }
 
                 Variants {
-                    model: SettingsData.getFilteredScreens("osd")
+                    model: SettingsData.dynamicIslandEnabled ? [] : SettingsData.getFilteredScreens("osd")
 
                     delegate: AudioOutputOSD {
                         modelData: item

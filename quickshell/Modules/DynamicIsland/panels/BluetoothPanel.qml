@@ -78,12 +78,17 @@ Column {
                 }
             }
             MouseArea {
-                id: btRefreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                // -4 not -6: the radio pill sits Theme.spacingXS away on the right
+                id: btRefreshArea; anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     if (!BluetoothService.adapter || !BluetoothService.enabled) return
                     BluetoothService.adapter.discovering = false   // restart for a fresh sweep
                     btRescanTimer.restart()
                 }
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Refresh")
+                Accessible.onPressAction: clicked(null)
             }
         }
         Rectangle {  // radio on/off pill switch
@@ -97,7 +102,14 @@ Column {
                 x: BluetoothService.enabled ? parent.width - width - 3 : 3
                 Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (BluetoothService.adapter) BluetoothService.adapter.enabled = !BluetoothService.enabled } }
+            MouseArea {
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                onClicked: { if (BluetoothService.adapter) BluetoothService.adapter.enabled = !BluetoothService.enabled }
+                Accessible.role: Accessible.CheckBox
+                Accessible.name: "Bluetooth"
+                Accessible.checked: BluetoothService.enabled
+                Accessible.onPressAction: clicked(null)
+            }
         }
     }
 
@@ -156,6 +168,9 @@ Column {
                         id: btRowA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         enabled: !parent.isBusy   // no double-fire while a transition is in flight
                         onClicked: { if (modelData.connected) modelData.disconnect(); else BluetoothService.connectDeviceWithTrust(modelData) }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.name || modelData.deviceName || I18n.tr("Unknown Device")
+                        Accessible.onPressAction: clicked(null)
                     }
                 }
             }
@@ -211,6 +226,9 @@ Column {
                         id: avRowA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         enabled: !parent.isPairing
                         onClicked: btCol.pairNew(modelData)
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.name || modelData.deviceName || I18n.tr("Unknown Device")
+                        Accessible.onPressAction: clicked(null)
                     }
                 }
             }

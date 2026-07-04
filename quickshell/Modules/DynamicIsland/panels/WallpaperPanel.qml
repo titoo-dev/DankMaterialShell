@@ -149,7 +149,14 @@ Column {
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "folder_open"; size: 17; color: wpFolderArea.containsMouse ? island.accent : island.textColor }
             ToolTip.visible: wpFolderArea.containsMouse; ToolTip.text: I18n.tr("Browse folder"); ToolTip.delay: 400
-            MouseArea { id: wpFolderArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: wpBrowser.open() }
+            MouseArea {
+                id: wpFolderArea; anchors.fill: parent; anchors.margins: -6
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: wpBrowser.open()
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Browse folder")
+                Accessible.onPressAction: clicked(null)
+            }
         }
     }
 
@@ -256,6 +263,9 @@ Column {
                     MouseArea {
                         id: cardArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: { wpCol.selIndex = index; if (path) wpCol.setCurrentWallpaper(path) }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: wpCol.fileNameOf(path) || I18n.tr("Wallpaper")
+                        Accessible.onPressAction: clicked(null)
                     }
                 }
             }
@@ -290,7 +300,14 @@ Column {
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 DankIcon { anchors.centerIn: parent; name: "shuffle"; size: 17; color: parent.on ? Theme.primaryText : island.textColor }
                 ToolTip.visible: cycArea.containsMouse; ToolTip.text: I18n.tr("Auto-cycle wallpaper"); ToolTip.delay: 400
-                MouseArea { id: cycArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: SessionData.setWallpaperCyclingEnabled(!SessionData.wallpaperCyclingEnabled) }
+                MouseArea {
+                    id: cycArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: SessionData.setWallpaperCyclingEnabled(!SessionData.wallpaperCyclingEnabled)
+                    Accessible.role: Accessible.CheckBox
+                    Accessible.name: I18n.tr("Auto-cycle wallpaper")
+                    Accessible.checked: SessionData.wallpaperCyclingEnabled
+                    Accessible.onPressAction: clicked(null)
+                }
             }
             // manual prev / next
             Rectangle {
@@ -300,7 +317,13 @@ Column {
                 scale: prevArea.pressed ? 0.9 : 1.0
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 DankIcon { anchors.centerIn: parent; name: "skip_previous"; size: 18; color: prevArea.containsMouse ? island.accent : island.textColor }
-                MouseArea { id: prevArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: WallpaperCyclingService.cyclePrevManually() }
+                MouseArea {
+                    id: prevArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: WallpaperCyclingService.cyclePrevManually()
+                    Accessible.role: Accessible.Button
+                    Accessible.name: I18n.tr("Previous wallpaper")
+                    Accessible.onPressAction: clicked(null)
+                }
             }
             Rectangle {
                 width: 32; height: 32; radius: width / 2
@@ -309,7 +332,13 @@ Column {
                 scale: nextArea.pressed ? 0.9 : 1.0
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 DankIcon { anchors.centerIn: parent; name: "skip_next"; size: 18; color: nextArea.containsMouse ? island.accent : island.textColor }
-                MouseArea { id: nextArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: WallpaperCyclingService.cycleNextManually() }
+                MouseArea {
+                    id: nextArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: WallpaperCyclingService.cycleNextManually()
+                    Accessible.role: Accessible.Button
+                    Accessible.name: I18n.tr("Next wallpaper")
+                    Accessible.onPressAction: clicked(null)
+                }
             }
         }
         StyledText {

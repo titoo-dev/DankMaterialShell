@@ -72,6 +72,9 @@ Item {
                     id: wsArea; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: island.wsActivate(modelData.key)
+                    Accessible.role: Accessible.Button
+                    Accessible.name: I18n.tr("Workspace") + " " + modelData.label
+                    Accessible.onPressAction: clicked(null)
                 }
             }
         }
@@ -119,6 +122,9 @@ Item {
                 anchors.fill: parent; anchors.margins: -4
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: island.openPanel("calendar")
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Calendar")
+                Accessible.onPressAction: clicked(null)
             }
         }
         Row {  // weather
@@ -167,6 +173,9 @@ Item {
                 anchors.fill: parent; anchors.margins: -4
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: island.openPanel("tailscale")
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Tailscale")
+                Accessible.onPressAction: clicked(null)
             }
         }
         Row {  // Bluetooth device battery (lowest connected device with battery)
@@ -219,6 +228,9 @@ Item {
                 anchors.fill: parent; anchors.margins: -4
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: island.openPanel("shelf")
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Shelf")
+                Accessible.onPressAction: clicked(null)
             }
         }
         StyledText {  // keyboard layout (niri/dwl)
@@ -263,6 +275,9 @@ Item {
                                 modelData.activate()
                             }
                         }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.title || I18n.tr("Tray item")
+                        Accessible.onPressAction: modelData.activate()
                     }
                 }
             }

@@ -66,7 +66,15 @@ Column {
             scale: clBackArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "chevron_left"; size: 20; color: island.textColor }
-            MouseArea { id: clBackArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: island.panelView = "controls" }
+            MouseArea {
+                // -4 not -7: the search field sits Theme.spacingXS away on the right
+                id: clBackArea; anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.panelView = "controls"
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Back")
+                Accessible.onPressAction: clicked(null)
+            }
         }
         DankTextField {
             id: clipSearch
@@ -130,12 +138,22 @@ Column {
                         opacity: clipRowArea.containsMouse ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
                         DankIcon { anchors.centerIn: parent; name: "close"; size: 15; color: clipDelArea.containsMouse ? Theme.error : island.subText }
-                        MouseArea { id: clipDelArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ClipboardService.deleteEntry(modelData) }
+                        MouseArea {
+                            id: clipDelArea; anchors.fill: parent; anchors.margins: -6
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: ClipboardService.deleteEntry(modelData)
+                            Accessible.role: Accessible.Button
+                            Accessible.name: I18n.tr("Delete")
+                            Accessible.onPressAction: clicked(null)
+                        }
                     }
                     MouseArea {
                         id: clipRowArea; anchors.fill: parent; hoverEnabled: true; z: -1; cursorShape: Qt.PointingHandCursor
                         onContainsMouseChanged: if (containsMouse) clipCol.selIndex = index
                         onClicked: clipCol.copy(modelData)
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.isImage ? I18n.tr("Image") : (modelData.preview || I18n.tr("Clipboard entry"))
+                        Accessible.onPressAction: clicked(null)
                     }
         }
     }

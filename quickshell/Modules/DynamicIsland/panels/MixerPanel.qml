@@ -78,8 +78,14 @@ Column {
                             color: parent.parent.muted ? Theme.error : island.textColor
                         }
                         MouseArea {
-                            id: mxMuteArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            // -3 only: the stream's CapsuleSlider starts 3 px below
+                            id: mxMuteArea; anchors.fill: parent; anchors.margins: -3
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: if (modelData.audio) modelData.audio.muted = !modelData.audio.muted
+                            Accessible.role: Accessible.CheckBox
+                            Accessible.name: I18n.tr("Mute")
+                            Accessible.checked: mxMute.parent.muted
+                            Accessible.onPressAction: clicked(null)
                         }
                     }
                     CapsuleSlider {
@@ -87,6 +93,7 @@ Column {
                         anchors.leftMargin: Theme.spacingM; anchors.rightMargin: Theme.spacingM
                         anchors.bottom: parent.bottom; anchors.bottomMargin: 2
                         height: 26
+                        accessibleName: AudioService.displayName(modelData) || I18n.tr("Stream")
                         dim: parent.muted
                         frac: modelData.audio ? modelData.audio.volume : 0
                         onMoved: f => { if (modelData.audio) modelData.audio.volume = f }

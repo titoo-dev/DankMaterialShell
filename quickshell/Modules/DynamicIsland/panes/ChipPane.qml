@@ -71,6 +71,9 @@ Row {
             anchors.fill: parent; anchors.margins: -4
             cursorShape: Qt.PointingHandCursor
             onClicked: if (island.player) island.player.togglePlaying()
+            Accessible.role: Accessible.Button
+            Accessible.name: I18n.tr("Play/Pause")
+            Accessible.onPressAction: clicked(null)
         }
     }
     Row {

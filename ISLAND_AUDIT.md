@@ -9,6 +9,53 @@
 > donc **réglés** ; C4 (défaut `dynamicIslandEnabled`) est conservé volontairement sur ce fork
 > personnel (concerne une éventuelle distribution).
 
+> **MISE À JOUR (2026-07-04)** — session « solde de l'audit », tout vérifié live :
+>
+> **Réglés ce jour** :
+> - **H10** : script d'insertion emoji/texte portable — `focuswindow` stock avec fallback
+>   `hl.dsp.focus` (fork lua), bloc hyprctl entièrement sauté hors Hyprland (niri rend le
+>   focus tout seul à la chute du grab).
+> - **H12** : l'ouverture sur l'écran focalisé replie toute île épinglée d'un autre écran ;
+>   `island close` replie TOUS les écrans.
+> - **H4 (reste)** : ClipboardPanel tient un `Ref { service: ClipboardService }` (liste live) ;
+>   nav clavier déjà en place. **H5** était déjà réglé (rates réactifs).
+> - **hmap bannières** par clé de groupe (plus de décalage à la fermeture du milieu) ;
+>   **edge glow** par identité du popup le plus récent (éviction+ajout même tick couvert) ;
+>   **eventsRev** calendrier lié à l'identité de l'objet ; **ring du chip** snap au rewind
+>   au lieu de 900 ms à rebours ; batterie idle via `Theme.getBatteryIcon` ; largeur presenter
+>   partagée (`presenterW`) ; reveal du mdp Wi-Fi ; « Click to pair ».
+> - **Échap universel** : grab clavier étendu à TOUTE vue expanded (l'île est déjà modale via
+>   le scrim) + catcher d'Échap au niveau du stage → drill → hub → fermé, partout. `_kbViews`
+>   supprimé (les champs de recherche gardent la priorité de focus).
+> - **DrillHeader.qml partagé** (back 44 px + titre + slot trailing, a11y intégrée) — 11 panels
+>   migrés ; Spotlight/Emoji/Clipboard (header champ de recherche), Shelf (titre empilé) et
+>   Tailscale (icône de statut) gardent leur header spécifique, volontairement.
+> - **Perf** : Notifications & Clipboard en `ListView reuseItems`, Emoji en `GridView` (+
+>   FileView async + debounce 120 ms) ; ombre MultiEffect par carte de bannière remplacée par
+>   le liseré (langage capsule, plus de FBO par carte) ; timer 1 s du MediaPane dédupliqué sur
+>   `island.mediaTick`. Wi-Fi garde volontairement son Repeater (liste courte + prompt mdp
+>   stateful que le pooling détruirait).
+> - **Wi-Fi 802.1X** : champ identité inline (le service acceptait déjà `username`).
+> - **A11y** : passe `Accessible.name/role/onPressAction` sur les contrôles interactifs du
+>   module, cibles élargies à ~44 px via marges de MouseArea, reduced-motion (`animationSpeed
+>   = None`) respecté par les springs/squash/bump de l'île.
+> - **Cohérence OSD** : la totalité des OSD système passe par l'île en mode island — kind
+>   « mic » (barre + mute), splashes pour Caps Lock / keep-awake / power profile / sortie
+>   audio ; MediaVolume/MediaPlayback gatés (l'état lecture vit déjà dans le chip).
+> - `island-blur.conf` : doc d'installation agnostique du chemin. Fix connexe hors module :
+>   `Theme.error` dynamique suivait toujours le ton dark (privacy/power/critiques illisibles
+>   en clair) — corrigé via `getMatugenColor`.
+>
+> **Différés, avec raison** :
+> - **IslandState typé / god-object** : refactor invasif sur ~28 fichiers pour un gain surtout
+>   testabilité — pas de bug concret associé ; à faire si le module doit être partagé upstream.
+> - **Duplication avec les popouts DMS natifs** (2 control centers…) : choix assumé du fork.
+> - **Virtualisation Wi-Fi** (voir ci-dessus), **EQ 5/6 valeurs** (cosmétique), fallback
+>   `screens[0]` (uniquement quand le compositeur ne rapporte aucun focus), presenter
+>   interactif ≠ click-through (choix design : l'OSD de l'île est manipulable).
+> - **Emoji v2 / Spotlight riche / mixer par app / squircle** : Phase 3, features nouvelles
+>   hors périmètre « correctifs ».
+
 Audit d'ingénierie de `Modules/DynamicIsland/` (branche `feat/dynamic-island`, ~5 080 lignes,
 30 fichiers) : correctness, performance, architecture, UX, accessibilité — avec gap-analysis
 vs macOS / Windows 11 et roadmap pour atteindre puis dépasser ce niveau.
