@@ -86,7 +86,14 @@ Item {
                 return;
             Paths.mkdir(Paths.imagecache);
             const grabPath = root.cachePath;
-            root._cacheSaved = grabToImage(res => res.saveToFile(grabPath));
+            const grabSource = source;
+            // the grab renders on a later frame: a recycled delegate (reuseItems)
+            // may have swapped `source` by then — saving would file the NEW
+            // image under the OLD path and corrupt the cache
+            root._cacheSaved = grabToImage(res => {
+                if (source === grabSource && root.cachePath === grabPath)
+                    res.saveToFile(grabPath);
+            });
         }
         onStatusChanged: {
             // cached thumbnail missing → fall back to the original

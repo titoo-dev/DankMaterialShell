@@ -43,8 +43,14 @@ Column {
         const p = pathAt(selIndex)
         if (p) setCurrentWallpaper(p)
     }
-    // place the cursor on the currently-applied wallpaper when the view opens
+    // place the cursor on the currently-applied wallpaper when the view opens.
+    // The restore is INSTANT (no highlight slide from its previous position):
+    // cursorSettling zeroes the highlight animation for the programmatic jump.
+    property bool cursorSettling: false
+    Timer { id: settleTimer; interval: 180; onTriggered: wpCol.cursorSettling = false }
     function syncSelToCurrent() {
+        cursorSettling = true
+        settleTimer.restart()
         const cur = getCurrentWallpaper()
         for (var i = 0; i < wpModel.count; i++) {
             if (pathAt(i) === cur) { selIndex = i; return }
@@ -182,7 +188,8 @@ Column {
             keyNavigationEnabled: false
             currentIndex: wpCol.selIndex
             highlightFollowsCurrentItem: true
-            highlightMoveDuration: Theme.shortDuration
+            // animated for keyboard steps, instant while restoring state on open
+            highlightMoveDuration: wpCol.cursorSettling ? 0 : Theme.shortDuration
             onCurrentIndexChanged: positionViewAtIndex(currentIndex, GridView.Contain)
             Keys.onLeftPressed: wpCol.move(-1, 0)
             Keys.onRightPressed: wpCol.move(1, 0)
@@ -262,7 +269,10 @@ Column {
                     }
                     MouseArea {
                         id: cardArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: { wpCol.selIndex = index; if (path) wpCol.setCurrentWallpaper(path) }
+                        // capture BEFORE touching selIndex: setting it scrolls the
+                        // grid synchronously and reuseItems may reassign this very
+                        // delegate to another file between the two statements
+                        onClicked: { const p = path; const i = index; wpCol.selIndex = i; if (p) wpCol.setCurrentWallpaper(p) }
                         Accessible.role: Accessible.Button
                         Accessible.name: wpCol.fileNameOf(path) || I18n.tr("Wallpaper")
                         Accessible.onPressAction: clicked(null)
