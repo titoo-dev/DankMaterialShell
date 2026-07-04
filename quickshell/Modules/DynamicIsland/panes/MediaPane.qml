@@ -1,19 +1,21 @@
 import QtQuick
 import QtQuick.Controls
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
 
-// MEDIA (hover + playing): art, title, transport, drag-to-seek scrubber.
-// Reads island state via `island`; exposes `titleW`/`controlsWidth` for pill geometry.
+// MEDIA (hover + playing): art | title/artist + inline progress | transport.
+// Everything vertically balanced for the floating capsule (side margins clear
+// the corner curves). Reads island state via `island`; exposes
+// `titleW`/`controlsWidth` for pill geometry.
 Item {
     id: mediaPane
     property var island: null
-    readonly property real titleW: Math.min(Math.max(mTitle.textWidth, mArtist.implicitWidth, mEyebrow.implicitWidth), 360)
+    readonly property real titleW: Math.min(Math.max(mTitle.textWidth, mArtist.implicitWidth), 360)
     readonly property real controlsWidth: controls.implicitWidth
     anchors.fill: parent
-    anchors.leftMargin: 10; anchors.rightMargin: 10
-    anchors.topMargin: 9; anchors.bottomMargin: 10
+    anchors.leftMargin: 22; anchors.rightMargin: 16
     opacity: island.mode === "media" ? 1 : 0
     visible: opacity > 0
     onVisibleChanged: if (!visible) island.seekHover = false
@@ -21,10 +23,11 @@ Item {
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
     Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
 
-    Rectangle {
+    ClippingRectangle {
         id: art
-        width: 44; height: 44; radius: 12; clip: true
-        anchors.left: parent.left; anchors.top: parent.top
+        // true rounded clip: bbox `clip` let the square art cover the radius
+        width: 50; height: 50; radius: 14
+        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         color: Theme.primaryBackground
         scale: artArea.pressed ? 0.92 : (artArea.containsMouse ? 1.06 : 1.0)
         Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
@@ -59,33 +62,52 @@ Item {
     }
     Column {
         anchors.left: art.right; anchors.leftMargin: Theme.spacingM
-        anchors.right: controls.left; anchors.rightMargin: Theme.spacingS
-        anchors.verticalCenter: art.verticalCenter
-        spacing: 1
-        StyledText {  // eyebrow: player source / "NOW PLAYING"
-            id: mEyebrow
-            width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-            text: (island.player && island.player.identity) ? island.player.identity : I18n.tr("Now Playing")
-            color: island.accent; font.pixelSize: Theme.fontSizeSmall - 2
-            font.bold: true; font.capitalization: Font.AllUppercase
-        }
+        anchors.right: controls.left; anchors.rightMargin: Theme.spacingM
+        anchors.verticalCenter: parent.verticalCenter
+        // shift up to make room for the progress line at the bottom of the pill
+        anchors.verticalCenterOffset: island.mediaLen > 0 ? -8 : 0
+        Behavior on anchors.verticalCenterOffset { NumberAnimation { duration: Theme.shortDuration } }
+        spacing: 2
         MarqueeText {   // long track titles shuttle instead of eliding (iOS ticker)
             id: mTitle
             width: parent.width
+            centered: false
             text: island.player ? (island.player.trackTitle || I18n.tr("Unknown")) : ""
             color: island.textColor; pixelSize: Theme.fontSizeMedium; bold: true
         }
-        StyledText {
-            id: mArtist
-            width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-            text: island.player ? (island.player.trackArtist || "") : ""
-            color: island.subText; font.pixelSize: Theme.fontSizeSmall
+        // artist line, swapped for elapsed/remaining while hovering the scrubber
+        Item {
+            width: parent.width; height: mArtist.implicitHeight
+            StyledText {
+                id: mArtist
+                width: parent.width; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                text: island.player ? (island.player.trackArtist || island.player.identity || "") : ""
+                color: island.subText; font.pixelSize: Theme.fontSizeSmall
+                opacity: trackBar.timesShown ? 0 : 1
+                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+            }
+            StyledText {
+                anchors.left: parent.left
+                text: { island.mediaTick; return island.fmtTime(trackBar.seeking ? trackBar.seekFrac * island.mediaLen : (island.player ? island.player.position : 0)) }
+                color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true
+                opacity: trackBar.timesShown ? 0.9 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+            }
+            StyledText {
+                anchors.right: parent.right
+                text: { island.mediaTick; return "-" + island.fmtTime(Math.max(0, island.mediaLen - (trackBar.seeking ? trackBar.seekFrac * island.mediaLen : (island.player ? island.player.position : 0)))) }
+                color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true
+                opacity: trackBar.timesShown ? 0.9 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+            }
         }
     }
     Row {
         id: controls
-        anchors.right: parent.right; anchors.verticalCenter: art.verticalCenter
-        spacing: 0
+        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+        spacing: 2
         Repeater {
             // STATIC model: the buttons live across play/pause/track changes (a
             // computed array model would destroy+recreate them on every change)
@@ -105,13 +127,15 @@ Item {
                     else if (modelData === "prev") island.player.previous()
                     else island.player.next()
                 }
-                width: 36; height: 36; radius: 12
-                color: cArea.containsMouse && en ? Theme.primaryHover : "transparent"
+                width: big ? 38 : 32; height: width; radius: width / 2
+                anchors.verticalCenter: parent.verticalCenter
+                // hierarchy: accent-filled play disc, quiet ghost side buttons
+                color: big ? island.accent : (cArea.containsMouse && en ? Theme.primaryHover : "transparent")
                 opacity: en ? 1 : 0.35
                 Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                scale: cArea.pressed && en ? 0.86 : 1.0
+                scale: cArea.pressed && en ? 0.86 : (big && cArea.containsMouse ? 1.06 : 1.0)
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
-                DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 26 : 20; color: island.accent }
+                DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 22 : 18; color: parent.big ? Theme.primaryText : island.textColor; filled: true }
                 ToolTip.visible: cArea.containsMouse && en
                 ToolTip.text: label
                 ToolTip.delay: 400
@@ -125,10 +149,12 @@ Item {
     }
     Rectangle {
         id: trackBar
+        // scoped to the text column — never runs under the transport buttons
+        // or into the capsule's corner curve
         anchors.left: art.right; anchors.leftMargin: Theme.spacingM
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        height: 4; radius: 2
+        anchors.right: controls.left; anchors.rightMargin: Theme.spacingM
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 15
+        height: 3; radius: 1.5
         color: Theme.surfaceVariant
         // streams without a duration (radio, some browsers) get no scrubber (macOS)
         visible: island.mediaLen > 0
@@ -182,23 +208,7 @@ Item {
                 island.player.position = next
             }
         }
-        // elapsed / remaining timestamps, revealed when scrubbing/hovering the bar
+        // elapsed / remaining revealed in the artist line while scrubbing/hovering
         property bool timesShown: (seekArea.containsMouse || trackBar.seeking) && island.mediaLen > 0
-        StyledText {
-            anchors.left: parent.left; anchors.bottom: parent.top; anchors.bottomMargin: 4
-            text: { island.mediaTick; return island.fmtTime(trackBar.seeking ? trackBar.seekFrac * island.mediaLen : (island.player ? island.player.position : 0)) }
-            color: island.subText; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true
-            opacity: trackBar.timesShown ? 0.9 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-        }
-        StyledText {
-            anchors.right: parent.right; anchors.bottom: parent.top; anchors.bottomMargin: 4
-            text: { island.mediaTick; return "-" + island.fmtTime(Math.max(0, island.mediaLen - (trackBar.seeking ? trackBar.seekFrac * island.mediaLen : (island.player ? island.player.position : 0)))) }
-            color: island.subText; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true
-            opacity: trackBar.timesShown ? 0.9 : 0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-        }
     }
 }

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import Quickshell.Widgets
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -16,16 +17,25 @@ Row {
     scale: island.mode === "chip" ? 1 : 0.9
     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
     Behavior on scale { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.expressiveCurves.expressiveDefaultSpatial } }
-    Item {  // album art wrapped in a circular progress ring (Apple "Live Activity" feel)
-        width: 26; height: 26
+    Item {  // circular album art hugged by the progress ring (Apple "Live Activity" feel)
+        width: 28; height: 28
         anchors.verticalCenter: parent.verticalCenter
-        Shape {  // faint track
+        // circular avatar: true rounded clip so the art FILLS the disc — the old
+        // bbox `clip` let the square art's corners paint over the ring
+        ClippingRectangle {
+            anchors.centerIn: parent
+            width: 22; height: 22; radius: 11
+            color: Theme.primaryBackground
+            Image { id: chipArtImg; anchors.fill: parent; source: island.player ? (island.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; cache: false; asynchronous: true; visible: status === Image.Ready }
+            DankIcon { anchors.centerIn: parent; name: "music_note"; size: 12; color: island.accent; visible: chipArtImg.status !== Image.Ready }
+        }
+        Shape {  // faint track, above the avatar so the ring always reads on top
             anchors.fill: parent; antialiasing: true
             visible: island.mediaLen > 0
             ShapePath {
                 strokeWidth: 2; capStyle: ShapePath.RoundCap; fillColor: "transparent"
                 strokeColor: Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.22)
-                PathAngleArc { centerX: 13; centerY: 13; radiusX: 11.5; radiusY: 11.5; startAngle: -90; sweepAngle: 360 }
+                PathAngleArc { centerX: 14; centerY: 14; radiusX: 12.5; radiusY: 12.5; startAngle: -90; sweepAngle: 360 }
             }
         }
         Shape {  // progress
@@ -35,17 +45,11 @@ Row {
                 strokeWidth: 2; capStyle: ShapePath.RoundCap; fillColor: "transparent"
                 strokeColor: island.accent
                 PathAngleArc {
-                    centerX: 13; centerY: 13; radiusX: 11.5; radiusY: 11.5
+                    centerX: 14; centerY: 14; radiusX: 12.5; radiusY: 12.5
                     startAngle: -90; sweepAngle: 360 * island.mediaFrac
                     Behavior on sweepAngle { NumberAnimation { duration: 900; easing.type: Easing.OutSine } }
                 }
             }
-        }
-        Rectangle {
-            width: 20; height: 20; radius: 6; clip: true; color: Theme.primaryBackground
-            anchors.centerIn: parent
-            Image { id: chipArtImg; anchors.fill: parent; source: island.player ? (island.player.trackArtUrl ?? "") : ""; fillMode: Image.PreserveAspectCrop; cache: false; asynchronous: true; visible: status === Image.Ready }
-            DankIcon { anchors.centerIn: parent; name: "music_note"; size: 12; color: island.accent; visible: chipArtImg.status !== Image.Ready }
         }
         // tap the art = play/pause without expanding (touch: no hover-expand there)
         MouseArea {

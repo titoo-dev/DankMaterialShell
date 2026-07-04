@@ -698,8 +698,8 @@ Scope {
         switch (mode) {
         case "chip":      return 220
         case "media": {
-            // grow so the title fits, clamped to the screen
-            const content = 44 + Theme.spacingM + mediaPane.titleW + Theme.spacingS + mediaPane.controlsWidth + 20
+            // margins(22+16) + art(50) + gaps + title + transport, clamped to the screen
+            const content = 38 + 50 + Theme.spacingM * 2 + mediaPane.titleW + mediaPane.controlsWidth
             return Math.max(410, Math.min(content, screenW - 40))
         }
         case "expanded":  return 460
