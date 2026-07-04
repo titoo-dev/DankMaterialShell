@@ -39,22 +39,12 @@ Column {
     // ---- keyboard navigation (the view holds an Exclusive grab — it must be
     // fully drivable from the keyboard, like Spotlight/Emoji) ----
     property int selIndex: 0
-    readonly property int rowH: 52
-    readonly property int rowGap: 3
-    onEntriesChanged: { selIndex = 0; clipFlick.contentY = 0 }
+    onEntriesChanged: { selIndex = 0; clipFlick.positionViewAtBeginning() }
     function move(delta) {
         const visCount = Math.min(entries.length, 50)
         if (visCount === 0) return
         selIndex = Math.max(0, Math.min(visCount - 1, selIndex + delta))
-        ensureVisible()
-    }
-    function ensureVisible() {
-        const step = rowH + rowGap
-        const y = selIndex * step
-        if (y < clipFlick.contentY)
-            clipFlick.contentY = y
-        else if (y + rowH > clipFlick.contentY + clipFlick.height)
-            clipFlick.contentY = y + rowH - clipFlick.height
+        clipFlick.positionViewAtIndex(selIndex, ListView.Contain)
     }
     function copySel() { if (entries.length > selIndex) copy(entries[selIndex]) }
 
@@ -93,26 +83,25 @@ Column {
         }
     }
 
-    // entries list — adaptive height, capped
-    Flickable {
+    // entries list — adaptive height, capped, virtualized (only the visible
+    // rows exist; the 50-entry cap stays as the keyboard-nav bound)
+    ListView {
         id: clipFlick
-        width: parent.width; height: Math.min(clipList.height, 296); clip: true
-        contentHeight: clipList.height; boundsBehavior: Flickable.StopAtBounds
-        Column {
-            id: clipList
-            width: parent.width; spacing: 3
-            StyledText {
-                width: parent.width; height: 48
-                visible: clipCol.entries.length === 0
-                text: I18n.tr("No clipboard history"); color: island.subText; font.pixelSize: Theme.fontSizeSmall
-                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-            }
-            Repeater {
-                model: clipCol.entries.slice(0, 50)
-                Rectangle {
+        width: parent.width
+        height: count === 0 ? 48 : Math.min(contentHeight, 296)
+        clip: true; spacing: 3
+        boundsBehavior: Flickable.StopAtBounds
+        reuseItems: true
+        model: clipCol.entries.slice(0, 50)
+        StyledText {
+            anchors.centerIn: parent
+            visible: clipFlick.count === 0
+            text: I18n.tr("No clipboard history"); color: island.subText; font.pixelSize: Theme.fontSizeSmall
+        }
+        delegate: Rectangle {
                     id: clipRow
                     readonly property bool sel: index === clipCol.selIndex
-                    width: clipList.width; height: 52; radius: 14
+                    width: clipFlick.width; height: 52; radius: 14
                     color: (sel || clipRowArea.containsMouse) ? Theme.surfaceLight : Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4)
                     border.width: sel ? 1 : 0
                     border.color: Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.5)
@@ -148,8 +137,6 @@ Column {
                         onContainsMouseChanged: if (containsMouse) clipCol.selIndex = index
                         onClicked: clipCol.copy(modelData)
                     }
-                }
-            }
         }
     }
 }

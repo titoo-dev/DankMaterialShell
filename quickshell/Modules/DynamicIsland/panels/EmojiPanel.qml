@@ -22,16 +22,18 @@ Column {
     property int selIndex: 0
     // emoji whose skin-tone variants are showing in the strip ("" = closed)
     property string toneBase: ""
-    readonly property int columns: Math.max(1, Math.floor(gridFlick.width / cell))
+    readonly property int columns: Math.max(1, Math.floor(grid.width / cell))
 
+    // search input debounced so the dataset isn't re-scanned on every keystroke
+    property string query: ""
+    Timer { id: searchDebounce; interval: 120; onTriggered: emojiCol.query = searchField.text }
     // active model: search results, recents, or the active category
     readonly property var items: {
-        const q = searchField.text
-        if (q && q.trim().length > 0) return EmojiData.search(q)
+        if (query && query.trim().length > 0) return EmojiData.search(query)
         if (activeCat === "recent") return recents
         return EmojiData.byCategory(activeCat)
     }
-    onItemsChanged: { selIndex = 0; gridFlick.contentY = 0; toneBase = "" }
+    onItemsChanged: { selIndex = 0; grid.positionViewAtBeginning(); toneBase = "" }
 
     function emojiOf(it) { return (typeof it === "string") ? it : (it ? it.e : "") }
     // type the emoji straight into the focused input (Windows-emoji-picker style)
@@ -93,18 +95,20 @@ Column {
         if (n < 0) n = 0
         if (n > items.length - 1) n = items.length - 1
         selIndex = n
-        const row = Math.floor(selIndex / columns)
-        const y = row * cell
-        if (y < gridFlick.contentY) gridFlick.contentY = y
-        else if (y + cell > gridFlick.contentY + gridFlick.height) gridFlick.contentY = y + cell - gridFlick.height
+        grid.positionViewAtIndex(selIndex, GridView.Contain)
     }
 
     FileView {
         id: recentsFile
         path: StandardPaths.writableLocation(StandardPaths.GenericStateLocation) + "/DankMaterialShell/island-emoji-recents.json"
-        blockLoading: true
+        // async: no blocking IO at panel creation; the recents land a few ms
+        // later and flip the initial tab if the user hasn't interacted yet
         atomicWrites: true
-        onLoaded: { try { emojiCol.recents = JSON.parse(recentsFile.text()) || [] } catch (e) { emojiCol.recents = [] } }
+        onLoaded: {
+            try { emojiCol.recents = JSON.parse(recentsFile.text()) || [] } catch (e) { emojiCol.recents = [] }
+            if (emojiCol.visible && searchField.text === "" && emojiCol.activeCat === "smileys" && emojiCol.recents.length > 0 && emojiCol.selIndex === 0)
+                emojiCol.activeCat = "recent"
+        }
         onLoadFailed: emojiCol.recents = []
     }
 
@@ -185,6 +189,12 @@ Column {
             ignoreTabKeys: true       // Tab cycles the category tabs (navHandler)
             keyForwardTargets: [navHandler]
             onAccepted: emojiCol.confirm()
+            // clearing must apply instantly (tab switches clear the field);
+            // only actual typing is debounced
+            onTextChanged: {
+                if (text.trim().length === 0) { searchDebounce.stop(); emojiCol.query = "" }
+                else searchDebounce.restart()
+            }
         }
     }
 
@@ -250,52 +260,46 @@ Column {
         }
     }
 
-    // emoji grid
-    Flickable {
-        id: gridFlick
+    // emoji grid — virtualized: only the ~6 visible rows exist at a time
+    GridView {
+        id: grid
         width: parent.width; height: 232; clip: true
-        contentHeight: grid.height; boundsBehavior: Flickable.StopAtBounds
+        cellWidth: emojiCol.cell; cellHeight: emojiCol.cell
+        boundsBehavior: Flickable.StopAtBounds
+        reuseItems: true
+        model: emojiCol.items
         StyledText {
             anchors.centerIn: parent
             visible: emojiCol.items.length === 0
             text: searchField.text.trim().length > 0 ? I18n.tr("No emoji found") : I18n.tr("No recent emoji")
             color: island.subText; font.pixelSize: Theme.fontSizeSmall
         }
-        Grid {
-            id: grid
-            width: parent.width
-            columns: emojiCol.columns
-            Repeater {
-                model: emojiCol.items
-                Rectangle {
-                    width: emojiCol.cell; height: emojiCol.cell; radius: 10
-                    readonly property bool selected: index === emojiCol.selIndex
-                    color: selected ? Theme.primarySelected : (cellArea.containsMouse ? Theme.surfaceLight : "transparent")
-                    Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
-                    StyledText {
-                        anchors.centerIn: parent
-                        text: emojiCol.emojiOf(modelData)
-                        font.pixelSize: 22
+        delegate: Rectangle {
+            width: emojiCol.cell; height: emojiCol.cell; radius: 10
+            readonly property bool selected: index === emojiCol.selIndex
+            color: selected ? Theme.primarySelected : (cellArea.containsMouse ? Theme.surfaceLight : "transparent")
+            StyledText {
+                anchors.centerIn: parent
+                text: emojiCol.emojiOf(modelData)
+                font.pixelSize: 22
+            }
+            MouseArea {
+                id: cellArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onPositionChanged: emojiCol.selIndex = index
+                onClicked: mouse => {
+                    // resolve toned recents back to their base (✌🏽 -> ✌️)
+                    const base = EmojiData.datasetBase(emojiCol.emojiOf(modelData))
+                    if (mouse.button === Qt.RightButton && EmojiData.toneable(base)) {
+                        emojiCol.toneBase = base   // right-click = skin-tone variants
+                        return
                     }
-                    MouseArea {
-                        id: cellArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onPositionChanged: emojiCol.selIndex = index
-                        onClicked: mouse => {
-                            // resolve toned recents back to their base (✌🏽 -> ✌️)
-                            const base = EmojiData.datasetBase(emojiCol.emojiOf(modelData))
-                            if (mouse.button === Qt.RightButton && EmojiData.toneable(base)) {
-                                emojiCol.toneBase = base   // right-click = skin-tone variants
-                                return
-                            }
-                            emojiCol.pick(modelData)
-                        }
-                        // long-press = skin tones too (touch has no right-click)
-                        onPressAndHold: {
-                            const base = EmojiData.datasetBase(emojiCol.emojiOf(modelData))
-                            if (EmojiData.toneable(base)) emojiCol.toneBase = base
-                        }
-                    }
+                    emojiCol.pick(modelData)
+                }
+                // long-press = skin tones too (touch has no right-click)
+                onPressAndHold: {
+                    const base = EmojiData.datasetBase(emojiCol.emojiOf(modelData))
+                    if (EmojiData.toneable(base)) emojiCol.toneBase = base
                 }
             }
         }

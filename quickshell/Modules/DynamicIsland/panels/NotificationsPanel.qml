@@ -29,23 +29,22 @@ Column {
         }
     }
 
-    // scrollable notification list — adaptive height, capped
-    Flickable {
-        width: parent.width; height: Math.min(nlist.height, 300); clip: true
-        contentHeight: nlist.height
+    // scrollable notification list — adaptive height, capped; virtualized so a
+    // history of hundreds only ever materializes the visible rows
+    ListView {
+        id: nlist
+        width: parent.width
+        height: count === 0 ? 56 : Math.min(contentHeight, 300)
+        clip: true; spacing: 4
         boundsBehavior: Flickable.StopAtBounds
-        Column {
-            id: nlist
-            width: parent.width; spacing: 4
-            StyledText {
-                width: parent.width; height: 56
-                visible: (NotificationService.notifications || []).length === 0
-                text: I18n.tr("No notifications"); color: island.subText; font.pixelSize: Theme.fontSizeSmall
-                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-            }
-            Repeater {
-                model: NotificationService.notifications
-                Rectangle {
+        reuseItems: true
+        model: NotificationService.notifications
+        StyledText {
+            anchors.centerIn: parent
+            visible: nlist.count === 0
+            text: I18n.tr("No notifications"); color: island.subText; font.pixelSize: Theme.fontSizeSmall
+        }
+        delegate: Rectangle {
                     id: nRow
                     width: nlist.width; height: 66; radius: 14
                     color: nRowArea.containsMouse ? Theme.surfaceLight : Qt.rgba(Theme.surfaceLight.r, Theme.surfaceLight.g, Theme.surfaceLight.b, 0.4)
@@ -113,8 +112,6 @@ Column {
                             if (def && def.invoke) { def.invoke(); NotificationService.dismissNotification(modelData) }
                         }
                     }
-                }
-            }
         }
     }
 }
