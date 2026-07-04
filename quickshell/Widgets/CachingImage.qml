@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell.Io
 import qs.Common
 
 Item {
@@ -58,6 +57,15 @@ Item {
         playing: visible && status === AnimatedImage.Ready
     }
 
+    // whether staticImg currently shows the cached thumbnail (vs the original).
+    // Explicit state instead of comparing `source` to a string: a QML url never
+    // strict-equals a string, which silently killed both the error fallback and
+    // the cache save in the previous version.
+    property bool _usingCache: false
+    // one grab per image: without this, every visibility toggle while scrolling
+    // would re-grab and re-save the same thumbnail
+    property bool _cacheSaved: false
+
     Image {
         id: staticImg
         anchors.fill: parent
@@ -68,59 +76,50 @@ Item {
         sourceSize.height: root.maxCacheSize
         smooth: true
 
-        onStatusChanged: {
-            if (source === root.cachePath && status === Image.Error) {
-                source = root.encodedImagePath;
+        // save the downscaled render as the cache copy. Retried on visibility
+        // (not just Ready): list views keep cacheBuffer delegates invisible, and
+        // grabbing an invisible item fails — those save on first scroll-in.
+        function maybeSaveCache() {
+            if (status !== Image.Ready || root._usingCache || root._cacheSaved || root.isRemoteUrl || !root.cachePath)
                 return;
-            }
-            if (root.isRemoteUrl || source !== root.encodedImagePath || status !== Image.Ready || !root.cachePath)
+            if (!visible || width <= 0 || height <= 0 || !Window.window?.visible)
                 return;
             Paths.mkdir(Paths.imagecache);
             const grabPath = root.cachePath;
-            if (visible && width > 0 && height > 0 && Window.window?.visible) {
-                grabToImage(res => res.saveToFile(grabPath));
-            }
+            root._cacheSaved = grabToImage(res => res.saveToFile(grabPath));
         }
-    }
-
-    Process {
-        id: cacheProbe
-
-        property string cachePath: ""
-        property string fallbackSource: ""
-
-        running: false
-        command: ["test", "-f", cachePath]
-
-        onExited: exitCode => {
-            if (cacheProbe.cachePath !== root.cachePath)
+        onStatusChanged: {
+            // cached thumbnail missing → fall back to the original
+            if (status === Image.Error && root._usingCache) {
+                root._usingCache = false;
+                source = root.encodedImagePath;
                 return;
-            staticImg.source = exitCode === 0 ? cacheProbe.cachePath : cacheProbe.fallbackSource;
+            }
+            maybeSaveCache();
         }
+        onVisibleChanged: maybeSaveCache()
     }
 
     onImagePathChanged: {
+        _cacheSaved = false;
         if (!imagePath) {
+            _usingCache = false;
             staticImg.source = "";
             return;
         }
         if (isAnimated)
             return;
         if (isRemoteUrl) {
+            _usingCache = false;
             staticImg.source = imagePath;
             return;
         }
-        Paths.mkdir(Paths.imagecache);
-        const hash = djb2Hash(normalizedPath);
-        const cPath = hash ? `${Paths.stringify(Paths.imagecache)}/${hash}@${maxCacheSize}x${maxCacheSize}.png` : "";
-        const encoded = "file://" + normalizedPath.split('/').map(s => encodeURIComponent(s)).join('/');
-        if (!cPath) {
-            staticImg.source = encoded;
-            return;
-        }
-        cacheProbe.running = false;
-        cacheProbe.cachePath = cPath;
-        cacheProbe.fallbackSource = encoded;
-        cacheProbe.running = true;
+        // load the cached thumbnail directly — a miss falls back to the
+        // original in onStatusChanged (Image.Error). No per-image process
+        // probe: spawning `test -f` per thumbnail serialized every load
+        // behind a process round-trip.
+        // cachePath is already a file:// URL string (Paths.stringify keeps the scheme)
+        _usingCache = !!cachePath;
+        staticImg.source = cachePath || encodedImagePath;
     }
 }

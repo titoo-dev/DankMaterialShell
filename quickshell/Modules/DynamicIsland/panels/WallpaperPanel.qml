@@ -142,7 +142,7 @@ Column {
         width: parent.width; height: 34
         Rectangle {
             id: wpBack
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
             color: wpBackArea.containsMouse ? Theme.primaryHover : "transparent"
             scale: wpBackArea.pressed ? 0.9 : 1.0
@@ -153,7 +153,7 @@ Column {
         StyledText { anchors.left: wpBack.right; anchors.leftMargin: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Wallpaper"); color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true }
         Rectangle {
             id: wpFolder
-            width: 30; height: 30; radius: 9
+            width: 30; height: 30; radius: width / 2
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             color: wpFolderArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
             Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
@@ -176,7 +176,11 @@ Column {
             cellHeight: cellWidth * 0.62
             boundsBehavior: Flickable.StopAtBounds
             model: wpModel
-            cacheBuffer: cellHeight * 4
+            // one pre-created row: buffered delegates are kept INVISIBLE by the
+            // view, so they can't grab-save their thumbnail cache anyway — a
+            // deep buffer just burns full-size decodes on cold cache
+            cacheBuffer: Math.ceil(cellHeight)
+            reuseItems: true
 
             // keyboard cursor: drive currentIndex + keep it scrolled into view.
             // built-in key nav is off so our handlers own arrows/hjkl/Enter/Esc.
@@ -233,10 +237,18 @@ Column {
                         id: thumbMask
                         anchors.fill: parent; radius: Theme.cornerRadius; visible: false; layer.enabled: true
                     }
+                    // placeholder while the thumbnail decodes
+                    DankIcon {
+                        anchors.centerIn: parent; name: "image"; size: 22
+                        color: island.subText; opacity: 0.4
+                        visible: thumb.status !== Image.Ready
+                    }
                     CachingImage {
                         id: thumb
                         anchors.fill: parent
                         imagePath: path; maxCacheSize: 256
+                        opacity: status === Image.Ready ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
                         layer.enabled: true
                         layer.effect: MultiEffect { maskEnabled: true; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0; maskSource: thumbMask }
                     }
@@ -282,7 +294,7 @@ Column {
             spacing: Theme.spacingXS
             // auto-cycle toggle
             Rectangle {
-                width: 32; height: 32; radius: 10
+                width: 32; height: 32; radius: width / 2
                 readonly property bool on: SessionData.wallpaperCyclingEnabled
                 color: on ? island.accent : (cycArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight)
                 Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
@@ -294,7 +306,7 @@ Column {
             }
             // manual prev / next
             Rectangle {
-                width: 32; height: 32; radius: 10
+                width: 32; height: 32; radius: width / 2
                 color: prevArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
                 Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                 scale: prevArea.pressed ? 0.9 : 1.0
@@ -303,7 +315,7 @@ Column {
                 MouseArea { id: prevArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: WallpaperCyclingService.cyclePrevManually() }
             }
             Rectangle {
-                width: 32; height: 32; radius: 10
+                width: 32; height: 32; radius: width / 2
                 color: nextArea.containsMouse ? Theme.primaryHover : Theme.surfaceLight
                 Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                 scale: nextArea.pressed ? 0.9 : 1.0
