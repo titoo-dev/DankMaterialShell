@@ -27,10 +27,6 @@ Row {
             if (activityRow.act.state === "failed") return Theme.error
             return island.accent
         }
-        RotationAnimation on rotation {
-            running: activityRow.act && activityRow.act.state === "running" && activityRow.act.progress < 0
-            from: 0; to: 360; duration: 1400; loops: Animation.Infinite
-        }
     }
     StyledText {
         anchors.verticalCenter: parent.verticalCenter
@@ -46,33 +42,27 @@ Row {
         elide: Text.ElideRight
         width: Math.min(implicitWidth, 200)
     }
-    Item {  // progress: determinate fill OR indeterminate slider
+    Item {  // progress bar: determinate only — indeterminate shows the static ellipsis below
         width: 48; height: 4
         anchors.verticalCenter: parent.verticalCenter
-        visible: activityRow.act && activityRow.act.state === "running"
+        visible: activityRow.act && activityRow.act.state === "running" && activityRow.act.progress >= 0
         Rectangle {
             anchors.fill: parent; radius: height / 2
             color: Theme.surfaceVariant
         }
         Rectangle {
-            visible: activityRow.act && activityRow.act.progress >= 0
             height: parent.height; radius: height / 2
             width: parent.width * ((activityRow.act ? Math.max(0, activityRow.act.progress) : 0) / 100)
             color: island.accent
             Behavior on width { NumberAnimation { duration: Theme.shortDuration } }
         }
-        Rectangle {
-            id: indeterminate
-            visible: activityRow.act && activityRow.act.progress < 0
-            height: parent.height; radius: height / 2; width: parent.width * 0.4
-            color: island.accent
-            SequentialAnimation on x {
-                running: indeterminate.visible
-                loops: Animation.Infinite
-                NumberAnimation { from: 0; to: 28; duration: 900; easing.type: Easing.InOutQuad }
-                NumberAnimation { from: 28; to: 0; duration: 900; easing.type: Easing.InOutQuad }
-            }
-        }
+    }
+    StyledText {  // indeterminate "working" hint — static, no loop
+        anchors.verticalCenter: parent.verticalCenter
+        visible: activityRow.act && activityRow.act.state === "running" && activityRow.act.progress < 0
+        text: "•••"
+        color: island.subText
+        font.pixelSize: Theme.fontSizeSmall
     }
     StyledText {
         anchors.verticalCenter: parent.verticalCenter

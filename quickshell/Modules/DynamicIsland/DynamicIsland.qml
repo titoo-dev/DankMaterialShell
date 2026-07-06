@@ -1070,13 +1070,6 @@ Scope {
                 size: 15
                 color: root.satColor
                 filled: true
-                // soft breathing pulse — ongoing capture should feel alive
-                SequentialAnimation on scale {
-                    running: satellite.visible
-                    loops: Animation.Infinite
-                    NumberAnimation { to: 1.18; duration: 900; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutSine }
-                }
             }
             MouseArea {
                 anchors.fill: parent
