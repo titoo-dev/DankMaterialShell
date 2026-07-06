@@ -790,7 +790,7 @@ Scope {
     readonly property bool reduceMotion: Theme.shortDuration === 0
     readonly property real pillW: {
         switch (mode) {
-        case "chip":      return 220
+        case "chip":      return Math.max(120, Math.min(chipPane.contentWidth + Theme.spacingL * 2, screenW - 40))
         case "media": {
             // margins(22+16) + art(50) + gaps + title + transport, clamped to the screen
             const content = 38 + 50 + Theme.spacingM * 2 + mediaPane.titleW + mediaPane.controlsWidth

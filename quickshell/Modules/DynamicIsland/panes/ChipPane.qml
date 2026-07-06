@@ -10,6 +10,7 @@ import qs.Widgets
 Row {
     id: chipRow
     property var island: null
+    readonly property real contentWidth: implicitWidth
     anchors.centerIn: parent
     spacing: Theme.spacingS
     opacity: island.mode === "chip" ? 1 : 0
