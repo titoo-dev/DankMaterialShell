@@ -233,11 +233,21 @@ Item {
                 Accessible.onPressAction: clicked(null)
             }
         }
-        StyledText {  // keyboard layout (niri/dwl)
+        StyledText {  // keyboard layout (niri/hyprland/dwl) — click cycles
             text: island.kbLayout.substring(0, 2).toUpperCase()
             visible: island.kbLayout.length > 0
-            color: island.subText; font.pixelSize: Theme.fontSizeSmall; font.bold: true
+            color: kbArea.containsMouse ? island.textColor : island.subText
+            font.pixelSize: Theme.fontSizeSmall; font.bold: true
             anchors.verticalCenter: parent.verticalCenter
+            MouseArea {
+                id: kbArea
+                anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.cycleKbLayout()
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Cycle keyboard layout")
+                Accessible.onPressAction: clicked(null)
+            }
         }
         Row {
             spacing: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter

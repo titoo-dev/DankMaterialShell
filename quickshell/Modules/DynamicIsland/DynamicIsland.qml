@@ -82,7 +82,33 @@ Scope {
     readonly property bool weatherReady: WeatherService.weather && WeatherService.weather.available
     readonly property string weatherTemp: weatherReady ? (((SettingsData.useFahrenheit ? WeatherService.weather.tempF : WeatherService.weather.temp)) + "°") : ""
     readonly property string weatherIcon: weatherReady ? WeatherService.getWeatherIcon(WeatherService.weather.wCode) : "cloud"
-    readonly property string kbLayout: CompositorService.isNiri && NiriService.getCurrentKeyboardLayoutName ? (NiriService.getCurrentKeyboardLayoutName() || "") : ""
+    readonly property string kbLayout: CompositorService.isNiri && NiriService.getCurrentKeyboardLayoutName ? (NiriService.getCurrentKeyboardLayoutName() || "") : hyprKbLayout
+    // Hyprland: layout name pushed by the activelayout raw event ("KEYBOARD,NAME");
+    // one hyprctl fetch at startup for the initial value + main keyboard id
+    property string hyprKbLayout: ""
+    property string hyprKeyboard: ""
+    function cycleKbLayout() {
+        if (CompositorService.isNiri) NiriService.cycleKeyboardLayout()
+        else if (CompositorService.isHyprland && hyprKeyboard) Quickshell.execDetached(["hyprctl", "switchxkblayout", hyprKeyboard, "next"])
+    }
+    Connections {
+        target: CompositorService.isHyprland ? Hyprland : null
+        function onRawEvent(event) {
+            if (event.name !== "activelayout") return
+            const parts = (event.data || "").split(",")
+            if (parts.length >= 2) root.hyprKbLayout = parts.slice(1).join(",")
+        }
+    }
+    Component.onCompleted: {
+        if (!CompositorService.isHyprland) return
+        Proc.runCommand("island-kb-" + monitorName, ["hyprctl", "-j", "devices"], (output, exitCode) => {
+            if (exitCode !== 0) return
+            try {
+                const kb = JSON.parse(output).keyboards.find(k => k.main === true)
+                if (kb) { root.hyprKeyboard = kb.name; root.hyprKbLayout = kb.active_keymap || "" }
+            } catch (e) {}
+        })
+    }
 
     // ---------- styling (inherits the live DMS / Matugen theme) ----------
     readonly property color islandColor: SettingsData.dynamicIslandBlur ? Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.72) : Theme.surfaceContainer
@@ -202,8 +228,8 @@ Scope {
         active: root.mode === "expanded" && root.panelView === "monitor"
         sourceComponent: Component {
             QtObject {
-                Component.onCompleted: DgopService.addRef(["cpu", "memory", "network", "system"])
-                Component.onDestruction: DgopService.removeRef(["cpu", "memory", "network", "system"])
+                Component.onCompleted: DgopService.addRef(["cpu", "memory", "network", "system", "diskmounts"])
+                Component.onDestruction: DgopService.removeRef(["cpu", "memory", "network", "system", "diskmounts"])
             }
         }
     }

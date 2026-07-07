@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
 import qs.Common
+import qs.Services
 
 Singleton {
     id: root
@@ -103,6 +104,29 @@ Singleton {
     // Is the system plugged in (Is not running on battery)
     readonly property bool isPluggedIn: !UPower.onBattery
     readonly property bool isLowBattery: batteryAvailable && batteryLevel <= 20
+
+    // Low-battery warning + critical auto-suspend. Each fires once per
+    // discharge cycle (re-armed by plugging in); suspend is the safety net
+    // against a hard power-off with unsaved work.
+    readonly property int lowWarnLevel: 15
+    readonly property int criticalLevel: 5
+    property bool _lowWarned: false
+    property bool _criticalHandled: false
+    onBatteryLevelChanged: {
+        if (!batteryAvailable || isPluggedIn || isCharging) {
+            _lowWarned = false;
+            _criticalHandled = false;
+            return;
+        }
+        if (batteryLevel <= criticalLevel && !_criticalHandled) {
+            _criticalHandled = true;
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "DMS", I18n.tr("Critical battery"), I18n.tr("Suspending now to avoid data loss")]);
+            SessionService.suspendWithBehavior(SettingsData.batterySuspendBehavior);
+        } else if (batteryLevel <= lowWarnLevel && !_lowWarned) {
+            _lowWarned = true;
+            Quickshell.execDetached(["notify-send", "-u", "critical", "-a", "DMS", I18n.tr("Low battery"), I18n.tr("%1% remaining — plug in soon").arg(batteryLevel)]);
+        }
+    }
 
     onIsPluggedInChanged: {
         if (suppressSound || !batteryAvailable) {

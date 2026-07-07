@@ -182,4 +182,46 @@ Column {
             }
         }
     }
+
+    // root filesystem: used / total + fill bar
+    Rectangle {
+        readonly property var rootMount: {
+            const m = DgopService.diskMounts || []
+            for (var i = 0; i < m.length; i++) if (m[i].mount === "/") return m[i]
+            return m[0] || null
+        }
+        readonly property real pct: rootMount && rootMount.percent ? (parseFloat(String(rootMount.percent).replace("%", "")) || 0) : 0
+        visible: rootMount !== null
+        width: parent.width; height: 64; radius: 16
+        color: Theme.surfaceLight
+
+        Row {
+            anchors.left: parent.left; anchors.leftMargin: Theme.spacingM
+            anchors.top: parent.top; anchors.topMargin: Theme.spacingS
+            spacing: Theme.spacingXS
+            DankIcon { name: "hard_drive"; size: 14; color: monCol.loadColor(parent.parent.pct); anchors.verticalCenter: parent.verticalCenter }
+            StyledText { text: I18n.tr("Disk") + " " + (parent.parent.rootMount ? parent.parent.rootMount.mount : ""); color: monCol.island.subText; font.pixelSize: Theme.fontSizeSmall - 1; anchors.verticalCenter: parent.verticalCenter }
+        }
+        StyledText {
+            anchors.right: parent.right; anchors.rightMargin: Theme.spacingM
+            anchors.top: parent.top; anchors.topMargin: Theme.spacingS
+            text: parent.rootMount ? ((parent.rootMount.used || "--") + " / " + (parent.rootMount.size || "--")) : ""
+            color: monCol.island.textColor; font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true
+        }
+        // fill bar
+        Rectangle {
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: Theme.spacingM; anchors.rightMargin: Theme.spacingM; anchors.bottomMargin: Theme.spacingM
+            height: 6; radius: 3
+            color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.22)
+            Rectangle {
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                width: parent.width * Math.min(1, parent.parent.pct / 100)
+                radius: 3
+                color: monCol.loadColor(parent.parent.pct)
+                Behavior on width { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.standardEasing } }
+            }
+        }
+    }
 }
