@@ -1,10 +1,10 @@
 import QtQuick
 import qs.Common
 
-// Screen-edge outline shine on a new notification: a thin luminous outline
-// hugging the screen border, with two bright "comets" travelling the
-// perimeter once (opposite sides, one lap) — replaces the old fat ambient
-// gradient rim. Visual-only: lives in `stage` but is NOT part of the input
+// Screen-edge shine on a new notification: two bright "comets" (lightened
+// accent core, soft halo, white-hot spark) travelling the screen border
+// once, opposite sides of the loop. No static outline — the comets are the
+// whole effect. Visual-only: lives in `stage` but is NOT part of the input
 // mask, so it stays fully click-through. Accent-colored, or red for
 // critical notifications. One-shot per notification, no idle animation.
 Item {
@@ -19,8 +19,6 @@ Item {
     property color glowColor: Theme.primary
     readonly property color shineColor: Qt.lighter(glowColor, 1.6)
     readonly property real inset: 2
-    // hairline outline — the comets carry the light
-    readonly property real stroke: 1
 
     visible: pulse > 0
     z: -2   // behind the pill, in front of the scrim
@@ -41,29 +39,8 @@ Item {
         NumberAnimation { target: edgeGlow; property: "prog"; from: 0; to: 1; duration: 2150; easing.type: Easing.InOutSine }
     }
 
-    // ---- the outline: a thin luminous stroke on all four edges ----
-    Rectangle {  // top
-        x: edgeGlow.inset; y: edgeGlow.inset
-        width: parent.width - edgeGlow.inset * 2; height: edgeGlow.stroke
-        color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-    }
-    Rectangle {  // bottom
-        x: edgeGlow.inset; y: parent.height - edgeGlow.inset - edgeGlow.stroke
-        width: parent.width - edgeGlow.inset * 2; height: edgeGlow.stroke
-        color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-    }
-    Rectangle {  // left
-        x: edgeGlow.inset; y: edgeGlow.inset
-        width: edgeGlow.stroke; height: parent.height - edgeGlow.inset * 2
-        color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-    }
-    Rectangle {  // right
-        x: parent.width - edgeGlow.inset - edgeGlow.stroke; y: edgeGlow.inset
-        width: edgeGlow.stroke; height: parent.height - edgeGlow.inset * 2
-        color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-    }
-
-    // ---- perimeter path the comets follow (clockwise, one lap) ----
+    // ---- perimeter path the comets follow (clockwise, one lap),
+    // hugging the screen edge — no static outline, the comets ARE the effect
     Path {
         id: perim
         startX: edgeGlow.inset; startY: edgeGlow.inset
