@@ -56,7 +56,7 @@ Item {
     component Comet: Rectangle {
         id: cometBody
         property var pin: null
-        width: 220; height: 3; radius: 1.5
+        width: 150; height: 2; radius: 1
         x: pin.x - width / 2
         y: pin.y - height / 2
         rotation: pin.angle
@@ -74,7 +74,7 @@ Item {
         Rectangle {
             z: -1
             anchors.centerIn: parent
-            width: cometBody.width * 1.35; height: 10; radius: 5
+            width: cometBody.width * 1.35; height: 7; radius: 3.5
             opacity: 0.30
             gradient: Gradient {
                 orientation: Gradient.Horizontal
@@ -86,7 +86,7 @@ Item {
         // white-hot spark at the very tip of the shine
         Rectangle {
             anchors.centerIn: parent
-            width: 32; height: parent.height + 2; radius: height / 2
+            width: 22; height: parent.height + 2; radius: height / 2
             color: Qt.rgba(1, 1, 1, 0.55)
         }
     }
