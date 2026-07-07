@@ -4,12 +4,17 @@ import qs.Services
 import qs.Widgets
 
 // PRESENTER: volume / brightness / battery OSD + Bluetooth splash.
-// FIXED width (matches presenter pillW - margins) so the progress bar keeps its
-// correct proportion and just scales/fades in. Reads island state via `island`.
+// Slider kinds keep a FIXED width (island.presenterW) so the progress bar's
+// proportion stays meaningful; splashes hug their label — contentWidth feeds
+// the pill width in the controller. Reads island state via `island`.
 Item {
     id: presenterPane
     property var island: null
-    width: (island ? island.presenterW : 320) - Theme.spacingL * 2
+    // natural width of the current content (un-clamped; the controller clamps)
+    readonly property real contentWidth: isSplash
+        ? pIcon.width + Theme.spacingM + pSplashLbl.implicitWidth
+        : (island ? island.presenterW : 320) - Theme.spacingL * 2
+    width: (island ? island.pillW : 320) - Theme.spacingL * 2
     height: parent.height
     anchors.centerIn: parent
     opacity: island.mode === "presenter" ? 1 : 0

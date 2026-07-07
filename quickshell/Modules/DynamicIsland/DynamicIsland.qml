@@ -837,7 +837,11 @@ Scope {
             const need = idlePane.wsWidth + idlePane.clusterWidth + 90 + Theme.spacingL * 2 + Theme.spacingM * 2
             return Math.max(480, Math.min(need, screenW - 40))
         }
-        case "presenter": return presenterW
+        // splashes hug their label (like activities); the slider kinds keep the
+        // fixed width so the level bar's proportion stays meaningful
+        case "presenter": return presenterKind === "splash"
+            ? Math.max(160, Math.min(presenterPane.contentWidth + Theme.spacingL * 2, screenW - 40))
+            : presenterW
         case "activity":  return Math.max(220, Math.min(activityPane.contentWidth + Theme.spacingL * 2, screenW - 40))
         default:          return Math.max(92, compactPane.contentWidth + Theme.spacingL * 2)  // compact
         }
