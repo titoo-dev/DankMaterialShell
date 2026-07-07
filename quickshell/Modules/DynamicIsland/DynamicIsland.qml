@@ -967,7 +967,10 @@ Scope {
     PanelWindow {
         id: pillWindow
         screen: root.modelData
-        visible: pill.opacity > 0
+        // stays mapped while keep-awake is on even if the pill is hidden
+        // (fullscreen): the Wayland idle inhibitor below dies with the surface,
+        // and fullscreen video is exactly when it must survive
+        visible: pill.opacity > 0 || SessionService.idleInhibited
         WlrLayershell.namespace: "dms:dynamic-island"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.exclusiveZone: -1
@@ -988,6 +991,15 @@ Scope {
             // fullscreen, so top-center clicks reach the app underneath
             Region { item: root.pillSuppressed ? null : pill }
             Region { item: satellite.active ? satellite : null }
+        }
+
+        // the actual Wayland idle inhibitor behind the "Keep awake" toggle.
+        // It used to live only in DankBarWindow — in island mode the bar is
+        // never instantiated, so the toggle flipped a boolean nobody consumed
+        // and the machine kept locking.
+        IdleInhibitor {
+            window: pillWindow
+            enabled: SessionService.idleInhibited
         }
 
     Item {
