@@ -24,7 +24,19 @@ Item {
         id: pIcon
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         name: island.presenterIcon; size: 24; color: island.accent
+        // the glyph springs in on appearance and whenever the state swaps it
+        // (volume→brightness, plug→unplug, queued splashes) — one-shot each time
+        SequentialAnimation {
+            id: glyphIn
+            NumberAnimation { target: pIcon; property: "scale"; from: 0.55; to: 1.12; duration: 130; easing.type: Easing.OutQuad }
+            SpringAnimation { target: pIcon; property: "scale"; to: 1.0; spring: 5; damping: 0.25; epsilon: 0.005 }
+        }
     }
+    Connections {
+        target: island
+        function onPresenterIconChanged() { if (presenterPane.visible && !island.reduceMotion) glyphIn.restart() }
+    }
+    onVisibleChanged: if (visible && !island.reduceMotion) glyphIn.restart()
     MouseArea {  // volume OSD: the icon is a mute toggle
         anchors.fill: pIcon; anchors.margins: -6
         visible: island.presenterKind === "volume"
@@ -92,6 +104,7 @@ Item {
         color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
     }
     StyledText {  // splash label (e.g. "AirPods connected")
+        id: pSplashLbl
         anchors.left: pIcon.right; anchors.leftMargin: Theme.spacingM
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
@@ -99,5 +112,15 @@ Item {
         text: island.splashLabel
         elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
         color: island.textColor; font.pixelSize: Theme.fontSizeMedium; font.bold: true
+        // the label glides out of the glyph on every new splash — the text
+        // change itself is the trigger, so queued activities each get the slide
+        transform: Translate { id: splashSlide }
+        SequentialAnimation {
+            id: splashIn
+            PropertyAction { target: splashSlide; property: "x"; value: 16 }
+            NumberAnimation { target: splashSlide; property: "x"; to: 0; duration: 260; easing.type: Easing.OutCubic }
+        }
+        onTextChanged: if (presenterPane.visible && !island.reduceMotion) splashIn.restart()
+        onVisibleChanged: if (visible && !island.reduceMotion) splashIn.restart()
     }
 }
