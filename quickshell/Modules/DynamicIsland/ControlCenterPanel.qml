@@ -445,7 +445,8 @@ import "panels"
                     "power": powerComp, "monitor": monComp, "wallpaper": wpComp,
                     "mixer": mixerComp, "privacy": privacyComp, "shelf": shelfComp,
                     "tailscale": tsComp, "dropchoose": dropChooseComp,
-                    "activities": activitiesComp, "ask": askComp
+                    "activities": activitiesComp, "ask": askComp,
+                    "tray": trayComp
                 })
                 Component { id: wifiComp;  WifiPanel          { island: ccPanel.island } }
                 Component { id: btComp;    BluetoothPanel     { island: ccPanel.island } }
@@ -466,6 +467,7 @@ import "panels"
                 Component { id: dropChooseComp; DropChoosePanel { island: ccPanel.island } }
                 Component { id: activitiesComp; ActivityPanel  { island: ccPanel.island } }
                 Component { id: askComp;       AskPanel       { island: ccPanel.island } }
+                Component { id: trayComp;      TrayPanel      { island: ccPanel.island } }
 
                 Loader {
                     id: drillLoader

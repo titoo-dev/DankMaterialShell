@@ -249,19 +249,32 @@ Item {
                 Accessible.onPressAction: clicked(null)
             }
         }
-        Row {
-            spacing: Theme.spacingXS; anchors.verticalCenter: parent.verticalCenter
+        Item {
+            // compact tray chip: up to 3 overlapped icons + count, click opens
+            // the tray drill view (full rows, working menus) — the inline
+            // icon strip crowded the pill and menu-only items ate clicks
+            id: trayChip
+            readonly property int n: island.trayItems.length
+            readonly property int shown: Math.min(n, 3)
+            visible: n > 0
+            width: visible ? 17 + (shown - 1) * 11 + (n > 3 ? tChipMore.implicitWidth + 3 : 0) : 0
+            height: 22
+            anchors.verticalCenter: parent.verticalCenter
+            scale: tChipArea.pressed ? 0.9 : (tChipArea.containsMouse ? 1.1 : 1.0)
+            Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             Repeater {
                 // gated like the workspaces; tray models churn on every SNI update
-                model: idlePane.visible ? island.trayItems : []
+                model: idlePane.visible ? Math.min(island.trayItems.length, 3) : 0
                 Item {
-                    width: 22; height: 22; anchors.verticalCenter: parent.verticalCenter
-                    scale: trayArea.pressed ? 0.82 : (trayArea.containsMouse ? 1.12 : 1.0)
-                    Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
+                    readonly property var tItem: island.trayItems[index]
+                    width: 17; height: 17
+                    x: index * 11
+                    y: 2.5
+                    z: 10 - index
                     Image {
                         id: trayImg
-                        anchors.centerIn: parent; width: 17; height: 17
-                        source: idlePane.trayIconSourceFor(modelData)
+                        anchors.fill: parent
+                        source: idlePane.trayIconSourceFor(parent.tItem)
                         sourceSize.width: 17; sourceSize.height: 17
                         asynchronous: true
                     }
@@ -269,27 +282,23 @@ Item {
                         anchors.centerIn: parent; name: "widgets"; size: 15; color: island.subText
                         visible: trayImg.status !== Image.Ready
                     }
-                    MouseArea {
-                        id: trayArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: mouse => {
-                            if (mouse.button === Qt.MiddleButton) {
-                                modelData.secondaryActivate()
-                            } else if (mouse.button === Qt.RightButton && modelData.hasMenu && modelData.menu) {
-                                const p = trayArea.mapToItem(null, 0, 0)
-                                island.openTrayMenu(modelData.menu, Qt.rect(p.x, p.y + trayArea.height, trayArea.width, trayArea.height))
-                            } else {
-                                modelData.activate()
-                            }
-                        }
-                        Accessible.role: Accessible.Button
-                        Accessible.name: modelData.title || I18n.tr("Tray item")
-                        Accessible.onPressAction: modelData.activate()
-                    }
                 }
+            }
+            StyledText {
+                id: tChipMore
+                visible: trayChip.n > 3
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                text: "+" + (trayChip.n - 3)
+                color: island.subText; font.pixelSize: Theme.fontSizeSmall - 2; font.bold: true
+            }
+            MouseArea {
+                id: tChipArea
+                anchors.fill: parent; anchors.margins: -4
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: island.openPanel("tray")
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Tray")
+                Accessible.onPressAction: clicked(null)
             }
         }
         Row {
