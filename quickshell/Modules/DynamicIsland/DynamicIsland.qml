@@ -192,7 +192,8 @@ Scope {
         const arrived = newest && newest !== _newestPopup && popups.length >= _popupCount
         if (arrived && ready && isFocusedScreen && !SessionData.doNotDisturb) {
             const crit = newest.urgency === NotificationUrgency.Critical
-            edgeGlow.flash(crit ? Theme.error : Theme.primary)
+            // rainbow loop for normal notifications; critical keeps a solid red ring
+            edgeGlow.flash(crit ? Theme.error : Theme.primary, !crit)
             // the island reacts too: gelatinous morph + a shine sweeping the pill
             if (!reduceMotion && !pillSuppressed) {
                 bump()
