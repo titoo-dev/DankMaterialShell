@@ -194,11 +194,13 @@ Scope {
             const crit = newest.urgency === NotificationUrgency.Critical
             // rainbow loop for normal notifications; critical keeps a solid red ring
             edgeGlow.flash(crit ? Theme.error : Theme.primary, !crit)
-            // the island reacts too: gelatinous morph + a shine sweeping the pill
+            // the island reacts too: gelatinous morph + a shine sweeping the pill,
+            // and the satellite pin (when detached) pops along
             if (!reduceMotion && !pillSuppressed) {
                 bump()
                 squashAnim.restart()
                 pillShineAnim.restart()
+                if (satellite.active) satBumpAnim.restart()
             }
         }
         _popupCount = popups.length
@@ -1118,9 +1120,21 @@ Scope {
             width: pill.height; height: pill.height
             x: pill.x + pill.width - width + (width + 7) * out
             y: pill.y
-            scale: 0.5 + 0.5 * Math.max(0, out)
+            // mini life for the pin: notification pop (satBump, one-shot) +
+            // hover grow / press shrink (hoverS), all multiplied into the
+            // detach scale — no Behavior on `scale` itself, the spring on
+            // `out` and the animations below already drive every change
+            property real satBump: 1.0
+            property real hoverS: satArea.pressed ? 0.88 : (satArea.containsMouse ? 1.1 : 1.0)
+            Behavior on hoverS { enabled: !root.reduceMotion; SpringAnimation { spring: 7; damping: 0.3 } }
+            scale: (0.5 + 0.5 * Math.max(0, out)) * satBump * hoverS
             opacity: Math.max(0, Math.min(1, out)) * pill.opacity
             visible: out > 0.02 && pill.visible
+            SequentialAnimation {
+                id: satBumpAnim
+                NumberAnimation { target: satellite; property: "satBump"; to: 1.22; duration: 130; easing.type: Easing.OutBack }
+                SpringAnimation { target: satellite; property: "satBump"; to: 1.0; spring: 5; damping: 0.25; epsilon: 0.005 }
+            }
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
@@ -1129,14 +1143,24 @@ Scope {
                 border.color: Qt.rgba(root.satColor.r, root.satColor.g, root.satColor.b, 0.45)
             }
             DankIcon {
+                id: satGlyph
                 anchors.centerIn: parent
                 name: satellite.shownIcon
                 size: 15
                 color: root.satColor
                 filled: true
+                // tiny pop when the glyph swaps (state change while detached)
+                SequentialAnimation {
+                    id: satGlyphPop
+                    NumberAnimation { target: satGlyph; property: "scale"; to: 1.35; duration: 110; easing.type: Easing.OutQuad }
+                    SpringAnimation { target: satGlyph; property: "scale"; to: 1.0; spring: 5; damping: 0.25; epsilon: 0.005 }
+                }
             }
+            onShownIconChanged: if (!root.reduceMotion && visible) satGlyphPop.restart()
             MouseArea {
+                id: satArea
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 // per-activity expanded layout: privacy bubbles drill straight
                 // into the live-captures view, battery falls back to the hub
