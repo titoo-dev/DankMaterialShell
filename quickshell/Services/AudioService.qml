@@ -600,13 +600,14 @@ EOFCONFIG
     }
 
     function playNormalNotificationSound() {
-        if (!soundsAvailable || !normalNotificationSound || SessionData.doNotDisturb || notificationsAudioMuted || isMediaPlaying())
+        // NOT gated on isMediaPlaying(): a notification must be heard over music
+        if (!soundsAvailable || !normalNotificationSound || SessionData.doNotDisturb || notificationsAudioMuted)
             return;
         normalNotificationSound.play();
     }
 
     function playCriticalNotificationSound() {
-        if (!soundsAvailable || !criticalNotificationSound || SessionData.doNotDisturb || notificationsAudioMuted || isMediaPlaying())
+        if (!soundsAvailable || !criticalNotificationSound || SessionData.doNotDisturb || notificationsAudioMuted)
             return;
         criticalNotificationSound.play();
     }
@@ -647,7 +648,7 @@ EOFCONFIG
     }
 
     function _playDynamicSound(url) {
-        if (!soundsAvailable || !soundsLoader.item || SessionData.doNotDisturb || notificationsAudioMuted || isMediaPlaying())
+        if (!soundsAvailable || !soundsLoader.item || SessionData.doNotDisturb || notificationsAudioMuted)
             return;
         const player = soundsLoader.item.dynamicSound;
         player.stop();
