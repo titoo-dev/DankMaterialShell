@@ -17,24 +17,15 @@ Item {
     // comet lap progress, 0 -> 1 alongside the pulse
     property real prog: 0
     property color glowColor: Theme.primary
-    // rainbow mode: the outline runs a full hue wheel around the perimeter
-    // (normal notifications); solid colour is kept for critical/status flashes
-    property bool rainbow: false
     readonly property color shineColor: Qt.lighter(glowColor, 1.6)
-    readonly property color cometCore: rainbow ? Qt.rgba(1, 1, 1, 1) : shineColor
-    readonly property color cometEdge: rainbow ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(glowColor.r, glowColor.g, glowColor.b, 0.85)
     readonly property real inset: 2
-    // the hue wheel needs a little more flesh to read as a rainbow
-    readonly property real stroke: rainbow ? 4 : 2
-    // hue wheel corners (clockwise): TL red -> TR yellow-green -> BR cyan-blue -> BL violet -> back to red
-    function hue(h) { return Qt.hsla(h % 1, 0.85, 0.62, 1) }
+    readonly property real stroke: 2
 
     visible: pulse > 0
     z: -2   // behind the pill, in front of the scrim
 
-    function flash(color, useRainbow) {
+    function flash(color) {
         glowColor = color
-        rainbow = useRainbow === true
         pulseAnim.restart()
     }
 
@@ -49,60 +40,26 @@ Item {
         NumberAnimation { target: edgeGlow; property: "prog"; from: 0; to: 1; duration: 2150; easing.type: Easing.InOutSine }
     }
 
-    // ---- the outline: a thin luminous stroke on all four edges.
-    // In rainbow mode each edge carries its quarter of the hue wheel, so the
-    // four gradients chain into one continuous loop (corner hues shared).
-    Rectangle {  // top: red -> yellow-green
+    // ---- the outline: a thin luminous stroke on all four edges ----
+    Rectangle {  // top
         x: edgeGlow.inset; y: edgeGlow.inset
         width: parent.width - edgeGlow.inset * 2; height: edgeGlow.stroke
         color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-        gradient: edgeGlow.rainbow ? topGrad : null
-        Gradient {
-            id: topGrad
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: edgeGlow.hue(0.0) }
-            GradientStop { position: 0.5; color: edgeGlow.hue(0.125) }
-            GradientStop { position: 1.0; color: edgeGlow.hue(0.25) }
-        }
     }
-    Rectangle {  // right: yellow-green -> cyan-blue
-        x: parent.width - edgeGlow.inset - edgeGlow.stroke; y: edgeGlow.inset
-        width: edgeGlow.stroke; height: parent.height - edgeGlow.inset * 2
-        color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-        gradient: edgeGlow.rainbow ? rightGrad : null
-        Gradient {
-            id: rightGrad
-            orientation: Gradient.Vertical
-            GradientStop { position: 0.0; color: edgeGlow.hue(0.25) }
-            GradientStop { position: 0.5; color: edgeGlow.hue(0.375) }
-            GradientStop { position: 1.0; color: edgeGlow.hue(0.5) }
-        }
-    }
-    Rectangle {  // bottom: violet <- cyan-blue (left to right)
+    Rectangle {  // bottom
         x: edgeGlow.inset; y: parent.height - edgeGlow.inset - edgeGlow.stroke
         width: parent.width - edgeGlow.inset * 2; height: edgeGlow.stroke
         color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-        gradient: edgeGlow.rainbow ? bottomGrad : null
-        Gradient {
-            id: bottomGrad
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: edgeGlow.hue(0.75) }
-            GradientStop { position: 0.5; color: edgeGlow.hue(0.625) }
-            GradientStop { position: 1.0; color: edgeGlow.hue(0.5) }
-        }
     }
-    Rectangle {  // left: red (top) -> violet (bottom)
+    Rectangle {  // left
         x: edgeGlow.inset; y: edgeGlow.inset
         width: edgeGlow.stroke; height: parent.height - edgeGlow.inset * 2
         color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
-        gradient: edgeGlow.rainbow ? leftGrad : null
-        Gradient {
-            id: leftGrad
-            orientation: Gradient.Vertical
-            GradientStop { position: 0.0; color: edgeGlow.hue(0.0) }
-            GradientStop { position: 0.5; color: edgeGlow.hue(0.875) }
-            GradientStop { position: 1.0; color: edgeGlow.hue(0.75) }
-        }
+    }
+    Rectangle {  // right
+        x: parent.width - edgeGlow.inset - edgeGlow.stroke; y: edgeGlow.inset
+        width: edgeGlow.stroke; height: parent.height - edgeGlow.inset * 2
+        color: edgeGlow.glowColor; opacity: edgeGlow.pulse * 0.55
     }
 
     // ---- perimeter path the comets follow (clockwise, one lap) ----
@@ -128,9 +85,9 @@ Item {
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0;  color: "transparent" }
-            GradientStop { position: 0.35; color: edgeGlow.cometEdge }
-            GradientStop { position: 0.5;  color: edgeGlow.cometCore }
-            GradientStop { position: 0.65; color: edgeGlow.cometEdge }
+            GradientStop { position: 0.35; color: Qt.rgba(edgeGlow.glowColor.r, edgeGlow.glowColor.g, edgeGlow.glowColor.b, 0.85) }
+            GradientStop { position: 0.5;  color: edgeGlow.shineColor }
+            GradientStop { position: 0.65; color: Qt.rgba(edgeGlow.glowColor.r, edgeGlow.glowColor.g, edgeGlow.glowColor.b, 0.85) }
             GradientStop { position: 1.0;  color: "transparent" }
         }
     }
