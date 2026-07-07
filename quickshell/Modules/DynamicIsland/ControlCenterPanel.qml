@@ -74,6 +74,44 @@ import "panels"
                         Row {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                             spacing: Theme.spacingXS
+                            Rectangle {  // battery live observer — % + state, click = power profile
+                                readonly property bool low: BatteryService.isLowBattery && !BatteryService.isCharging
+                                visible: BatteryService.batteryAvailable
+                                width: batRow.implicitWidth + Theme.spacingM; height: 36; radius: 18
+                                color: batArea.containsMouse ? Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.18) : Theme.surfaceLight
+                                Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                border.width: low ? 1 : 0
+                                border.color: Theme.error
+                                Row {
+                                    id: batRow
+                                    anchors.centerIn: parent; spacing: 3
+                                    DankIcon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        name: BatteryService.getBatteryIcon(); size: 17
+                                        color: parent.parent.low ? Theme.error : (BatteryService.isCharging ? island.accent : island.textColor)
+                                        Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                    }
+                                    StyledText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: BatteryService.batteryLevel + "%"
+                                        color: parent.parent.low ? Theme.error : island.textColor
+                                        font.pixelSize: Theme.fontSizeSmall; font.bold: true
+                                    }
+                                }
+                                ToolTip.visible: batArea.containsMouse
+                                ToolTip.delay: 400
+                                ToolTip.text: {
+                                    const t = BatteryService.formatTimeRemaining()
+                                    return BatteryService.batteryStatus + (t !== "Unknown" ? " · " + t : "")
+                                }
+                                MouseArea {
+                                    id: batArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: { island.closeIsland(); PopoutService.openPowerProfileModal() }
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: I18n.tr("Battery") + " " + BatteryService.batteryLevel + "%"
+                                    Accessible.onPressAction: clicked(null)
+                                }
+                            }
                             Repeater {
                                 model: [
                                     { key: "lock",     icon: "lock",                tip: I18n.tr("Lock"),     danger: false },
