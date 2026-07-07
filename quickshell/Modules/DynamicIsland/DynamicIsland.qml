@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Widgets
 import Quickshell.Hyprland
 import Quickshell.Services.SystemTray
 import Quickshell.Services.Notifications
@@ -192,6 +193,12 @@ Scope {
         if (arrived && ready && isFocusedScreen && !SessionData.doNotDisturb) {
             const crit = newest.urgency === NotificationUrgency.Critical
             edgeGlow.flash(crit ? Theme.error : Theme.primary)
+            // the island reacts too: gelatinous morph + a shine sweeping the pill
+            if (!reduceMotion && !pillSuppressed) {
+                bump()
+                squashAnim.restart()
+                pillShineAnim.restart()
+            }
         }
         _popupCount = popups.length
         _newestPopup = newest
@@ -1022,6 +1029,36 @@ Scope {
             transform: Scale {
                 origin.x: islandBody.width / 2; origin.y: islandBody.height / 2
                 xScale: pill.squashX; yScale: pill.squashY
+            }
+
+            // notification shine: a diagonal specular band sweeping the pill
+            // once (one-shot, restarted per notification — no idle animation).
+            // ClippingRectangle: a bbox `clip` would paint over the pill's radius
+            ClippingRectangle {
+                anchors.fill: parent
+                radius: parent.radius
+                color: "transparent"
+                visible: pillShine.opacity > 0
+                Rectangle {
+                    id: pillShine
+                    width: 110; height: parent.height * 3
+                    y: -parent.height
+                    rotation: 18
+                    opacity: 0
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.30) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                }
+            }
+            SequentialAnimation {
+                id: pillShineAnim
+                PropertyAction { target: pillShine; property: "x"; value: -140 }
+                PropertyAction { target: pillShine; property: "opacity"; value: 1 }
+                NumberAnimation { target: pillShine; property: "x"; to: islandBody.width + 60; duration: 620; easing.type: Easing.InOutQuad }
+                PropertyAction { target: pillShine; property: "opacity"; value: 0 }
             }
         }
 
