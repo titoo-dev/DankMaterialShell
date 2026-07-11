@@ -1114,6 +1114,16 @@ Scope {
                 && (root.mode === "compact" || root.mode === "chip" || root.mode === "idle" || root.mode === "activity")
             property real out: active ? 1 : 0
             Behavior on out { SpringAnimation { spring: 4.2; damping: 0.3; epsilon: 0.004 } }
+            // retracting (panel opened, mode change): drop any in-flight speech
+            // so the robot always re-emerges as a plain circle — a stale bubble
+            // otherwise comes back stretched and empty
+            onActiveChanged: {
+                if (!active) {
+                    speechTimer.stop()
+                    speech = ""
+                    speechIcon = ""
+                }
+            }
             readonly property real sideGap: satellite.active ? satellite.width + 14 : 7
             readonly property bool hovered: agentSatArea.containsMouse
             readonly property bool anyWaiting: AgentService.waitingCount > 0
@@ -1158,7 +1168,7 @@ Scope {
             }
 
             height: pill.height
-            width: (hovered || speaking) ? Math.min(agentInfo.implicitWidth + (pill.height - 15), 340) : pill.height
+            width: (active && (hovered || speaking)) ? Math.min(agentInfo.implicitWidth + (pill.height - 15), 340) : pill.height
             Behavior on width { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.OutQuad } }
             // left edge parks at pill.right + gap when out; width grows rightward
             x: pill.x + pill.width - pill.height + (pill.height + sideGap) * out
@@ -1257,6 +1267,10 @@ Scope {
                 id: agentSatArea
                 anchors.fill: parent
                 hoverEnabled: true
+                // disabling while retracted resets containsMouse — otherwise a
+                // hover latched at click time survives the hide and the bubble
+                // re-emerges pre-stretched
+                enabled: agentSat.active
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     root.openPanel("agents")
