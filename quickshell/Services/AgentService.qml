@@ -34,6 +34,9 @@ Singleton {
         return sessions.slice().sort((a, b) => (rank[a.state] ?? 3) - (rank[b.state] ?? 3) || b.lastTs - a.lastTs);
     }
     signal sessionWaiting(var session)
+    // one beat per tool call — drives the pill's micro-nudge so the island
+    // visibly ticks with agent activity (finite, event-driven: no idle loops)
+    signal sessionActivity(string sid)
 
     function iconFor(agent) {
         return { claude: "smart_toy", codex: "terminal", gemini: "auto_awesome", opencode: "code" }[agent] || "smart_toy";
@@ -122,6 +125,7 @@ Singleton {
             // tools can still run under a pending subagent prompt — never
             // clobber a waiting state from the feed
             _patch(i, sessions[i].state === "waiting" ? { feed: feed } : { feed: feed, state: "working" });
+            sessionActivity(e.sid);
             break;
         }
         case "perm": {
