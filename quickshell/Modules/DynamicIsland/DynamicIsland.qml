@@ -135,7 +135,7 @@ Scope {
         if (CompositorService.isNiri)
             NiriService.switchToWorkspace(key)
         else
-            Hyprland.dispatch("workspace " + key)
+            HyprlandService.focusWorkspace(key)  // fork-aware (lua config uses hl.dsp.focus, not the stock "workspace" dispatcher)
     }
 
     // local fallback spectrum (used only when the `cava` binary is absent), so
