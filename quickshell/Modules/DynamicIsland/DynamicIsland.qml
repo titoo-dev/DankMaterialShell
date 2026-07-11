@@ -572,6 +572,20 @@ Scope {
                                   SessionService.idleInhibited ? I18n.tr("Keep awake on") : I18n.tr("Keep awake off"))
         }
     }
+    // a coding-agent session needs the user (permission / question) — attention
+    // level is the user's call: follow focus, a splash, or just the pill tint
+    Connections {
+        target: AgentService
+        function onSessionWaiting(s) {
+            const what = s.pending && s.pending.kind === "question" ? I18n.tr("Question") : I18n.tr("Approval needed")
+            if (SessionData.agentApprovalMode === "focus") {
+                if (root.isFocusedScreen)
+                    root.openPanel("agents")
+            } else if (SessionData.agentApprovalMode === "notify") {
+                root.pushActivity("smart_toy", what + " · " + s.title, { priority: 2 })
+            }
+        }
+    }
     Connections {
         target: PowerProfileWatcher
         function onProfileChanged(profile) {
@@ -1252,7 +1266,8 @@ Scope {
                         root.pinned = false
                         root.settle()
                     } else if (root.mode === "activity") {
-                        root.openPanel("activities")
+                        const p = ActivityService.primary
+                        root.openPanel(p && p.id.startsWith("agent-") ? "agents" : "activities")
                     } else {
                         // don't pin on click-expand: the island can't receive clicks
                         // outside its mask, so it auto-collapses once the pointer

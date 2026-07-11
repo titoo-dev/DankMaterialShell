@@ -36,9 +36,9 @@ Column {
                 id: aRow
                 anchors.fill: parent; anchors.margins: Theme.spacingS; spacing: Theme.spacingS
                 DankIcon {
-                    name: modelData.state === "done" ? "check_circle" : modelData.state === "failed" ? "error" : modelData.icon
+                    name: modelData.state === "done" ? "check_circle" : modelData.state === "failed" ? "error" : modelData.state === "waiting" ? "front_hand" : modelData.icon
                     size: 18
-                    color: modelData.state === "done" ? Theme.success : modelData.state === "failed" ? Theme.error : Theme.primary
+                    color: modelData.state === "done" || modelData.state === "idle" ? Theme.success : modelData.state === "failed" ? Theme.error : modelData.state === "waiting" ? Theme.warning : Theme.primary
                     Layout.alignment: Qt.AlignVCenter
                 }
                 Column {

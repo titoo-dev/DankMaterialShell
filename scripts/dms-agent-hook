@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# dms-agent-hook EVENT — Claude Code hook → Dynamic Island agent sessions.
+#
+# Installed into ~/.claude/settings.json by dms-agent-install. Every event is
+# compacted with jq and forwarded to AgentService via
+#   dms ipc call island agentEvent '<json>'
+# Blocking events (PermissionRequest, AskUserQuestion via PreToolUse) then
+# wait for the island's verdict file in $XDG_RUNTIME_DIR/dms-agent/<rid>;
+# no verdict before the deadline = exit silent = Claude's native prompt.
+set -u
+event=${1:-}
+input=$(cat 2>/dev/null || true)
+[ -n "$event" ] && [ -n "$input" ] || exit 0
+
+run=${XDG_RUNTIME_DIR:-/tmp}/dms-agent
+
+ipc() { dms ipc call island agentEvent "$1" >/dev/null 2>&1; }
+
+# Terminal ancestry: hooks run under claude → shell → terminal, so the window
+# owning this session is whichever compositor client pid appears in our
+# ancestor chain. ponytail: tmux resolves to the server pid — no jump there.
+ancestors() {
+    local p=$PPID out="" stat
+    while [ "${p:-1}" -gt 1 ] 2>/dev/null; do
+        out="$out,$p"
+        stat=$(cat "/proc/$p/stat" 2>/dev/null) || break
+        stat=${stat##*) }
+        set -- $stat
+        p=$2
+    done
+    echo "[${out#,}]"
+}
+
+# $1 = request id, $2 = timeout seconds. Prints the verdict when it lands.
+wait_verdict() {
+    local f="$run/$1" i=0 n=$(( ${2:-580} * 4 ))
+    while [ $i -lt $n ]; do
+        if [ -f "$f" ]; then
+            cat "$f"
+            rm -f "$f"
+            return 0
+        fi
+        sleep 0.25
+        i=$((i + 1))
+    done
+    return 1
+}
+
+case "$event" in
+SessionStart)
+    ipc "$(jq -c --argjson anc "$(ancestors)" \
+        '{ev:"start", sid:.session_id, cwd:(.cwd // ""), anc:$anc}' <<<"$input")"
+    ;;
+SessionEnd)
+    ipc "$(jq -c '{ev:"end", sid:.session_id}' <<<"$input")"
+    ;;
+UserPromptSubmit)
+    ipc "$(jq -c --argjson anc "$(ancestors)" \
+        '{ev:"prompt", sid:.session_id, cwd:(.cwd // ""), anc:$anc, prompt:(.prompt // "" | .[0:200])}' <<<"$input")"
+    ;;
+PostToolUse)
+    ipc "$(jq -c '{ev:"tool", sid:.session_id, tool:(.tool_name // "?"), detail:(
+        if .tool_name == "Bash" then (.tool_input.command // "" | .[0:80])
+        elif (.tool_input.file_path // "") != "" then (.tool_input.file_path | split("/") | last)
+        elif .tool_name == "Task" then (.tool_input.description // "")
+        elif .tool_name == "WebFetch" or .tool_name == "WebSearch" then (.tool_input.url // .tool_input.query // "")
+        else "" end)}' <<<"$input")"
+    ;;
+Stop)
+    ipc "$(jq -c '{ev:"stop", sid:.session_id}' <<<"$input")"
+    ;;
+Notification)
+    ipc "$(jq -c '{ev:"notify", sid:.session_id, type:(.type // "")}' <<<"$input")"
+    ;;
+PermissionRequest)
+    mkdir -p "$run"
+    rid="perm-$$-$RANDOM"
+    payload=$(jq -c --arg rid "$rid" --argjson anc "$(ancestors)" \
+        '{ev:"perm", sid:.session_id, cwd:(.cwd // ""), anc:$anc, rid:$rid, tool:(.tool_name // "?"), detail:(
+            (if .tool_name == "Bash" then (.tool_input.command // "")
+             elif (.tool_input.file_path // "") != "" then
+                 (.tool_input.file_path + "\n"
+                  + (.tool_input.content // .tool_input.new_string
+                     // ((.tool_input.edits // []) | map(.new_string // "") | join("\n---\n"))))
+             else (.tool_input | tojson) end) | .[0:1500])}' <<<"$input")
+    ipc "$payload" || exit 0
+    v=$(wait_verdict "$rid" 580) || exit 0
+    case "$v" in
+    allow) printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}' ;;
+    deny)  printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}' ;;
+    esac # anything else (pass/dismiss) → silent → native prompt
+    ;;
+PreToolUse)
+    # matcher-scoped to AskUserQuestion: answer the question from the island.
+    # ponytail: single-question, single-select only — anything fancier gets
+    # the native terminal UI untouched.
+    single=$(jq -r '(.tool_input.questions // [])
+        | if length == 1 and (.[0].multiSelect != true) then "y" else "n" end' <<<"$input")
+    [ "$single" = "y" ] || exit 0
+    mkdir -p "$run"
+    rid="q-$$-$RANDOM"
+    payload=$(jq -c --arg rid "$rid" '{ev:"question", sid:.session_id, rid:$rid,
+        q:(.tool_input.questions[0].question // "" | .[0:300]),
+        opts:[.tool_input.questions[0].options[]? | (.label // "" | .[0:80])]}' <<<"$input")
+    ipc "$payload" || exit 0
+    v=$(wait_verdict "$rid" 580) || exit 0
+    case "$v" in
+    answer:*)
+        jq -cn --arg a "${v#answer:}" '{hookSpecificOutput:{hookEventName:"PreToolUse",
+            permissionDecision:"deny",
+            permissionDecisionReason:("The user already answered from the desktop panel: \"" + $a
+                + "\". Treat this as the final answer and continue — do not re-ask.")}}'
+        ;;
+    esac # "pass" → silent → native question UI
+    ;;
+esac
+exit 0

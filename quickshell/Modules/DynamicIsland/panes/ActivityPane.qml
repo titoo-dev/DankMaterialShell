@@ -23,8 +23,9 @@ Row {
         size: 16
         color: {
             if (!activityRow.act) return island.subText
-            if (activityRow.act.state === "done") return Theme.success
+            if (activityRow.act.state === "done" || activityRow.act.state === "idle") return Theme.success
             if (activityRow.act.state === "failed") return Theme.error
+            if (activityRow.act.state === "waiting") return Theme.warning
             return island.accent
         }
     }

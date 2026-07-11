@@ -105,6 +105,15 @@ Singleton {
         }
     }
 
+    // coding-agent approval attention (AgentService): how hard a waiting session
+    // grabs you — "focus" auto-opens the agents drill, "notify" splashes,
+    // "silent" only tints the pill
+    property string agentApprovalMode: "notify"
+    function setAgentApprovalMode(mode) {
+        agentApprovalMode = mode;
+        saveSettings();
+    }
+
     // island Pomodoro (TimerService) — a running countdown survives shell restarts
     property real islandTimerEnd: 0
     property real islandTimerTotal: 0
