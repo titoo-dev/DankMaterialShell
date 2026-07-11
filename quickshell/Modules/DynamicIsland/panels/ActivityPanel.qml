@@ -47,6 +47,7 @@ Column {
                         text: modelData.label
                         font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
                         color: Theme.surfaceText; width: parent.width; elide: Text.ElideRight
+                        maximumLineCount: 1
                     }
                     Rectangle {
                         visible: modelData.state === "running" && modelData.progress >= 0
@@ -96,6 +97,7 @@ Column {
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceText
                 elide: Text.ElideRight
+                maximumLineCount: 1
             }
             StyledText {
                 text: Qt.formatTime(new Date(modelData.ts), "HH:mm")

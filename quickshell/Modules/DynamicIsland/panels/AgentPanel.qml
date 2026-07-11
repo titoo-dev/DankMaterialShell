@@ -152,6 +152,7 @@ Column {
                             font.weight: Font.Bold
                             color: Theme.surfaceText
                             elide: Text.ElideRight
+                            maximumLineCount: 1
                         }
                         StyledText {
                             width: parent.width
@@ -166,6 +167,7 @@ Column {
                             font.pixelSize: Theme.fontSizeSmall - 2
                             color: card.waiting ? Theme.warning : Theme.surfaceVariantText
                             elide: Text.ElideRight
+                            maximumLineCount: 1
                         }
                     }
                     DankActionButton {
@@ -198,6 +200,7 @@ Column {
                         color: Theme.surfaceVariantText
                         opacity: 1.0 - index * 0.18
                         elide: Text.ElideRight
+                        maximumLineCount: 1
                     }
                 }
 

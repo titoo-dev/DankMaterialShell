@@ -41,6 +41,7 @@ Row {
         font.pixelSize: Theme.fontSizeSmall
         font.bold: true
         elide: Text.ElideRight
+        maximumLineCount: 1  // StyledText defaults to WordWrap — long agent titles must elide, not stack
         width: Math.min(implicitWidth, 200)
     }
     Item {  // progress bar: determinate only — indeterminate shows the static ellipsis below
