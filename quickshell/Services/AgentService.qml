@@ -34,9 +34,12 @@ Singleton {
         return sessions.slice().sort((a, b) => (rank[a.state] ?? 3) - (rank[b.state] ?? 3) || b.lastTs - a.lastTs);
     }
     signal sessionWaiting(var session)
-    // one beat per tool call — drives the pill's micro-nudge so the island
-    // visibly ticks with agent activity (finite, event-driven: no idle loops)
+    // one beat per tool call — drives the robot pin's micro-nudge so the
+    // island visibly ticks with agent activity (finite: no idle loops)
     signal sessionActivity(string sid)
+    // transient pill visit: task started / task done — the island shows it
+    // for a few seconds (splash queue) and returns to its normal rest state
+    signal sessionSplash(string icon, string label)
 
     function iconFor(agent) {
         return { claude: "smart_toy", codex: "terminal", gemini: "auto_awesome", opencode: "code" }[agent] || "smart_toy";
@@ -138,6 +141,8 @@ Singleton {
                         cwd: e.cwd || sessions[i].cwd,
                         anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc,
                         agent: e.agent || sessions[i].agent, apid: e.apid || sessions[i].apid });
+            if (!synthetic)
+                sessionSplash(iconFor(sessions[i].agent), title);
             break;
         }
         case "tool": {
@@ -183,8 +188,11 @@ Singleton {
             if (i >= 0) {
                 const wasWorking = sessions[i].state === "working";
                 _patch(i, { state: "done", pending: null });
-                if (wasWorking && SessionData.agentApprovalMode !== "silent")
-                    AudioService.playNormalNotificationSound();
+                if (wasWorking) {
+                    if (SessionData.agentApprovalMode !== "silent")
+                        AudioService.playNormalNotificationSound();
+                    sessionSplash("task_alt", "✓ " + sessions[i].title);
+                }
             }
             break;
         }
@@ -195,7 +203,6 @@ Singleton {
             break;
         }
         }
-        _mirror();
     }
 
     // ---- actions (panel buttons) ----
@@ -206,7 +213,6 @@ Singleton {
         _writeVerdict(sessions[i].pending.rid, verdict);
         // pass = answer in the terminal: the native prompt appears, still waiting
         _patch(i, verdict === "pass" ? { pending: null } : { pending: null, state: "working" });
-        _mirror();
     }
     // needs-attention: chime (the visual reaction lives in DynamicIsland,
     // which gates per approval mode / focused screen — sounds play once here)
@@ -230,7 +236,6 @@ Singleton {
             return;
         _writeVerdict(sessions[i].pending.rid, "answer:" + label);
         _patch(i, { pending: null, state: "working" });
-        _mirror();
     }
     // multi-select / multi-question flow: selection lives in the session model
     // (not delegate state) so it survives the immutable array swaps every
@@ -306,32 +311,9 @@ Singleton {
         const arr = sessions.slice();
         arr.splice(i, 1);
         sessions = arr;
-        ActivityService.stop("agent-" + sid);
     }
     function _writeVerdict(rid, v) {
         Quickshell.execDetached(["sh", "-c", 'printf %s "$0" > "$1.tmp" && mv "$1.tmp" "$1"', v, runDir + "/" + rid]);
-    }
-
-    // ---- pill mirroring: one ActivityService entry per session ----
-    function _mirror() {
-        for (var i = 0; i < sessions.length; i++) {
-            const s = sessions[i];
-            const aid = "agent-" + s.id;
-            const label = s.state === "waiting"
-                ? I18n.tr("Needs you") + " · " + s.title
-                : s.state === "done" ? "✓ " + s.title : s.title;
-            // waiting gets the same raised hand the panel shows, in the pill too
-            ActivityService.start(aid, label, s.state === "waiting" ? "front_hand" : iconFor(s.agent));
-            if (s.state !== "working")
-                ActivityService.setState(aid, s.state === "waiting" ? "waiting" : "idle");
-        }
-    }
-    Connections {
-        target: ActivityService
-        function onActivityDismissed(id) {
-            if (id.startsWith("agent-"))
-                root.remove(id.slice(6));
-        }
     }
 
     Timer {

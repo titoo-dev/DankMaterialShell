@@ -585,6 +585,12 @@ Scope {
                 root.pushActivity("smart_toy", what + " · " + s.title, { priority: 2 })
             }
         }
+        // task boundaries visit the pill for a few seconds (splash queue),
+        // then the island returns to rest — the robot satellite keeps watch
+        function onSessionSplash(icon, label) {
+            if (SessionData.agentApprovalMode !== "silent")
+                root.pushActivity(icon, label)
+        }
     }
     Connections {
         target: PowerProfileWatcher
@@ -966,6 +972,7 @@ Scope {
             // fullscreen, so top-center clicks reach the app underneath
             Region { item: root.pillSuppressed ? null : pill }
             Region { item: satellite.active ? satellite : null }
+            Region { item: agentSat.active ? agentSat : null }
         }
 
     Item {
@@ -1097,6 +1104,121 @@ Scope {
                         root.openPanel("tailscale")
                     else
                         root.mode = "expanded"
+                    root.bump()
+                }
+            }
+        }
+
+        // vibe-island passenger: a mini robot rides beside the pill whenever
+        // agent sessions exist — mic-observer style. Colour tracks the fleet
+        // (amber = needs you, accent = working, green = all done), ticks with
+        // every tool call, and hover stretches it horizontally for the summary.
+        Item {
+            id: agentSat
+            readonly property bool active: !root.pillSuppressed && AgentService.sessions.length > 0
+                && (root.mode === "compact" || root.mode === "chip" || root.mode === "idle" || root.mode === "activity")
+            property real out: active ? 1 : 0
+            Behavior on out { SpringAnimation { spring: 4.2; damping: 0.3; epsilon: 0.004 } }
+            readonly property real sideGap: satellite.active ? satellite.width + 14 : 7
+            readonly property bool hovered: agentSatArea.containsMouse
+            readonly property bool anyWaiting: AgentService.waitingCount > 0
+            readonly property color tone: anyWaiting ? Theme.warning
+                : AgentService.workingCount > 0 ? root.accent : Theme.success
+            height: pill.height
+            width: hovered ? Math.min(agentInfo.implicitWidth + (pill.height - 15), 340) : pill.height
+            Behavior on width { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.OutQuad } }
+            // left edge parks at pill.right + gap when out; width grows rightward
+            x: pill.x + pill.width - pill.height + (pill.height + sideGap) * out
+            y: pill.y
+            scale: 0.5 + 0.5 * Math.max(0, out)
+            transformOrigin: Item.Left
+            opacity: Math.max(0, Math.min(1, out)) * pill.opacity
+            visible: out > 0.02 && pill.visible
+            clip: true
+
+            Rectangle {
+                anchors.fill: parent
+                radius: height / 2
+                color: root.islandColor
+                border.width: 1
+                border.color: Qt.rgba(agentSat.tone.r, agentSat.tone.g, agentSat.tone.b, 0.45)
+                Behavior on border.color { ColorAnimation { duration: Theme.mediumDuration } }
+            }
+            Row {
+                id: agentInfo
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: (pill.height - 15) / 2
+                spacing: Theme.spacingS
+                DankIcon {
+                    id: botIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: agentSat.anyWaiting ? "front_hand" : "smart_toy"
+                    size: 15
+                    color: agentSat.tone
+                    filled: true
+                    onNameChanged: if (agentSat.visible && !root.reduceMotion) botPop.restart()
+                    SequentialAnimation {
+                        id: botPop
+                        NumberAnimation { target: botIcon; property: "scale"; to: 1.35; duration: Theme.shortDuration; easing.type: Easing.OutQuad }
+                        NumberAnimation { target: botIcon; property: "scale"; to: 1.0; duration: Theme.mediumDuration; easing.type: Easing.OutBack }
+                    }
+                    Connections {
+                        target: AgentService
+                        enabled: agentSat.visible && !root.reduceMotion
+                        function onSessionActivity(sid) {
+                            if (!botPop.running && !botPulse.running)
+                                botTick.restart()
+                        }
+                    }
+                    SequentialAnimation {
+                        id: botTick
+                        NumberAnimation { target: botIcon; property: "scale"; to: 1.15; duration: 90; easing.type: Easing.OutQuad }
+                        NumberAnimation { target: botIcon; property: "scale"; to: 1.0; duration: 160; easing.type: Easing.InOutQuad }
+                    }
+                }
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: {
+                        const parts = []
+                        if (AgentService.waitingCount) parts.push(AgentService.waitingCount + " " + I18n.tr("needs you"))
+                        if (AgentService.workingCount) parts.push(AgentService.workingCount + " " + I18n.tr("working"))
+                        if (AgentService.doneCount) parts.push(AgentService.doneCount + " " + I18n.tr("done"))
+                        const top = AgentService.sorted.length > 0 ? AgentService.sorted[0] : null
+                        const verb = top ? AgentService.verbFor("agent-" + top.id) : ""
+                        return parts.join(" · ") + (top ? " — " + (verb ? verb + "… " : "") + top.title : "")
+                    }
+                    font.pixelSize: Theme.fontSizeSmall - 1
+                    color: root.textColor
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
+                    width: Math.min(implicitWidth, 280)
+                    opacity: agentSat.hovered ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+                }
+            }
+            // 3-beat attention pulse when the fleet starts waiting, then steady amber
+            onAnyWaitingChanged: {
+                if (anyWaiting && visible && !root.reduceMotion) {
+                    botPulse.restart()
+                } else {
+                    botPulse.stop()
+                    botIcon.opacity = 1
+                }
+            }
+            SequentialAnimation {
+                id: botPulse
+                loops: 3
+                NumberAnimation { target: botIcon; property: "opacity"; to: 0.35; duration: 350; easing.type: Easing.InOutSine }
+                NumberAnimation { target: botIcon; property: "opacity"; to: 1.0; duration: 350; easing.type: Easing.InOutSine }
+            }
+            MouseArea {
+                id: agentSatArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    root.openPanel("agents")
                     root.bump()
                 }
             }
@@ -1266,8 +1388,7 @@ Scope {
                         root.pinned = false
                         root.settle()
                     } else if (root.mode === "activity") {
-                        const p = ActivityService.primary
-                        root.openPanel(p && p.id.startsWith("agent-") ? "agents" : "activities")
+                        root.openPanel("activities")
                     } else {
                         // don't pin on click-expand: the island can't receive clicks
                         // outside its mask, so it auto-collapses once the pointer
