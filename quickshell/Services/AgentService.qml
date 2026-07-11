@@ -42,6 +42,27 @@ Singleton {
         return { claude: "smart_toy", codex: "terminal", gemini: "auto_awesome", opencode: "code" }[agent] || "smart_toy";
     }
 
+    // Claude-style working verbs — pure flavor, rotated every 8 heartbeats.
+    // Index 0 is deliberately "Thinking" so every task opens the classic way;
+    // past 5 minutes the wrap-up verbs join the rotation.
+    readonly property var _verbs: ["Thinking", "Pondering", "Julienning", "Reticulating", "Marinating", "Brewing", "Percolating", "Noodling", "Scheming", "Conjuring", "Vibing", "Tinkering", "Cogitating", "Ruminating", "Crunching", "Distilling", "Untangling", "Grokking", "Wrangling", "Simmering"]
+    readonly property var _lateVerbs: ["Almost done", "Wrapping up", "Polishing", "Final touches"]
+    property int _rot: 0
+    property int _tick: 0
+    // verb for an activity/session ("" unless an agent session is working);
+    // anchored to the rotation counter at prompt time, so every task opens on
+    // "Thinking" and parallel sessions drift apart on their own
+    function verbFor(aid) {
+        if (!aid || !aid.startsWith("agent-"))
+            return "";
+        const i = _find(aid.slice(6));
+        if (i < 0 || sessions[i].state !== "working")
+            return "";
+        const s = sessions[i];
+        const list = (now - s.startTs) > 300000 ? _verbs.concat(_lateVerbs) : _verbs;
+        return list[(_rot - (s.rotStart || 0) + list.length * 8) % list.length];
+    }
+
     // 1s heartbeat for elapsed-time labels while any session lives
     property real now: Date.now()
 
@@ -112,7 +133,7 @@ Singleton {
             const title = synthetic ? sessions[i].title
                                     : (raw.split("\n")[0].replace(/\s+/g, " ").trim().slice(0, 80) || sessions[i].title);
             // a new user prompt starts a new task: elapsed restarts, done → working
-            _patch(i, { title: title, state: "working", pending: null,
+            _patch(i, { title: title, state: "working", pending: null, rotStart: _rot,
                         startTs: synthetic ? sessions[i].startTs : Date.now(),
                         cwd: e.cwd || sessions[i].cwd,
                         anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc,
@@ -319,6 +340,8 @@ Singleton {
         running: root.sessions.length > 0
         onTriggered: {
             root.now = Date.now();
+            if (++root._tick % 8 === 0)
+                root._rot++;
             // safety TTL: a session silent for 2h is a ghost (crashed CLI)
             const cut = root.now - 7200000;
             root.sessions.filter(s => s.lastTs < cut).forEach(s => root.remove(s.id));

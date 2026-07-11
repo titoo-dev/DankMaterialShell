@@ -24,7 +24,7 @@ Column {
             return s.pending && s.pending.kind === "question" ? I18n.tr("has a question") : I18n.tr("needs approval")
         if (s.state === "done")
             return I18n.tr("done · click to jump")
-        return I18n.tr("working") + " · " + AgentService.elapsed(s)
+        return (AgentService.verbFor("agent-" + s.id) || I18n.tr("working")) + "… · " + AgentService.elapsed(s)
     }
     function resetTime(block) {
         return block && block.resets_at ? Qt.formatTime(new Date(block.resets_at * 1000), "HH:mm") : ""

@@ -102,12 +102,19 @@ Row {
             Behavior on width { NumberAnimation { duration: Theme.shortDuration } }
         }
     }
-    StyledText {  // indeterminate "working" hint — static, no loop
+    StyledText {  // indeterminate "working" hint — Claude-style verb for agent
+        id: workHint // sessions ("Julienning…", one swap per 8s tick), static ••• otherwise
         anchors.verticalCenter: parent.verticalCenter
         visible: activityRow.act && activityRow.act.state === "running" && activityRow.act.progress < 0
-        text: "•••"
+        text: {
+            const v = AgentService.verbFor(activityRow.act ? activityRow.act.id : "")
+            return v ? v + "…" : "•••"
+        }
         color: island.subText
         font.pixelSize: Theme.fontSizeSmall
+        font.italic: text !== "•••"
+        onTextChanged: if (visible && !island.reduceMotion) hintIn.restart()
+        NumberAnimation { id: hintIn; target: workHint; property: "opacity"; from: 0.2; to: 1.0; duration: Theme.mediumDuration }
     }
     StyledText {
         anchors.verticalCenter: parent.verticalCenter
