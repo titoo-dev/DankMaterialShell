@@ -59,12 +59,23 @@ UserPromptSubmit)
         '{ev:"prompt", sid:.session_id, cwd:(.cwd // ""), anc:$anc, prompt:(.prompt // "" | .[0:200])}' <<<"$input")"
     ;;
 PostToolUse)
-    ipc "$(jq -c '{ev:"tool", sid:.session_id, tool:(.tool_name // "?"), detail:(
-        if .tool_name == "Bash" then (.tool_input.command // "" | .[0:80])
-        elif (.tool_input.file_path // "") != "" then (.tool_input.file_path | split("/") | last)
-        elif .tool_name == "Task" then (.tool_input.description // "")
-        elif .tool_name == "WebFetch" or .tool_name == "WebSearch" then (.tool_input.url // .tool_input.query // "")
-        else "" end)}' <<<"$input")"
+    # +/- counts: hooks expose no structured patch, so approximate from the
+    # tool_input strings (newline counts) — Edit old/new, Write content
+    ipc "$(jq -c '
+        def nl(s): if s == null or s == "" then 0 else ((s | [scan("\n")] | length) + 1) end;
+        {ev:"tool", sid:.session_id, tool:(.tool_name // "?"), detail:(
+            if .tool_name == "Bash" then (.tool_input.command // "" | .[0:80])
+            elif (.tool_input.file_path // "") != "" then (.tool_input.file_path | split("/") | last)
+            elif .tool_name == "Task" then (.tool_input.description // "")
+            elif .tool_name == "WebFetch" or .tool_name == "WebSearch" then (.tool_input.url // .tool_input.query // "")
+            else "" end),
+         plus:(if .tool_input.edits then ([.tool_input.edits[] | nl(.new_string)] | add)
+               elif .tool_input.new_string then nl(.tool_input.new_string)
+               elif .tool_name == "Write" then nl(.tool_input.content)
+               else 0 end),
+         minus:(if .tool_input.edits then ([.tool_input.edits[] | nl(.old_string)] | add)
+                elif .tool_input.old_string then nl(.tool_input.old_string)
+                else 0 end)}' <<<"$input")"
     ;;
 Stop)
     ipc "$(jq -c '{ev:"stop", sid:.session_id}' <<<"$input")"
@@ -91,17 +102,19 @@ PermissionRequest)
     esac # anything else (pass/dismiss) → silent → native prompt
     ;;
 PreToolUse)
-    # matcher-scoped to AskUserQuestion: answer the question from the island.
-    # ponytail: single-question, single-select only — anything fancier gets
-    # the native terminal UI untouched.
-    single=$(jq -r '(.tool_input.questions // [])
-        | if length == 1 and (.[0].multiSelect != true) then "y" else "n" end' <<<"$input")
-    [ "$single" = "y" ] || exit 0
+    # matcher-scoped to AskUserQuestion: answer the question(s) from the
+    # island — single- and multi-select, up to 4 questions per call.
+    ok=$(jq -r '(.tool_input.questions // [])
+        | if (length >= 1 and length <= 4 and (map((.options // []) | length >= 1) | all))
+          then "y" else "n" end' <<<"$input")
+    [ "$ok" = "y" ] || exit 0
     mkdir -p "$run"
     rid="q-$$-$RANDOM"
     payload=$(jq -c --arg rid "$rid" '{ev:"question", sid:.session_id, rid:$rid,
-        q:(.tool_input.questions[0].question // "" | .[0:300]),
-        opts:[.tool_input.questions[0].options[]? | (.label // "" | .[0:80])]}' <<<"$input")
+        questions:[(.tool_input.questions // [])[] | {
+            q:(.question // "" | .[0:300]),
+            multi:(.multiSelect == true),
+            opts:[.options[]? | (.label // "" | .[0:80])]}]}' <<<"$input")
     ipc "$payload" || exit 0
     v=$(wait_verdict "$rid" 580) || exit 0
     case "$v" in

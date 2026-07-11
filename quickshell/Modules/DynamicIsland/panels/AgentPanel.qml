@@ -192,6 +192,7 @@ Column {
                         required property int index
                         width: parent.width
                         text: modelData.tool + (modelData.detail ? " · " + modelData.detail : "")
+                              + (modelData.plus || modelData.minus ? "  +" + modelData.plus + " −" + modelData.minus : "")
                         font.pixelSize: Theme.fontSizeSmall - 2
                         font.family: Theme.monoFontFamily
                         color: Theme.surfaceVariantText
@@ -253,38 +254,71 @@ Column {
                     }
                 }
 
-                // ---- pending question: one-click answers ----
+                // ---- pending question(s): one-click, multi-select, multi-question ----
                 Column {
+                    id: qWrap
                     width: parent.width
                     visible: card.modelData.pending && card.modelData.pending.kind === "question"
                     spacing: Theme.spacingS
-                    StyledText {
-                        width: parent.width
-                        text: card.modelData.pending ? card.modelData.pending.q : ""
-                        font.pixelSize: Theme.fontSizeSmall
-                        color: Theme.surfaceText
-                        wrapMode: Text.WordWrap
-                    }
+                    readonly property var pend: card.modelData.pending
+                    // a lone single-select question answers on first click; anything
+                    // richer collects picks and submits explicitly
+                    readonly property bool oneShot: pend && pend.kind === "question" && pend.questions.length === 1 && !pend.questions[0].multi
+
                     Repeater {
-                        model: card.modelData.pending ? card.modelData.pending.opts : []
-                        delegate: DankButton {
+                        model: qWrap.pend && qWrap.pend.kind === "question" ? qWrap.pend.questions : []
+                        delegate: Column {
+                            id: qBlock
                             required property var modelData
+                            required property int index
                             width: parent.width
-                            text: modelData
-                            buttonHeight: 28; radius: buttonHeight / 2
-                            backgroundColor: hovered ? Theme.primaryHover : Theme.surfaceLight
-                            textColor: hovered ? Theme.primary : Theme.surfaceText
-                            onClicked: AgentService.answer(card.modelData.id, modelData)
+                            spacing: Theme.spacingXS
+                            StyledText {
+                                width: parent.width
+                                text: qBlock.modelData.q + (qBlock.modelData.multi ? " · " + I18n.tr("pick any") : "")
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceText
+                                wrapMode: Text.WordWrap
+                            }
+                            Repeater {
+                                model: qBlock.modelData.opts
+                                delegate: DankButton {
+                                    required property var modelData
+                                    readonly property bool picked: ((qWrap.pend && qWrap.pend.sel && qWrap.pend.sel[qBlock.index]) || []).indexOf(modelData) >= 0
+                                    width: parent.width
+                                    text: (picked ? "✓ " : "") + modelData
+                                    buttonHeight: 28; radius: buttonHeight / 2
+                                    backgroundColor: picked ? Theme.primaryHover : hovered ? Theme.primaryHover : Theme.surfaceLight
+                                    textColor: picked || hovered ? Theme.primary : Theme.surfaceText
+                                    onClicked: qWrap.oneShot
+                                        ? AgentService.answer(card.modelData.id, modelData)
+                                        : AgentService.toggleOpt(card.modelData.id, qBlock.index, modelData)
+                                }
+                            }
                         }
                     }
-                    DankButton {
-                        text: I18n.tr("Answer in terminal")
-                        buttonHeight: 26; radius: buttonHeight / 2
-                        backgroundColor: "transparent"
-                        textColor: Theme.surfaceVariantText
-                        onClicked: {
-                            AgentService.decide(card.modelData.id, "pass")
-                            AgentService.jump(card.modelData.id)
+                    Row {
+                        anchors.right: parent.right
+                        spacing: Theme.spacingS
+                        DankButton {
+                            text: I18n.tr("Answer in terminal")
+                            buttonHeight: 26; radius: buttonHeight / 2
+                            backgroundColor: "transparent"
+                            textColor: Theme.surfaceVariantText
+                            onClicked: {
+                                AgentService.decide(card.modelData.id, "pass")
+                                AgentService.jump(card.modelData.id)
+                            }
+                        }
+                        DankButton {
+                            visible: !qWrap.oneShot
+                            enabled: AgentService.canSubmit(card.modelData)
+                            opacity: enabled ? 1 : 0.4
+                            text: I18n.tr("Submit")
+                            buttonHeight: 28; radius: buttonHeight / 2
+                            backgroundColor: Theme.primary
+                            textColor: Theme.primaryText
+                            onClicked: AgentService.submitAnswers(card.modelData.id)
                         }
                     }
                 }

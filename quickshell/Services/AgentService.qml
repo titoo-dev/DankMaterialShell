@@ -16,8 +16,9 @@ Singleton {
 
     // each: { id, agent, title, cwd, anc: [pids], startTs, lastTs,
     //         state: "working"|"waiting"|"done",
-    //         feed: [{tool, detail}] newest-first,
-    //         pending: null | {rid, kind: "permission"|"question", tool, detail, q, opts},
+    //         feed: [{tool, detail, plus, minus}] newest-first,
+    //         pending: null | {rid, kind: "permission"|"question", tool, detail,
+    //                          questions: [{q, multi, opts}], sel: {qi: [labels]}},
     //         model, ctx }
     property var sessions: []
     // provider quota from the statusline wrapper (Pro/Max only, else null):
@@ -97,7 +98,7 @@ Singleton {
         }
         case "tool": {
             const i = _ensure(e);
-            const feed = [{ tool: e.tool || "?", detail: e.detail || "" }].concat(sessions[i].feed).slice(0, 6);
+            const feed = [{ tool: e.tool || "?", detail: e.detail || "", plus: e.plus || 0, minus: e.minus || 0 }].concat(sessions[i].feed).slice(0, 6);
             // tools can still run under a pending subagent prompt — never
             // clobber a waiting state from the feed
             _patch(i, sessions[i].state === "waiting" ? { feed: feed } : { feed: feed, state: "working" });
@@ -107,15 +108,15 @@ Singleton {
             const i = _ensure(e);
             const s = _patch(i, { state: "waiting",
                                   anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc,
-                                  pending: { rid: e.rid, kind: "permission", tool: e.tool || "?", detail: e.detail || "", q: "", opts: [] } });
-            sessionWaiting(s);
+                                  pending: { rid: e.rid, kind: "permission", tool: e.tool || "?", detail: e.detail || "", questions: [], sel: {} } });
+            _attention(s);
             break;
         }
         case "question": {
             const i = _ensure(e);
             const s = _patch(i, { state: "waiting",
-                                  pending: { rid: e.rid, kind: "question", tool: "", detail: "", q: e.q || "", opts: e.opts || [] } });
-            sessionWaiting(s);
+                                  pending: { rid: e.rid, kind: "question", tool: "", detail: "", questions: e.questions || [], sel: {} } });
+            _attention(s);
             break;
         }
         case "notify": {
@@ -126,7 +127,7 @@ Singleton {
             // blocking hook couldn't carry (e.g. -p mode); still flag it
             if (e.type === "permission_prompt" && !sessions[i].pending) {
                 const s = _patch(i, { state: "waiting" });
-                sessionWaiting(s);
+                _attention(s);
             } else if (e.type === "idle_prompt" && !sessions[i].pending) {
                 _patch(i, { state: "done" });
             }
@@ -134,8 +135,12 @@ Singleton {
         }
         case "stop": {
             const i = _find(e.sid);
-            if (i >= 0)
+            if (i >= 0) {
+                const wasWorking = sessions[i].state === "working";
                 _patch(i, { state: "done", pending: null });
+                if (wasWorking && SessionData.agentApprovalMode !== "silent")
+                    AudioService.playNormalNotificationSound();
+            }
             break;
         }
         case "end": {
@@ -158,6 +163,14 @@ Singleton {
         _patch(i, verdict === "pass" ? { pending: null } : { pending: null, state: "working" });
         _mirror();
     }
+    // needs-attention: chime (the visual reaction lives in DynamicIsland,
+    // which gates per approval mode / focused screen — sounds play once here)
+    function _attention(s) {
+        if (SessionData.agentApprovalMode !== "silent")
+            AudioService.playCriticalNotificationSound();
+        sessionWaiting(s);
+    }
+
     // keyboard path (IslandHub agentAllow/agentDeny): first pending wins
     function decideFirstWaiting(verdict) {
         const s = sessions.find(x => x.pending && x.pending.kind === "permission");
@@ -173,6 +186,47 @@ Singleton {
         _writeVerdict(sessions[i].pending.rid, "answer:" + label);
         _patch(i, { pending: null, state: "working" });
         _mirror();
+    }
+    // multi-select / multi-question flow: selection lives in the session model
+    // (not delegate state) so it survives the immutable array swaps every
+    // incoming event causes
+    function toggleOpt(sid, qi, label) {
+        const i = _find(sid);
+        if (i < 0 || !sessions[i].pending)
+            return;
+        const p = sessions[i].pending;
+        const sel = Object.assign({}, p.sel || {});
+        const cur = (sel[qi] || []).slice();
+        const at = cur.indexOf(label);
+        if (at >= 0)
+            cur.splice(at, 1);
+        else if (p.questions[qi] && p.questions[qi].multi)
+            cur.push(label);
+        else
+            cur.splice(0, cur.length, label);
+        sel[qi] = cur;
+        _patch(i, { pending: Object.assign({}, p, { sel: sel }) });
+    }
+    function canSubmit(s) {
+        const p = s.pending;
+        if (!p || p.kind !== "question")
+            return false;
+        for (var qi = 0; qi < p.questions.length; qi++)
+            if (!p.sel || !(p.sel[qi] || []).length)
+                return false;
+        return true;
+    }
+    function submitAnswers(sid) {
+        const i = _find(sid);
+        if (i < 0 || !canSubmit(sessions[i]))
+            return;
+        const p = sessions[i].pending;
+        const parts = [];
+        for (var qi = 0; qi < p.questions.length; qi++) {
+            const picks = p.sel[qi].join(", ");
+            parts.push(p.questions.length > 1 ? p.questions[qi].q + " → " + picks : picks);
+        }
+        answer(sid, parts.join("; "));
     }
     function jump(sid) {
         const i = _find(sid);
