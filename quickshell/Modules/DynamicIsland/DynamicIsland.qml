@@ -574,22 +574,14 @@ Scope {
     }
     // a coding-agent session needs the user (permission / question) — attention
     // level is the user's call: follow focus, a splash, or just the pill tint
+    // agent messaging lives entirely in the robot satellite (agentSat) — the
+    // pill itself never splashes for agents. Only "follow focus" still drives
+    // the island: a waiting session auto-opens the agents drill.
     Connections {
         target: AgentService
         function onSessionWaiting(s) {
-            const what = s.pending && s.pending.kind === "question" ? I18n.tr("Question") : I18n.tr("Approval needed")
-            if (SessionData.agentApprovalMode === "focus") {
-                if (root.isFocusedScreen)
-                    root.openPanel("agents")
-            } else if (SessionData.agentApprovalMode === "notify") {
-                root.pushActivity("smart_toy", what + " · " + s.title, { priority: 2 })
-            }
-        }
-        // task boundaries visit the pill for a few seconds (splash queue),
-        // then the island returns to rest — the robot satellite keeps watch
-        function onSessionSplash(icon, label) {
-            if (SessionData.agentApprovalMode !== "silent")
-                root.pushActivity(icon, label)
+            if (SessionData.agentApprovalMode === "focus" && root.isFocusedScreen)
+                root.openPanel("agents")
         }
     }
     Connections {
@@ -1109,10 +1101,13 @@ Scope {
             }
         }
 
-        // vibe-island passenger: a mini robot rides beside the pill whenever
-        // agent sessions exist — mic-observer style. Colour tracks the fleet
-        // (amber = needs you, accent = working, green = all done), ticks with
-        // every tool call, and hover stretches it horizontally for the summary.
+        // vibe-island passenger: a mini robot assistant rides beside the pill
+        // whenever agent sessions exist — mic-observer style. It does ALL the
+        // agent talking: hook events morph it (shape, colour, icon) and it
+        // "speaks" through a compact bubble — the circle stretches into a
+        // squarer speech capsule for a few seconds, then re-rounds. Colour
+        // tracks the fleet (amber = needs you, accent = working, green = all
+        // done); it ticks with every tool call; hover holds it open.
         Item {
             id: agentSat
             readonly property bool active: !root.pillSuppressed && AgentService.sessions.length > 0
@@ -1124,8 +1119,46 @@ Scope {
             readonly property bool anyWaiting: AgentService.waitingCount > 0
             readonly property color tone: anyWaiting ? Theme.warning
                 : AgentService.workingCount > 0 ? root.accent : Theme.success
+
+            // ---- speech: one compact line, ~4s, hover keeps the bubble open ----
+            property string speech: ""
+            property string speechIcon: ""
+            readonly property bool speaking: speech !== ""
+            function speak(icon, text) {
+                if (!text || text.length === 0)
+                    return
+                speechIcon = icon || ""
+                speech = text
+                speechTimer.restart()
+                if (visible && !root.reduceMotion)
+                    botPop.restart()
+            }
+            Timer {
+                id: speechTimer
+                interval: 4000
+                onTriggered: {
+                    agentSat.speech = ""
+                    agentSat.speechIcon = ""
+                }
+            }
+            Connections {
+                target: AgentService
+                // task boundaries (new task, ✓ done) — the robot announces them
+                function onSessionSplash(icon, label) {
+                    if (SessionData.agentApprovalMode !== "silent")
+                        agentSat.speak(icon, label)
+                }
+                // needs-you in notify mode — the robot raises its hand and says so
+                function onSessionWaiting(s) {
+                    if (SessionData.agentApprovalMode === "notify") {
+                        const what = s.pending && s.pending.kind === "question" ? I18n.tr("Question") : I18n.tr("Approval needed")
+                        agentSat.speak("front_hand", what + " · " + s.title)
+                    }
+                }
+            }
+
             height: pill.height
-            width: hovered ? Math.min(agentInfo.implicitWidth + (pill.height - 15), 340) : pill.height
+            width: (hovered || speaking) ? Math.min(agentInfo.implicitWidth + (pill.height - 15), 340) : pill.height
             Behavior on width { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.OutQuad } }
             // left edge parks at pill.right + gap when out; width grows rightward
             x: pill.x + pill.width - pill.height + (pill.height + sideGap) * out
@@ -1138,10 +1171,12 @@ Scope {
 
             Rectangle {
                 anchors.fill: parent
-                radius: height / 2
+                // shape morph: resting circle → squarer speech bubble while talking
+                radius: agentSat.speaking ? Theme.cornerRadius : height / 2
+                Behavior on radius { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.OutQuad } }
                 color: root.islandColor
                 border.width: 1
-                border.color: Qt.rgba(agentSat.tone.r, agentSat.tone.g, agentSat.tone.b, 0.45)
+                border.color: Qt.rgba(agentSat.tone.r, agentSat.tone.g, agentSat.tone.b, agentSat.speaking ? 0.8 : 0.45)
                 Behavior on border.color { ColorAnimation { duration: Theme.mediumDuration } }
             }
             Row {
@@ -1153,7 +1188,10 @@ Scope {
                 DankIcon {
                     id: botIcon
                     anchors.verticalCenter: parent.verticalCenter
-                    name: agentSat.anyWaiting ? "front_hand" : "smart_toy"
+                    // morph priority: what it's saying > raised hand > robot > all-done check
+                    name: agentSat.speaking && agentSat.speechIcon !== "" ? agentSat.speechIcon
+                        : agentSat.anyWaiting ? "front_hand"
+                        : AgentService.workingCount > 0 ? "smart_toy" : "task_alt"
                     size: 15
                     color: agentSat.tone
                     filled: true
@@ -1179,7 +1217,10 @@ Scope {
                 }
                 StyledText {
                     anchors.verticalCenter: parent.verticalCenter
+                    // speaking: the bubble line; hovering: the fleet summary
                     text: {
+                        if (agentSat.speaking)
+                            return agentSat.speech
                         const parts = []
                         if (AgentService.waitingCount) parts.push(AgentService.waitingCount + " " + I18n.tr("needs you"))
                         if (AgentService.workingCount) parts.push(AgentService.workingCount + " " + I18n.tr("working"))
@@ -1193,7 +1234,7 @@ Scope {
                     elide: Text.ElideRight
                     maximumLineCount: 1
                     width: Math.min(implicitWidth, 280)
-                    opacity: agentSat.hovered ? 1 : 0
+                    opacity: (agentSat.hovered || agentSat.speaking) ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
                 }
             }
