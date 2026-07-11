@@ -1192,6 +1192,10 @@ Scope {
                 NumberAnimation { to: 0.9; duration: 1100; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0.45; duration: 1100; easing.type: Easing.InOutSine }
             }
+            // tone cross-fade lives on its own property so the breath can keep
+            // driving the border alpha per-frame without fighting a Behavior
+            property color easedTone: tone
+            Behavior on easedTone { ColorAnimation { duration: Theme.mediumDuration } }
             Rectangle {
                 anchors.fill: parent
                 // shape morph: resting circle → squarer speech bubble while talking
@@ -1199,7 +1203,7 @@ Scope {
                 Behavior on radius { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.OutQuad } }
                 color: root.islandColor
                 border.width: 1
-                border.color: Qt.rgba(agentSat.tone.r, agentSat.tone.g, agentSat.tone.b, agentSat.speaking ? 0.8 : agentSat.breath)
+                border.color: Qt.rgba(agentSat.easedTone.r, agentSat.easedTone.g, agentSat.easedTone.b, agentSat.speaking ? 0.8 : agentSat.breath)
             }
             Row {
                 id: agentInfo
