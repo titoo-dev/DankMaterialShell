@@ -1179,6 +1179,19 @@ Scope {
             visible: out > 0.02 && pill.visible
             clip: true
 
+            // while agents work the collapsed circle visibly breathes: the
+            // toned border swells and relaxes. Bounded by the working state
+            // (ongoing-activity indicator, like the media ring) — it stops the
+            // moment the fleet is waiting, done, or the robot is speaking.
+            property real breath: 0.45
+            SequentialAnimation on breath {
+                running: agentSat.visible && !agentSat.speaking && !agentSat.anyWaiting
+                    && AgentService.workingCount > 0 && !root.reduceMotion
+                loops: Animation.Infinite
+                onRunningChanged: if (!running) agentSat.breath = 0.45
+                NumberAnimation { to: 0.9; duration: 1100; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.45; duration: 1100; easing.type: Easing.InOutSine }
+            }
             Rectangle {
                 anchors.fill: parent
                 // shape morph: resting circle → squarer speech bubble while talking
@@ -1186,8 +1199,7 @@ Scope {
                 Behavior on radius { NumberAnimation { duration: Theme.mediumDuration; easing.type: Easing.OutQuad } }
                 color: root.islandColor
                 border.width: 1
-                border.color: Qt.rgba(agentSat.tone.r, agentSat.tone.g, agentSat.tone.b, agentSat.speaking ? 0.8 : 0.45)
-                Behavior on border.color { ColorAnimation { duration: Theme.mediumDuration } }
+                border.color: Qt.rgba(agentSat.tone.r, agentSat.tone.g, agentSat.tone.b, agentSat.speaking ? 0.8 : agentSat.breath)
             }
             Row {
                 id: agentInfo
@@ -1201,7 +1213,7 @@ Scope {
                     // morph priority: what it's saying > raised hand > robot > all-done check
                     name: agentSat.speaking && agentSat.speechIcon !== "" ? agentSat.speechIcon
                         : agentSat.anyWaiting ? "front_hand"
-                        : AgentService.workingCount > 0 ? "smart_toy" : "task_alt"
+                        : AgentService.workingCount > 0 ? "smart_toy" : "check_circle"
                     size: 15
                     color: agentSat.tone
                     filled: true
@@ -1221,8 +1233,14 @@ Scope {
                     }
                     SequentialAnimation {
                         id: botTick
-                        NumberAnimation { target: botIcon; property: "scale"; to: 1.15; duration: 90; easing.type: Easing.OutQuad }
-                        NumberAnimation { target: botIcon; property: "scale"; to: 1.0; duration: 160; easing.type: Easing.InOutQuad }
+                        ParallelAnimation {
+                            NumberAnimation { target: botIcon; property: "scale"; to: 1.2; duration: 90; easing.type: Easing.OutQuad }
+                            NumberAnimation { target: botIcon; property: "rotation"; to: 12; duration: 90; easing.type: Easing.OutQuad }
+                        }
+                        ParallelAnimation {
+                            NumberAnimation { target: botIcon; property: "scale"; to: 1.0; duration: 180; easing.type: Easing.InOutQuad }
+                            NumberAnimation { target: botIcon; property: "rotation"; to: 0; duration: 180; easing.type: Easing.OutBack }
+                        }
                     }
                 }
                 StyledText {
