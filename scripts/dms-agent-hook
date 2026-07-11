@@ -16,6 +16,10 @@ run=${XDG_RUNTIME_DIR:-/tmp}/dms-agent
 
 ipc() { dms ipc call island agentEvent "$1" >/dev/null 2>&1; }
 
+# Agent identity: adapters for other CLIs (codex, gemini, …) reuse this whole
+# pipeline by exporting DMS_AGENT before synthesizing events.
+agent=${DMS_AGENT:-claude}
+
 # Terminal ancestry: hooks run under claude → shell → terminal, so the window
 # owning this session is whichever compositor client pid appears in our
 # ancestor chain. ponytail: tmux resolves to the server pid — no jump there.
@@ -29,6 +33,19 @@ ancestors() {
         p=$2
     done
     echo "[${out#,}]"
+}
+
+# the agent CLI's own pid (closest ancestor whose cmdline names it) — lets the
+# island interrupt a running turn with SIGINT, like pressing Esc in the TUI
+agent_pid() {
+    local p
+    for p in $(ancestors | tr -d '[]' | tr ',' ' '); do
+        if grep -aq "$agent" "/proc/$p/cmdline" 2>/dev/null; then
+            echo "$p"
+            return
+        fi
+    done
+    echo 0
 }
 
 # $1 = request id, $2 = timeout seconds. Prints the verdict when it lands.
@@ -48,15 +65,15 @@ wait_verdict() {
 
 case "$event" in
 SessionStart)
-    ipc "$(jq -c --argjson anc "$(ancestors)" \
-        '{ev:"start", sid:.session_id, cwd:(.cwd // ""), anc:$anc}' <<<"$input")"
+    ipc "$(jq -c --arg agent "$agent" --argjson anc "$(ancestors)" --argjson apid "$(agent_pid)" \
+        '{ev:"start", sid:.session_id, cwd:(.cwd // ""), anc:$anc, agent:$agent, apid:$apid}' <<<"$input")"
     ;;
 SessionEnd)
     ipc "$(jq -c '{ev:"end", sid:.session_id}' <<<"$input")"
     ;;
 UserPromptSubmit)
-    ipc "$(jq -c --argjson anc "$(ancestors)" \
-        '{ev:"prompt", sid:.session_id, cwd:(.cwd // ""), anc:$anc, prompt:(.prompt // "" | .[0:200])}' <<<"$input")"
+    ipc "$(jq -c --arg agent "$agent" --argjson anc "$(ancestors)" --argjson apid "$(agent_pid)" \
+        '{ev:"prompt", sid:.session_id, cwd:(.cwd // ""), anc:$anc, agent:$agent, apid:$apid, prompt:(.prompt // "" | .[0:200])}' <<<"$input")"
     ;;
 PostToolUse)
     # +/- counts: hooks expose no structured patch, so approximate from the

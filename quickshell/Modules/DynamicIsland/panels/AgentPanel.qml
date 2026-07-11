@@ -76,6 +76,43 @@ Column {
         }
     }
 
+    // ---- fleet summary + bulk actions (multi-session management) ----
+    RowLayout {
+        width: parent.width
+        spacing: Theme.spacingS
+        visible: AgentService.sessions.length > 1
+        StyledText {
+            Layout.fillWidth: true
+            text: {
+                let bits = []
+                if (AgentService.waitingCount) bits.push(AgentService.waitingCount + " " + I18n.tr("waiting"))
+                if (AgentService.workingCount) bits.push(AgentService.workingCount + " " + I18n.tr("working"))
+                if (AgentService.doneCount) bits.push(AgentService.doneCount + " " + I18n.tr("done"))
+                return bits.join(" · ")
+            }
+            font.pixelSize: Theme.fontSizeSmall
+            color: AgentService.waitingCount > 0 ? Theme.warning : Theme.surfaceVariantText
+            elide: Text.ElideRight
+            maximumLineCount: 1
+        }
+        DankButton {
+            visible: AgentService.pendingPermCount > 1
+            text: I18n.tr("Allow all")
+            buttonHeight: 24; radius: buttonHeight / 2
+            backgroundColor: Theme.primary
+            textColor: Theme.primaryText
+            onClicked: AgentService.allowAll()
+        }
+        DankButton {
+            visible: AgentService.doneCount > 0
+            text: I18n.tr("Clear done")
+            buttonHeight: 24; radius: buttonHeight / 2
+            backgroundColor: Theme.surfaceLight
+            textColor: Theme.surfaceText
+            onClicked: AgentService.clearDone()
+        }
+    }
+
     // ---- empty state: point at the one-time hook install ----
     Column {
         width: parent.width
@@ -109,7 +146,7 @@ Column {
 
     // ---- session cards ----
     Repeater {
-        model: AgentService.sessions
+        model: AgentService.sorted
         delegate: Rectangle {
             id: card
             required property var modelData
@@ -137,7 +174,7 @@ Column {
                     width: parent.width
                     spacing: Theme.spacingS
                     DankIcon {
-                        name: card.modelData.state === "done" ? "check_circle" : card.waiting ? "front_hand" : "smart_toy"
+                        name: card.modelData.state === "done" ? "check_circle" : card.waiting ? "front_hand" : AgentService.iconFor(card.modelData.agent)
                         size: 18
                         color: card.modelData.state === "done" ? Theme.success : card.waiting ? Theme.warning : Theme.primary
                         Layout.alignment: Qt.AlignVCenter
@@ -158,6 +195,7 @@ Column {
                             width: parent.width
                             text: {
                                 let bits = [agCol.stateLabel(card.modelData)]
+                                if (card.modelData.agent && card.modelData.agent !== "claude") bits.push(card.modelData.agent)
                                 const dir = (card.modelData.cwd || "").split("/").pop()
                                 if (dir) bits.push(dir)
                                 if (card.modelData.model) bits.push(card.modelData.model)
@@ -169,6 +207,15 @@ Column {
                             elide: Text.ElideRight
                             maximumLineCount: 1
                         }
+                    }
+                    DankActionButton {
+                        visible: card.modelData.state === "working" && card.modelData.apid > 0
+                        iconName: "stop_circle"
+                        buttonSize: 24; iconSize: 14
+                        radius: buttonSize / 2
+                        iconColor: Theme.error
+                        onClicked: AgentService.interrupt(card.modelData.id)
+                        tooltipText: I18n.tr("Interrupt the running turn (Esc)")
                     }
                     DankActionButton {
                         iconName: "jump_to_element"

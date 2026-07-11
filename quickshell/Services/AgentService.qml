@@ -25,7 +25,19 @@ Singleton {
     // { five: {used_percentage, resets_at}|null, seven: {...}|null }
     property var usage: null
     readonly property int waitingCount: sessions.filter(s => s.state === "waiting").length
+    readonly property int workingCount: sessions.filter(s => s.state === "working").length
+    readonly property int doneCount: sessions.filter(s => s.state === "done").length
+    readonly property int pendingPermCount: sessions.filter(s => s.pending && s.pending.kind === "permission").length
+    // management order: who needs you first, then the busy ones, then parked
+    readonly property var sorted: {
+        const rank = { waiting: 0, working: 1, done: 2 };
+        return sessions.slice().sort((a, b) => (rank[a.state] ?? 3) - (rank[b.state] ?? 3) || b.lastTs - a.lastTs);
+    }
     signal sessionWaiting(var session)
+
+    function iconFor(agent) {
+        return { claude: "smart_toy", codex: "terminal", gemini: "auto_awesome", opencode: "code" }[agent] || "smart_toy";
+    }
 
     // 1s heartbeat for elapsed-time labels while any session lives
     property real now: Date.now()
@@ -51,7 +63,7 @@ Singleton {
             return i;
         const arr = sessions.slice();
         arr.unshift({
-            id: e.sid, agent: "claude", title: I18n.tr("Claude Code"),
+            id: e.sid, agent: e.agent || "claude", apid: e.apid || 0, title: I18n.tr("New session"),
             cwd: e.cwd || "", anc: e.anc || [],
             startTs: Date.now(), lastTs: Date.now(),
             state: "working", feed: [], pending: null, model: "", ctx: -1
@@ -83,7 +95,9 @@ Singleton {
         switch (e.ev) {
         case "start": {
             const i = _ensure(e);
-            _patch(i, { cwd: e.cwd || sessions[i].cwd, anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc });
+            _patch(i, { cwd: e.cwd || sessions[i].cwd,
+                        anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc,
+                        agent: e.agent || sessions[i].agent, apid: e.apid || sessions[i].apid });
             break;
         }
         case "prompt": {
@@ -93,7 +107,8 @@ Singleton {
             _patch(i, { title: title, state: "working", pending: null,
                         startTs: Date.now(),
                         cwd: e.cwd || sessions[i].cwd,
-                        anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc });
+                        anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc,
+                        agent: e.agent || sessions[i].agent, apid: e.apid || sessions[i].apid });
             break;
         }
         case "tool": {
@@ -228,6 +243,24 @@ Singleton {
         }
         answer(sid, parts.join("; "));
     }
+    // cancel the running turn, exactly like pressing Esc in the TUI — the
+    // agent stays alive and emits its own Stop when the turn unwinds
+    function interrupt(sid) {
+        const i = _find(sid);
+        if (i < 0 || !sessions[i].apid)
+            return;
+        Quickshell.execDetached(["kill", "-INT", String(sessions[i].apid)]);
+    }
+    function allowAll() {
+        let n = 0;
+        sessions.filter(s => s.pending && s.pending.kind === "permission").forEach(s => { decide(s.id, "allow"); n++; });
+        return n;
+    }
+    function clearDone() {
+        let n = 0;
+        sessions.filter(s => s.state === "done").forEach(s => { remove(s.id); n++; });
+        return n;
+    }
     function jump(sid) {
         const i = _find(sid);
         if (i < 0 || !sessions[i].anc || sessions[i].anc.length === 0)
@@ -257,7 +290,7 @@ Singleton {
             const label = s.state === "waiting"
                 ? I18n.tr("Needs you") + " · " + s.title
                 : s.state === "done" ? "✓ " + s.title : s.title;
-            ActivityService.start(aid, label, "smart_toy");
+            ActivityService.start(aid, label, iconFor(s.agent));
             if (s.state !== "working")
                 ActivityService.setState(aid, s.state === "waiting" ? "waiting" : "idle");
         }

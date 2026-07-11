@@ -73,15 +73,17 @@ Row {
         color: island.subText
         font.pixelSize: Theme.fontSizeSmall
     }
-    Rectangle {  // +N badge
+    Rectangle {  // +N badge — amber when someone besides the primary needs the user
         anchors.verticalCenter: parent.verticalCenter
         visible: ActivityService.runningCount > 1
+        readonly property bool hotBehind: ActivityService.activities.some(a => a.state === "waiting" && (!activityRow.act || a.id !== activityRow.act.id))
+        readonly property color tone: hotBehind ? Theme.warning : island.accent
         width: badgeText.implicitWidth + 10; height: 16; radius: 8
-        color: Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.2)
+        color: Qt.rgba(tone.r, tone.g, tone.b, 0.2)
         StyledText {
             id: badgeText; anchors.centerIn: parent
             text: "+" + (ActivityService.runningCount - 1)
-            color: island.accent; font.pixelSize: 10; font.bold: true
+            color: parent.tone; font.pixelSize: 10; font.bold: true
         }
     }
 }

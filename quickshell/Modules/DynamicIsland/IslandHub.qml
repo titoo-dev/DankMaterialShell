@@ -135,6 +135,13 @@ Singleton {
         function agentDeny(): string {
             return "ISLAND_AGENT:" + (AgentService.decideFirstWaiting("deny") ? "deny" : "nothing-waiting");
         }
+        // bulk management: approve every pending permission / sweep finished
+        function agentAllowAll(): string {
+            return "ISLAND_AGENT:allowed:" + AgentService.allowAll();
+        }
+        function agentClearDone(): string {
+            return "ISLAND_AGENT:cleared:" + AgentService.clearDone();
+        }
         // countdown timer / Pomodoro (drives the "timer" activity):
         //   dms ipc call island timerStart 25 "Pomodoro"
         //   dms ipc call island timerCancel
