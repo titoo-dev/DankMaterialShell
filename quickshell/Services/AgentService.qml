@@ -102,10 +102,15 @@ Singleton {
         }
         case "prompt": {
             const i = _ensure(e);
-            const title = (e.prompt || "").split("\n")[0].slice(0, 80) || sessions[i].title;
-            // a new prompt starts a new task: elapsed restarts, done → working
+            // harness-injected prompts (<task-notification>, <command-name>, …)
+            // are not the user's words: keep the real title and elapsed clock
+            const raw = (e.prompt || "").trim();
+            const synthetic = raw.startsWith("<");
+            const title = synthetic ? sessions[i].title
+                                    : (raw.split("\n")[0].replace(/\s+/g, " ").trim().slice(0, 80) || sessions[i].title);
+            // a new user prompt starts a new task: elapsed restarts, done → working
             _patch(i, { title: title, state: "working", pending: null,
-                        startTs: Date.now(),
+                        startTs: synthetic ? sessions[i].startTs : Date.now(),
                         cwd: e.cwd || sessions[i].cwd,
                         anc: (e.anc && e.anc.length) ? e.anc : sessions[i].anc,
                         agent: e.agent || sessions[i].agent, apid: e.apid || sessions[i].apid });
@@ -290,7 +295,8 @@ Singleton {
             const label = s.state === "waiting"
                 ? I18n.tr("Needs you") + " · " + s.title
                 : s.state === "done" ? "✓ " + s.title : s.title;
-            ActivityService.start(aid, label, iconFor(s.agent));
+            // waiting gets the same raised hand the panel shows, in the pill too
+            ActivityService.start(aid, label, s.state === "waiting" ? "front_hand" : iconFor(s.agent));
             if (s.state !== "working")
                 ActivityService.setState(aid, s.state === "waiting" ? "waiting" : "idle");
         }
