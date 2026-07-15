@@ -36,9 +36,9 @@ Column {
                 id: aRow
                 anchors.fill: parent; anchors.margins: Theme.spacingS; spacing: Theme.spacingS
                 DankIcon {
-                    name: modelData.state === "done" ? "check_circle" : modelData.state === "failed" ? "error" : modelData.state === "waiting" ? "front_hand" : modelData.icon
+                    name: modelData.state === "done" ? "check_circle" : modelData.state === "failed" ? "error" : modelData.icon
                     size: 18
-                    color: modelData.state === "done" || modelData.state === "idle" ? Theme.success : modelData.state === "failed" ? Theme.error : modelData.state === "waiting" ? Theme.warning : Theme.primary
+                    color: modelData.state === "done" ? Theme.success : modelData.state === "failed" ? Theme.error : Theme.primary
                     Layout.alignment: Qt.AlignVCenter
                 }
                 Column {
@@ -47,7 +47,6 @@ Column {
                         text: modelData.label
                         font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
                         color: Theme.surfaceText; width: parent.width; elide: Text.ElideRight
-                        maximumLineCount: 1
                     }
                     Rectangle {
                         visible: modelData.state === "running" && modelData.progress >= 0
@@ -97,7 +96,6 @@ Column {
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceText
                 elide: Text.ElideRight
-                maximumLineCount: 1
             }
             StyledText {
                 text: Qt.formatTime(new Date(modelData.ts), "HH:mm")

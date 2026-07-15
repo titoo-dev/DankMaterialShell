@@ -22,7 +22,7 @@ Singleton {
     id: hub
 
     // single source of truth for the drill views reachable over IPC
-    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer", "privacy", "shelf", "tailscale", "activities", "ask", "agents"]
+    readonly property var views: ["controls", "wifi", "bluetooth", "audio", "input", "notifications", "calendar", "monitor", "wallpaper", "apps", "clipboard", "emoji", "power", "mixer", "privacy", "shelf", "tailscale", "activities", "ask"]
 
     signal toggleRequested
     signal expandRequested
@@ -116,31 +116,6 @@ Singleton {
         function activityDismiss(id: string): string {
             ActivityService.dismiss(id);
             return "ISLAND_ACTIVITY:dismiss:" + id;
-        }
-        // coding-agent session events from scripts/dms-agent-hook (Claude Code
-        // hooks) and dms-agent-statusline — one JSON blob per event:
-        //   dms ipc call island agentEvent '{"ev":"start","sid":"…",…}'
-        function agentEvent(json: string): string {
-            if (!json || json.length === 0)
-                return "ISLAND_ERROR:empty-agent-event";
-            AgentService.ingest(json);
-            return "ISLAND_AGENT:ok:" + AgentService.sessions.length;
-        }
-        // keyboard approval for the first waiting agent session (bindable):
-        //   bind = SUPER, Y, exec, dms ipc call island agentAllow
-        //   bind = SUPER, N, exec, dms ipc call island agentDeny
-        function agentAllow(): string {
-            return "ISLAND_AGENT:" + (AgentService.decideFirstWaiting("allow") ? "allow" : "nothing-waiting");
-        }
-        function agentDeny(): string {
-            return "ISLAND_AGENT:" + (AgentService.decideFirstWaiting("deny") ? "deny" : "nothing-waiting");
-        }
-        // bulk management: approve every pending permission / sweep finished
-        function agentAllowAll(): string {
-            return "ISLAND_AGENT:allowed:" + AgentService.allowAll();
-        }
-        function agentClearDone(): string {
-            return "ISLAND_AGENT:cleared:" + AgentService.clearDone();
         }
         // countdown timer / Pomodoro (drives the "timer" activity):
         //   dms ipc call island timerStart 25 "Pomodoro"

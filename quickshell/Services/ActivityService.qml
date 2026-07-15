@@ -12,14 +12,9 @@ Singleton {
     readonly property var log: Log.scoped("ActivityService")
 
     // each: { id, label, icon, progress (-1=indeterminate | 0..100), state, _expireAt }
-    // state: "running" | "waiting" (needs the user) | "idle" (parked, e.g. a
-    // finished agent session that stays until dismissed) | "done" | "failed"
     property var activities: []
-    readonly property int runningCount: activities.filter(a => a.state === "running" || a.state === "waiting").length
+    readonly property int runningCount: activities.filter(a => a.state === "running").length
     readonly property var primary: {
-        const w = activities.filter(a => a.state === "waiting");
-        if (w.length > 0)
-            return w[0];
         const r = activities.filter(a => a.state === "running");
         if (r.length > 0)
             return r[0];
@@ -87,15 +82,6 @@ Singleton {
             return;
         const arr = activities.slice();
         arr[i] = Object.assign({}, arr[i], { label: label, _expireAt: Date.now() + 3600000 });
-        activities = arr;
-    }
-    // long-lived state flip without the finish/expire semantics of done()/fail()
-    function setState(id, state) {
-        const i = _find(id);
-        if (i < 0)
-            return;
-        const arr = activities.slice();
-        arr[i] = Object.assign({}, arr[i], { state: state, _expireAt: Date.now() + 3600000 });
         activities = arr;
     }
     function done(id, label) {

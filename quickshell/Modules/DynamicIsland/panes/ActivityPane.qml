@@ -18,58 +18,17 @@ Row {
     Behavior on scale { NumberAnimation { duration: Theme.mediumDuration } }
 
     DankIcon {
-        id: actIcon
         anchors.verticalCenter: parent.verticalCenter
         name: activityRow.act ? activityRow.act.icon : "deployed_code"
         size: 16
         color: {
             if (!activityRow.act) return island.subText
-            if (activityRow.act.state === "done" || activityRow.act.state === "idle") return Theme.success
+            if (activityRow.act.state === "done") return Theme.success
             if (activityRow.act.state === "failed") return Theme.error
-            if (activityRow.act.state === "waiting") return Theme.warning
             return island.accent
-        }
-        // (color transitions come from DankIcon's own internal Behavior)
-        // micro-life, all finite: a pop when the icon swaps (state change), a
-        // 3-beat pulse when something starts waiting, and a tick per tool call
-        onNameChanged: if (visible && !island.reduceMotion) iconPop.restart()
-        SequentialAnimation {
-            id: iconPop
-            NumberAnimation { target: actIcon; property: "scale"; to: 1.35; duration: Theme.shortDuration; easing.type: Easing.OutQuad }
-            NumberAnimation { target: actIcon; property: "scale"; to: 1.0; duration: Theme.mediumDuration; easing.type: Easing.OutBack }
-        }
-        readonly property bool isWaiting: activityRow.act !== null && activityRow.act.state === "waiting"
-        onIsWaitingChanged: {
-            if (isWaiting && visible && !island.reduceMotion) {
-                waitPulse.restart()
-            } else {
-                waitPulse.stop()
-                opacity = 1
-            }
-        }
-        SequentialAnimation {
-            id: waitPulse
-            loops: 3
-            NumberAnimation { target: actIcon; property: "opacity"; to: 0.35; duration: 350; easing.type: Easing.InOutSine }
-            NumberAnimation { target: actIcon; property: "opacity"; to: 1.0; duration: 350; easing.type: Easing.InOutSine }
-        }
-        Connections {
-            target: AgentService
-            enabled: activityRow.visible && !island.reduceMotion
-            function onSessionActivity(sid) {
-                // only tick for the session the pill is showing
-                if (activityRow.act && activityRow.act.id === "agent-" + sid && !iconPop.running && !waitPulse.running)
-                    iconTick.restart()
-            }
-        }
-        SequentialAnimation {
-            id: iconTick
-            NumberAnimation { target: actIcon; property: "scale"; to: 1.12; duration: 90; easing.type: Easing.OutQuad }
-            NumberAnimation { target: actIcon; property: "scale"; to: 1.0; duration: 160; easing.type: Easing.InOutQuad }
         }
     }
     StyledText {
-        id: actLabel
         anchors.verticalCenter: parent.verticalCenter
         text: {
             if (!activityRow.act) return ""
@@ -81,11 +40,7 @@ Row {
         font.pixelSize: Theme.fontSizeSmall
         font.bold: true
         elide: Text.ElideRight
-        maximumLineCount: 1  // StyledText defaults to WordWrap — long agent titles must elide, not stack
         width: Math.min(implicitWidth, 200)
-        // soft settle when the label content changes (new task, state prefix)
-        onTextChanged: if (visible && !island.reduceMotion) labelIn.restart()
-        NumberAnimation { id: labelIn; target: actLabel; property: "opacity"; from: 0.35; to: 1.0; duration: Theme.mediumDuration }
     }
     Item {  // progress bar: determinate only — indeterminate shows the static ellipsis below
         width: 48; height: 4
@@ -102,19 +57,12 @@ Row {
             Behavior on width { NumberAnimation { duration: Theme.shortDuration } }
         }
     }
-    StyledText {  // indeterminate "working" hint — Claude-style verb for agent
-        id: workHint // sessions ("Julienning…", one swap per 8s tick), static ••• otherwise
+    StyledText {  // indeterminate "working" hint — static, no loop
         anchors.verticalCenter: parent.verticalCenter
         visible: activityRow.act && activityRow.act.state === "running" && activityRow.act.progress < 0
-        text: {
-            const v = AgentService.verbFor(activityRow.act ? activityRow.act.id : "")
-            return v ? v + "…" : "•••"
-        }
+        text: "•••"
         color: island.subText
         font.pixelSize: Theme.fontSizeSmall
-        font.italic: text !== "•••"
-        onTextChanged: if (visible && !island.reduceMotion) hintIn.restart()
-        NumberAnimation { id: hintIn; target: workHint; property: "opacity"; from: 0.2; to: 1.0; duration: Theme.mediumDuration }
     }
     StyledText {
         anchors.verticalCenter: parent.verticalCenter
@@ -123,25 +71,15 @@ Row {
         color: island.subText
         font.pixelSize: Theme.fontSizeSmall
     }
-    Rectangle {  // +N badge — amber when someone besides the primary needs the user
-        id: badge
+    Rectangle {  // +N badge
         anchors.verticalCenter: parent.verticalCenter
         visible: ActivityService.runningCount > 1
-        readonly property bool hotBehind: ActivityService.activities.some(a => a.state === "waiting" && (!activityRow.act || a.id !== activityRow.act.id))
-        readonly property color tone: hotBehind ? Theme.warning : island.accent
         width: badgeText.implicitWidth + 10; height: 16; radius: 8
-        color: Qt.rgba(tone.r, tone.g, tone.b, 0.2)
-        Behavior on color { ColorAnimation { duration: Theme.mediumDuration } }
-        onVisibleChanged: if (visible && !island.reduceMotion) badgePop.restart()
-        SequentialAnimation {
-            id: badgePop
-            NumberAnimation { target: badge; property: "scale"; from: 0.4; to: 1.15; duration: Theme.shortDuration; easing.type: Easing.OutQuad }
-            NumberAnimation { target: badge; property: "scale"; to: 1.0; duration: Theme.shortDuration; easing.type: Easing.OutBack }
-        }
+        color: Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.2)
         StyledText {
             id: badgeText; anchors.centerIn: parent
             text: "+" + (ActivityService.runningCount - 1)
-            color: parent.tone; font.pixelSize: 10; font.bold: true
+            color: island.accent; font.pixelSize: 10; font.bold: true
         }
     }
 }
