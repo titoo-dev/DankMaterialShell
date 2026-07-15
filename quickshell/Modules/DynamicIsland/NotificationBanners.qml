@@ -100,7 +100,11 @@ import qs.Widgets
                     transformOrigin: Item.Top
 
                     onHeightChanged: if (modelData) bannerArea.setH(modelData.key, height)
-                    Component.onCompleted: if (modelData) bannerArea.setH(modelData.key, height)
+                    Component.onCompleted: { if (modelData) bannerArea.setH(modelData.key, height); bSlideIn.start() }
+
+                    // arrival: slide in from the screen edge (one-shot, no loop)
+                    transform: Translate { id: bSlide }
+                    NumberAnimation { id: bSlideIn; target: bSlide; property: "x"; from: bannerArea.width + bannerArea.anchors.rightMargin; to: 0; duration: 360; easing.type: Easing.OutCubic }
 
                     // ---- placement: spread vs collapsed deck ----
                     readonly property real spreadY: {
@@ -152,7 +156,10 @@ import qs.Widgets
                         // otherwise — and no per-card MultiEffect FBO
                         color: island.islandColor
                         border.width: crit ? 1.5 : 1
-                        border.color: crit ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
+                        border.color: crit ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.7) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, bArea.containsMouse ? 0.55 : 0.3)
+                        Behavior on border.color { ColorAnimation { duration: Theme.shortDuration } }
+                        // card thins out as it is swiped away
+                        opacity: 1 - Math.min(0.85, bCard.swipe / 300)
                         Rectangle {  // glass material
                             anchors.fill: parent; radius: parent.radius; color: "transparent"
                             gradient: Gradient {
@@ -205,28 +212,33 @@ import qs.Widgets
                                     anchors.right: parent.right
                                     anchors.top: parent.top
                                     spacing: 2
-                                    Item {  // eyebrow line: app + group count (left) · time (right)
+                                    Item {  // eyebrow: APP ×N · time, all left — right slot stays clear for ✕ / +N
                                         width: parent.width; height: bApp.implicitHeight
-                                        StyledText {
-                                            id: bApp
-                                            anchors.left: parent.left; anchors.right: bCnt.visible ? bCnt.left : bTime.left; anchors.rightMargin: Theme.spacingS
-                                            text: (modelData ? (modelData.appName || "") : ""); color: bCard.crit ? Theme.error : island.accent
-                                            font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true; font.capitalization: Font.AllUppercase
-                                            elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                                        }
-                                        Rectangle {  // group count badge (e.g. Messages ×3)
-                                            id: bCnt
-                                            visible: bWrap.gCount > 1
-                                            anchors.right: bTime.left; anchors.rightMargin: Theme.spacingS
-                                            anchors.verticalCenter: bApp.verticalCenter
-                                            width: bCntLbl.implicitWidth + 10; height: 16; radius: 8
-                                            color: bCard.crit ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.2) : Theme.primarySelected
-                                            StyledText { id: bCntLbl; anchors.centerIn: parent; text: "×" + bWrap.gCount; color: bCard.crit ? Theme.error : island.accent; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true }
-                                        }
-                                        StyledText {
-                                            id: bTime
-                                            anchors.right: parent.right; anchors.baseline: bApp.baseline
-                                            text: (bWrap.topNotif ? (bWrap.topNotif.timeStr || "") : ""); color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1
+                                        Row {
+                                            id: bMeta
+                                            anchors.left: parent.left; anchors.right: parent.right; anchors.rightMargin: 30
+                                            spacing: Theme.spacingS
+                                            StyledText {
+                                                id: bApp
+                                                width: Math.min(implicitWidth, bMeta.width - (bCnt.visible ? bCnt.width + bMeta.spacing : 0) - bTime.implicitWidth - bMeta.spacing)
+                                                text: (modelData ? (modelData.appName || "") : ""); color: bCard.crit ? Theme.error : island.accent
+                                                font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true; font.capitalization: Font.AllUppercase
+                                                elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                                            }
+                                            Rectangle {  // group count badge (e.g. Messages ×3)
+                                                id: bCnt
+                                                visible: bWrap.gCount > 1
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: bCntLbl.implicitWidth + 10; height: 16; radius: 8
+                                                color: bCard.crit ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.2) : Theme.primarySelected
+                                                StyledText { id: bCntLbl; anchors.centerIn: parent; text: "×" + bWrap.gCount; color: bCard.crit ? Theme.error : island.accent; font.pixelSize: Theme.fontSizeSmall - 3; font.bold: true }
+                                            }
+                                            StyledText {
+                                                id: bTime
+                                                anchors.baseline: bApp.baseline
+                                                text: "·  " + (bWrap.topNotif ? (bWrap.topNotif.timeStr || "") : "")
+                                                color: island.subText; font.pixelSize: Theme.fontSizeSmall - 1
+                                            }
                                         }
                                     }
                                     StyledText {
@@ -242,14 +254,14 @@ import qs.Widgets
                                         font.pixelSize: Theme.fontSizeSmall; lineHeight: 1.15
                                     }
                                 }
-                                Rectangle {  // dismiss ✕ — clears the whole group (revealed on hover)
+                                Rectangle {  // dismiss ✕ — clears the whole group (revealed on hover, slot kept clear by the eyebrow)
                                     id: bClose
-                                    width: 26; height: 26; radius: 13
-                                    anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: -2
+                                    width: 24; height: 24; radius: 12
+                                    anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: -4
                                     color: bCloseA.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.18) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.55)
                                     opacity: (areaHover.hovered && bWrap.active) ? 1 : 0
                                     Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                                    DankIcon { anchors.centerIn: parent; name: "close"; size: 15; color: bCloseA.containsMouse ? Theme.error : island.subText }
+                                    DankIcon { anchors.centerIn: parent; name: "close"; size: 14; color: bCloseA.containsMouse ? Theme.error : island.subText }
                                     MouseArea {
                                         id: bCloseA; anchors.fill: parent; anchors.margins: -6
                                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -259,10 +271,21 @@ import qs.Widgets
                                         Accessible.onPressAction: clicked(null)
                                     }
                                 }
+                                Rectangle {  // hidden-cards count — occupies the ✕ slot while collapsed (they never coexist)
+                                    id: bDeckCnt
+                                    anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: -4
+                                    width: bDeckLbl.implicitWidth + 12; height: 20; radius: 10
+                                    color: Theme.primary
+                                    opacity: (bannerArea.collapsed && bWrap.r === 0) ? 1 : 0
+                                    visible: opacity > 0
+                                    Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
+                                    StyledText { id: bDeckLbl; anchors.centerIn: parent; text: "+" + (bannerArea.n - 1); color: Theme.primaryText; font.pixelSize: Theme.fontSizeSmall - 2; font.bold: true }
+                                }
                             }
 
-                            Row {  // action chips (+ inline Reply when supported)
+                            Row {  // action chips (+ inline Reply when supported) — aligned with the text column
                                 width: parent.width; spacing: Theme.spacingS
+                                leftPadding: 58
                                 visible: (bActions.count > 0 || bCard.canReply) && !bCard.replyOpen
                                 Rectangle {  // Reply — opens the inline reply field
                                     visible: bCard.canReply
@@ -321,6 +344,7 @@ import qs.Widgets
                             // notification's inline-reply channel)
                             Row {
                                 width: parent.width; spacing: Theme.spacingS
+                                leftPadding: 58
                                 visible: bCard.replyOpen
                                 onVisibleChanged: if (visible) { bReplyField.text = ""; bReplyField.forceActiveFocus() }
                                 Item {
@@ -329,7 +353,7 @@ import qs.Widgets
                                 }
                                 DankTextField {
                                     id: bReplyField
-                                    width: parent.width - 40
+                                    width: parent.width - 98
                                     height: 34
                                     leftIconName: "reply"
                                     placeholderText: I18n.tr("Reply…")
@@ -389,18 +413,5 @@ import qs.Widgets
                         }
                     }
                 }
-            }
-
-            // count chip when collapsed (e.g. "+2") — bottom-right of the deck
-            Rectangle {
-                anchors.right: parent.right; anchors.rightMargin: 6
-                y: bannerArea.collapsedH - 6
-                width: cntLbl.implicitWidth + Theme.spacingM; height: 22; radius: 11
-                visible: bannerArea.collapsed && bannerArea.n > 1
-                opacity: visible ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: Theme.shortDuration } }
-                color: Theme.primary
-                z: 200
-                StyledText { id: cntLbl; anchors.centerIn: parent; text: "+" + (bannerArea.n - 1); color: Theme.primaryText; font.pixelSize: Theme.fontSizeSmall - 1; font.bold: true }
             }
         }

@@ -74,6 +74,44 @@ import "panels"
                         Row {
                             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                             spacing: Theme.spacingXS
+                            Rectangle {  // battery live observer — % + state, click = power profile
+                                readonly property bool low: BatteryService.isLowBattery && !BatteryService.isCharging
+                                visible: BatteryService.batteryAvailable
+                                width: batRow.implicitWidth + Theme.spacingM; height: 36; radius: 18
+                                color: batArea.containsMouse ? Qt.rgba(island.accent.r, island.accent.g, island.accent.b, 0.18) : Theme.surfaceLight
+                                Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                border.width: low ? 1 : 0
+                                border.color: Theme.error
+                                Row {
+                                    id: batRow
+                                    anchors.centerIn: parent; spacing: 3
+                                    DankIcon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        name: BatteryService.getBatteryIcon(); size: 17
+                                        color: parent.parent.low ? Theme.error : (BatteryService.isCharging ? island.accent : island.textColor)
+                                        Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
+                                    }
+                                    StyledText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: BatteryService.batteryLevel + "%"
+                                        color: parent.parent.low ? Theme.error : island.textColor
+                                        font.pixelSize: Theme.fontSizeSmall; font.bold: true
+                                    }
+                                }
+                                ToolTip.visible: batArea.containsMouse
+                                ToolTip.delay: 400
+                                ToolTip.text: {
+                                    const t = BatteryService.formatTimeRemaining()
+                                    return BatteryService.batteryStatus + (t !== "Unknown" ? " · " + t : "")
+                                }
+                                MouseArea {
+                                    id: batArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: { island.closeIsland(); PopoutService.openPowerProfileModal() }
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: I18n.tr("Battery") + " " + BatteryService.batteryLevel + "%"
+                                    Accessible.onPressAction: clicked(null)
+                                }
+                            }
                             Repeater {
                                 model: [
                                     { key: "lock",     icon: "lock",                tip: I18n.tr("Lock"),     danger: false },
@@ -114,25 +152,32 @@ import "panels"
                         }
                     }
 
-                    // ---- quick-toggle tiles ----
-                    Row {
+                    // ---- quick-toggle tiles (3×2) ----
+                    Grid {
                         id: ccTiles
                         width: parent.width
-                        spacing: Theme.spacingS
-                        readonly property real tileW: (width - spacing * 3) / 4
+                        columns: 3
+                        rowSpacing: Theme.spacingS
+                        columnSpacing: Theme.spacingS
+                        readonly property real tileW: (width - columnSpacing * 2) / 3
                         Repeater {
-                            model: ["wifi", "bt", "dnd", "theme"]
+                            model: ["wifi", "bt", "dnd", "theme", "night", "awake"]
                             Rectangle {
                                 readonly property string key: modelData
                                 readonly property bool on: key === "wifi" ? NetworkService.wifiEnabled
                                     : key === "bt" ? BluetoothService.enabled
                                     : key === "dnd" ? SessionData.doNotDisturb
+                                    : key === "night" ? DisplayService.nightModeEnabled
+                                    : key === "awake" ? SessionService.idleInhibited
                                     : Theme.isLightMode
                                 readonly property string ic: key === "wifi" ? (NetworkService.wifiEnabled ? "wifi" : "wifi_off")
                                     : key === "bt" ? "bluetooth"
                                     : key === "dnd" ? "do_not_disturb_on"
+                                    : key === "night" ? "nightlight"
+                                    : key === "awake" ? "coffee"
                                     : (Theme.isLightMode ? "light_mode" : "dark_mode")
-                                readonly property string lbl: key === "wifi" ? "Wi-Fi" : key === "bt" ? "Bluetooth" : key === "dnd" ? I18n.tr("Focus") : I18n.tr("Theme")
+                                readonly property string lbl: key === "wifi" ? "Wi-Fi" : key === "bt" ? "Bluetooth" : key === "dnd" ? I18n.tr("Focus")
+                                    : key === "night" ? I18n.tr("Night") : key === "awake" ? I18n.tr("Keep awake") : I18n.tr("Theme")
                                 id: tile
                                 // iOS split interaction: the icon DISC toggles the
                                 // radio, the tile body drills into the detail view
@@ -148,6 +193,8 @@ import "panels"
                                     if (key === "wifi") { pending = true; pendingBail.restart(); NetworkService.toggleWifiRadio() }
                                     else if (key === "bt") { if (BluetoothService.adapter) { pending = true; pendingBail.restart(); BluetoothService.adapter.enabled = !BluetoothService.adapter.enabled } }
                                     else if (key === "dnd") SessionData.setDoNotDisturb(!SessionData.doNotDisturb)
+                                    else if (key === "night") { DisplayService.nightModeEnabled ? DisplayService.disableNightMode() : DisplayService.enableNightMode() }
+                                    else if (key === "awake") SessionService.toggleIdleInhibit()
                                     else Theme.setLightMode(!Theme.isLightMode, true, true)
                                 }
                                 // quiet glass capsule; only the icon disc lights up when on
@@ -164,8 +211,8 @@ import "panels"
                                         else if (key === "bt") { island.panelView = "bluetooth"; if (BluetoothService.adapter && BluetoothService.enabled) BluetoothService.adapter.discovering = true }
                                         else tile.toggle()
                                     }
-                                    // wifi/bt drill into a detail view; dnd/theme are pure toggles
-                                    Accessible.role: (tile.key === "dnd" || tile.key === "theme") ? Accessible.CheckBox : Accessible.Button
+                                    // wifi/bt drill into a detail view; the rest are pure toggles
+                                    Accessible.role: tile.drills ? Accessible.Button : Accessible.CheckBox
                                     Accessible.name: tile.lbl
                                     Accessible.checked: tile.on
                                     Accessible.onPressAction: clicked(null)
@@ -398,7 +445,8 @@ import "panels"
                     "power": powerComp, "monitor": monComp, "wallpaper": wpComp,
                     "mixer": mixerComp, "privacy": privacyComp, "shelf": shelfComp,
                     "tailscale": tsComp, "dropchoose": dropChooseComp,
-                    "activities": activitiesComp, "ask": askComp
+                    "activities": activitiesComp, "ask": askComp,
+                    "tray": trayComp
                 })
                 Component { id: wifiComp;  WifiPanel          { island: ccPanel.island } }
                 Component { id: btComp;    BluetoothPanel     { island: ccPanel.island } }
@@ -419,6 +467,7 @@ import "panels"
                 Component { id: dropChooseComp; DropChoosePanel { island: ccPanel.island } }
                 Component { id: activitiesComp; ActivityPanel  { island: ccPanel.island } }
                 Component { id: askComp;       AskPanel       { island: ccPanel.island } }
+                Component { id: trayComp;      TrayPanel      { island: ccPanel.island } }
 
                 Loader {
                     id: drillLoader

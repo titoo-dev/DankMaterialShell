@@ -71,6 +71,22 @@ Item {
     property bool skipAutoSelectUser: false
     property string pickerThemeUsername: ""
 
+    // Caps-Lock state for the greeter. The in-session lock screen reads
+    // DMSService.capsLockState (fed by the DMS go daemon's evdev monitor), but
+    // the greeter runs standalone with no daemon — so we watch the kernel
+    // caps-lock LED in sysfs directly (world-readable). The glob covers every
+    // attached keyboard; a missing node just reports off.
+    property bool capsLockOn: false
+
+    Process {
+        id: capsLockProbe
+        running: true
+        command: ["sh", "-c", "while :; do grep -qsx 1 /sys/class/leds/*capslock*/brightness && echo 1 || echo 0; sleep 0.3; done"]
+        stdout: SplitParser {
+            onRead: line => root.capsLockOn = (line.trim() === "1")
+        }
+    }
+
     function initWeatherService() {
         if (weatherInitialized)
             return;
@@ -1316,6 +1332,50 @@ Item {
 
                         Behavior on border.color {
                             ColorAnimation {
+                                duration: Theme.shortDuration
+                                easing.type: Theme.standardEasing
+                            }
+                        }
+                    }
+                }
+
+                // Caps-Lock warning — mirrors the in-session lock screen
+                // (Modules/Lock/LockScreenContent.qml). Guards blind password
+                // entry; only present while the password field is shown.
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: (GreeterState.showPasswordInput && root.capsLockOn) ? capsRow.implicitHeight : 0
+                    visible: GreeterState.showPasswordInput
+
+                    Behavior on Layout.preferredHeight {
+                        NumberAnimation {
+                            duration: Theme.shortDuration
+                            easing.type: Theme.standardEasing
+                        }
+                    }
+
+                    Row {
+                        id: capsRow
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 4
+                        opacity: root.capsLockOn ? 1 : 0
+
+                        DankIcon {
+                            name: "shift_lock"
+                            size: 14
+                            color: Theme.error
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: I18n.tr("Caps Lock is on")
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.error
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Behavior on opacity {
+                            NumberAnimation {
                                 duration: Theme.shortDuration
                                 easing.type: Theme.standardEasing
                             }

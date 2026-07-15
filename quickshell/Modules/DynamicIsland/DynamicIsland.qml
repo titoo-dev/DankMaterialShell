@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Widgets
 import Quickshell.Hyprland
 import Quickshell.Services.SystemTray
 import Quickshell.Services.Notifications
@@ -82,7 +83,33 @@ Scope {
     readonly property bool weatherReady: WeatherService.weather && WeatherService.weather.available
     readonly property string weatherTemp: weatherReady ? (((SettingsData.useFahrenheit ? WeatherService.weather.tempF : WeatherService.weather.temp)) + "°") : ""
     readonly property string weatherIcon: weatherReady ? WeatherService.getWeatherIcon(WeatherService.weather.wCode) : "cloud"
-    readonly property string kbLayout: CompositorService.isNiri && NiriService.getCurrentKeyboardLayoutName ? (NiriService.getCurrentKeyboardLayoutName() || "") : ""
+    readonly property string kbLayout: CompositorService.isNiri && NiriService.getCurrentKeyboardLayoutName ? (NiriService.getCurrentKeyboardLayoutName() || "") : hyprKbLayout
+    // Hyprland: layout name pushed by the activelayout raw event ("KEYBOARD,NAME");
+    // one hyprctl fetch at startup for the initial value + main keyboard id
+    property string hyprKbLayout: ""
+    property string hyprKeyboard: ""
+    function cycleKbLayout() {
+        if (CompositorService.isNiri) NiriService.cycleKeyboardLayout()
+        else if (CompositorService.isHyprland && hyprKeyboard) Quickshell.execDetached(["hyprctl", "switchxkblayout", hyprKeyboard, "next"])
+    }
+    Connections {
+        target: CompositorService.isHyprland ? Hyprland : null
+        function onRawEvent(event) {
+            if (event.name !== "activelayout") return
+            const parts = (event.data || "").split(",")
+            if (parts.length >= 2) root.hyprKbLayout = parts.slice(1).join(",")
+        }
+    }
+    Component.onCompleted: {
+        if (!CompositorService.isHyprland) return
+        Proc.runCommand("island-kb-" + monitorName, ["hyprctl", "-j", "devices"], (output, exitCode) => {
+            if (exitCode !== 0) return
+            try {
+                const kb = JSON.parse(output).keyboards.find(k => k.main === true)
+                if (kb) { root.hyprKeyboard = kb.name; root.hyprKbLayout = kb.active_keymap || "" }
+            } catch (e) {}
+        })
+    }
 
     // ---------- styling (inherits the live DMS / Matugen theme) ----------
     readonly property color islandColor: SettingsData.dynamicIslandBlur ? Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.72) : Theme.surfaceContainer
@@ -166,6 +193,14 @@ Scope {
         if (arrived && ready && isFocusedScreen && !SessionData.doNotDisturb) {
             const crit = newest.urgency === NotificationUrgency.Critical
             edgeGlow.flash(crit ? Theme.error : Theme.primary)
+            // the island reacts too: gelatinous morph + a shine sweeping the pill,
+            // and the satellite pin (when detached) pops along
+            if (!reduceMotion && !pillSuppressed) {
+                bump()
+                squashAnim.restart()
+                pillShineAnim.restart()
+                if (satellite.active) satBumpAnim.restart()
+            }
         }
         _popupCount = popups.length
         _newestPopup = newest
@@ -202,8 +237,8 @@ Scope {
         active: root.mode === "expanded" && root.panelView === "monitor"
         sourceComponent: Component {
             QtObject {
-                Component.onCompleted: DgopService.addRef(["cpu", "memory", "network", "system"])
-                Component.onDestruction: DgopService.removeRef(["cpu", "memory", "network", "system"])
+                Component.onCompleted: DgopService.addRef(["cpu", "memory", "network", "system", "diskmounts"])
+                Component.onDestruction: DgopService.removeRef(["cpu", "memory", "network", "system", "diskmounts"])
             }
         }
     }
@@ -802,7 +837,11 @@ Scope {
             const need = idlePane.wsWidth + idlePane.clusterWidth + 90 + Theme.spacingL * 2 + Theme.spacingM * 2
             return Math.max(480, Math.min(need, screenW - 40))
         }
-        case "presenter": return presenterW
+        // splashes hug their label (like activities); the slider kinds keep the
+        // fixed width so the level bar's proportion stays meaningful
+        case "presenter": return presenterKind === "splash"
+            ? Math.max(160, Math.min(presenterPane.contentWidth + Theme.spacingL * 2, screenW - 40))
+            : presenterW
         case "activity":  return Math.max(220, Math.min(activityPane.contentWidth + Theme.spacingL * 2, screenW - 40))
         default:          return Math.max(92, compactPane.contentWidth + Theme.spacingL * 2)  // compact
         }
@@ -931,7 +970,10 @@ Scope {
     PanelWindow {
         id: pillWindow
         screen: root.modelData
-        visible: pill.opacity > 0
+        // stays mapped while keep-awake is on even if the pill is hidden
+        // (fullscreen): the Wayland idle inhibitor below dies with the surface,
+        // and fullscreen video is exactly when it must survive
+        visible: pill.opacity > 0 || SessionService.idleInhibited
         WlrLayershell.namespace: "dms:dynamic-island"
         WlrLayershell.layer: WlrLayershell.Overlay
         WlrLayershell.exclusiveZone: -1
@@ -952,6 +994,15 @@ Scope {
             // fullscreen, so top-center clicks reach the app underneath
             Region { item: root.pillSuppressed ? null : pill }
             Region { item: satellite.active ? satellite : null }
+        }
+
+        // the actual Wayland idle inhibitor behind the "Keep awake" toggle.
+        // It used to live only in DankBarWindow — in island mode the bar is
+        // never instantiated, so the toggle flipped a boolean nobody consumed
+        // and the machine kept locking.
+        IdleInhibitor {
+            window: pillWindow
+            enabled: SessionService.idleInhibited
         }
 
     Item {
@@ -996,6 +1047,36 @@ Scope {
             transform: Scale {
                 origin.x: islandBody.width / 2; origin.y: islandBody.height / 2
                 xScale: pill.squashX; yScale: pill.squashY
+            }
+
+            // notification shine: a diagonal specular band sweeping the pill
+            // once (one-shot, restarted per notification — no idle animation).
+            // ClippingRectangle: a bbox `clip` would paint over the pill's radius
+            ClippingRectangle {
+                anchors.fill: parent
+                radius: parent.radius
+                color: "transparent"
+                visible: pillShine.opacity > 0
+                Rectangle {
+                    id: pillShine
+                    width: 110; height: parent.height * 3
+                    y: -parent.height
+                    rotation: 18
+                    opacity: 0
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.30) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                }
+            }
+            SequentialAnimation {
+                id: pillShineAnim
+                PropertyAction { target: pillShine; property: "x"; value: -140 }
+                PropertyAction { target: pillShine; property: "opacity"; value: 1 }
+                NumberAnimation { target: pillShine; property: "x"; to: islandBody.width + 60; duration: 620; easing.type: Easing.InOutQuad }
+                PropertyAction { target: pillShine; property: "opacity"; value: 0 }
             }
         }
 
@@ -1054,9 +1135,21 @@ Scope {
             width: pill.height; height: pill.height
             x: pill.x + pill.width - width + (width + 7) * out
             y: pill.y
-            scale: 0.5 + 0.5 * Math.max(0, out)
+            // mini life for the pin: notification pop (satBump, one-shot) +
+            // hover grow / press shrink (hoverS), all multiplied into the
+            // detach scale — no Behavior on `scale` itself, the spring on
+            // `out` and the animations below already drive every change
+            property real satBump: 1.0
+            property real hoverS: satArea.pressed ? 0.88 : (satArea.containsMouse ? 1.1 : 1.0)
+            Behavior on hoverS { enabled: !root.reduceMotion; SpringAnimation { spring: 7; damping: 0.3 } }
+            scale: (0.5 + 0.5 * Math.max(0, out)) * satBump * hoverS
             opacity: Math.max(0, Math.min(1, out)) * pill.opacity
             visible: out > 0.02 && pill.visible
+            SequentialAnimation {
+                id: satBumpAnim
+                NumberAnimation { target: satellite; property: "satBump"; to: 1.22; duration: 130; easing.type: Easing.OutBack }
+                SpringAnimation { target: satellite; property: "satBump"; to: 1.0; spring: 5; damping: 0.25; epsilon: 0.005 }
+            }
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
@@ -1065,14 +1158,24 @@ Scope {
                 border.color: Qt.rgba(root.satColor.r, root.satColor.g, root.satColor.b, 0.45)
             }
             DankIcon {
+                id: satGlyph
                 anchors.centerIn: parent
                 name: satellite.shownIcon
                 size: 15
                 color: root.satColor
                 filled: true
+                // tiny pop when the glyph swaps (state change while detached)
+                SequentialAnimation {
+                    id: satGlyphPop
+                    NumberAnimation { target: satGlyph; property: "scale"; to: 1.35; duration: 110; easing.type: Easing.OutQuad }
+                    SpringAnimation { target: satGlyph; property: "scale"; to: 1.0; spring: 5; damping: 0.25; epsilon: 0.005 }
+                }
             }
+            onShownIconChanged: if (!root.reduceMotion && visible) satGlyphPop.restart()
             MouseArea {
+                id: satArea
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 // per-activity expanded layout: privacy bubbles drill straight
                 // into the live-captures view, battery falls back to the hub
