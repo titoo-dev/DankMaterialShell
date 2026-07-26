@@ -879,7 +879,7 @@ Item {
 
 ### Example Usage
 
-From the ExampleEmojiPlugin (EmojiWidget.qml):
+From a popout list item:
 
 ```qml
 MouseArea {
@@ -1639,7 +1639,6 @@ See `PLUGINS/ExampleDesktopClock/` for a complete working example demonstrating:
 
 - **Plugin Schema**: `plugin-schema.json` - JSON Schema for validation
 - **Example Plugins**:
-  - [Emoji Picker](./ExampleEmojiPlugin/)
   - [WorldClock](https://github.com/rochacbruno/WorldClock)
   - [LauncherExample](./LauncherExample/)
   - [Calculator](https://github.com/rochacbruno/DankCalculator)

@@ -37,7 +37,7 @@ Column {
     }
 
     // ---- keyboard navigation (the view holds an Exclusive grab — it must be
-    // fully drivable from the keyboard, like Spotlight/Emoji) ----
+    // fully drivable from the keyboard, like Spotlight) ----
     property int selIndex: 0
     onEntriesChanged: { selIndex = 0; clipFlick.positionViewAtBeginning() }
     function move(delta) {

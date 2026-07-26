@@ -183,14 +183,14 @@ IPC dispo (`IslandHub.qml`, target `island`) :
 - `dms ipc call island close` — replie quel que soit l'état affiché (`onCloseRequested` → unpin + `panelView="controls"` + `settle()`)
 - `dms ipc call island back` — recule d'un niveau : une drill view revient au hub, le hub se ferme (`onBackRequested`)
 - `dms ipc call island open <view>` — ouvre direct sur une drill view (re-presser = referme).
-  views : `controls | wifi | bluetooth | audio | notifications | calendar | apps | clipboard | emoji`.
+  views : `controls | wifi | bluetooth | audio | notifications | calendar | apps | clipboard`.
   Handler contrôleur `onOpenViewRequested` (gated `isFocusedScreen`) → `openPanel(view)`.
   Pour `apps`/`clipboard` le grab clavier Exclusive s'engage SANS clic (vérifié : ouverture par IPC
   puis `wtype "fire"` filtre sur Firefox).
 
 Binds Hyprland — **CÂBLÉS (2026-06-03)** dans `~/.config/hypr/hyprland.lua` (config active depuis
 Hyprland 0.55 ; `hyprland.conf` n'est plus chargé). Bloc « Dynamic Island control » après les binds
-Spotlight (`SUPER+R`) / emoji (`SUPER+;`). `SUPER+ALT` = namespace dédié sans conflit pour ouvrir
+Spotlight (`SUPER+R`). `SUPER+ALT` = namespace dédié sans conflit pour ouvrir
 chaque drill view :
 ```
 SUPER + I            toggle (control center hub)
@@ -199,10 +199,10 @@ SUPER + SHIFT + B    back   (recule d'un niveau)
 SUPER + ALT + C      open controls       SUPER + ALT + N    open notifications
 SUPER + ALT + W      open wifi           SUPER + ALT + K    open calendar (kalendar)
 SUPER + ALT + B      open bluetooth      SUPER + ALT + V    open clipboard
-SUPER + ALT + A      open audio          SUPER + ALT + E    open emoji
+SUPER + ALT + A      open audio
 SUPER + ALT + Space  open apps (Spotlight)
 ```
-Note : `SUPER+R` (apps) et `SUPER+;` (emoji) gardent leurs binds historiques ; `SUPER+V` reste vicinae.
+Note : `SUPER+R` (apps) garde son bind historique ; `SUPER+V` reste vicinae.
 Vérifié 2026-06-03 : les 12 binds sont enregistrés (`hyprctl binds`, modmask 64/65/72) et chaque
 commande IPC répond (`ISLAND_TOGGLE/CLOSE/BACK/OPEN:*`), sans erreur QML au restart.
 
@@ -435,7 +435,14 @@ les mêmes services. Navigation **drill-down macOS**.
   `DankTextField`. Le grab est relâché dès que `panelView` quitte apps/clipboard. Vérifié par
   capture : `wtype "set"` filtre sur « System Settings », Esc revient au hub.
 
-## Emoji picker île-natif (fait 2026-06-02)
+## Emoji picker île-natif (fait 2026-06-02, ❌ SUPPRIMÉ le 2026-07-26)
+
+> **La feature emoji n'existe plus** : `panels/EmojiPanel.qml`, `panels/EmojiData.js`, la vue
+> drill `emoji` (hub/footer/IPC `open emoji`), l'IPC `island type`, tout le chemin d'insertion
+> wtype/wl-copy (`insertText`/`_typeAddr`/`insertTimer`) et le plugin `ExampleEmojiPlugin` ont
+> été retirés. Les sections ci-dessous restent comme **historique** : le gotcha du grab clavier
+> Exclusive (§ plus bas) et la mécanique focus/xwayland valent toujours pour Spotlight/clipboard
+> et pour quiconque réintroduirait une insertion de texte.
 
 `panels/EmojiPanel.qml` (id `emojiCol`, `panelView="emoji"`) + dataset `panels/EmojiData.js`.
 Expérience moderne : recherche, onglets de catégories, grille **couleur** (Noto Color Emoji),
@@ -793,6 +800,7 @@ Fallback : `$2` vide (niri…) → ancien comportement. Vérifié par repro IPC 
 fenêtre pré-île, refocus ok, wtype ok.
 - **Nouvel IPC `dms ipc call island type "<texte>"`** : injecte du texte par le même chemin
   (debug + scripting). Log d'une ligne par insertion dans `/tmp/island-emoji.log`.
+  (❌ retiré le 2026-07-26 avec la feature emoji.)
 
 ## ⚠️⚠️ GOTCHA MAJEUR : le grab clavier Exclusive COLLE (9e commit, même jour)
 
@@ -817,7 +825,7 @@ config compositeur si gênant.
 
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
 NotchVisual en Shape CurveRenderer, recherche de fichiers Spotlight (si dsearch installé),
-a11y/Échap universel, dataset emoji complet (génération emojibase), accent adaptatif pochette.
+a11y/Échap universel, accent adaptatif pochette.
 
 ## Backlog restant (priorité basse)
 

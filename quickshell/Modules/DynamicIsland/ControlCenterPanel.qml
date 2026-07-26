@@ -405,12 +405,11 @@ import "panels"
                                 { icon: "calendar_month",  which: "calendar",      tip: I18n.tr("Calendar") },
                                 { icon: "monitoring",      which: "monitor",       tip: I18n.tr("System") },
                                 { icon: "wallpaper",       which: "wallpaper",     tip: I18n.tr("Wallpaper") },
-                                { icon: "mood",            which: "emoji",         tip: I18n.tr("Emoji") },
                                 { icon: "content_paste",   which: "clipboard",     tip: I18n.tr("Clipboard") },
                                 { icon: "place_item",      which: "shelf",         tip: I18n.tr("Shelf") }
                             ]
                             Item {
-                                width: parent.width / 8; height: 34
+                                width: parent.width / 7; height: 34
                                 Rectangle {
                                     anchors.centerIn: parent; width: 34; height: 30; radius: 9
                                     color: ftArea.containsMouse ? Theme.primaryHover : "transparent"
@@ -441,7 +440,7 @@ import "panels"
                 readonly property var viewRegistry: ({
                     "wifi": wifiComp, "bluetooth": btComp, "audio": audioComp,
                     "input": inputComp, "notifications": notifComp, "calendar": calComp,
-                    "apps": appsComp, "clipboard": clipComp, "emoji": emojiComp,
+                    "apps": appsComp, "clipboard": clipComp,
                     "power": powerComp, "monitor": monComp, "wallpaper": wpComp,
                     "mixer": mixerComp, "privacy": privacyComp, "shelf": shelfComp,
                     "tailscale": tsComp, "dropchoose": dropChooseComp,
@@ -456,7 +455,6 @@ import "panels"
                 Component { id: calComp;   CalendarPanel      { island: ccPanel.island } }
                 Component { id: appsComp;  SpotlightPanel     { island: ccPanel.island } }
                 Component { id: clipComp;  ClipboardPanel     { island: ccPanel.island } }
-                Component { id: emojiComp; EmojiPanel         { island: ccPanel.island } }
                 Component { id: powerComp; PowerPanel         { island: ccPanel.island } }
                 Component { id: monComp;   SystemMonitorPanel { island: ccPanel.island } }
                 Component { id: wpComp;    WallpaperPanel     { island: ccPanel.island } }

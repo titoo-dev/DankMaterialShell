@@ -53,8 +53,14 @@
 > - **Virtualisation Wi-Fi** (voir ci-dessus), **EQ 5/6 valeurs** (cosmétique), fallback
 >   `screens[0]` (uniquement quand le compositeur ne rapporte aucun focus), presenter
 >   interactif ≠ click-through (choix design : l'OSD de l'île est manipulable).
-> - **Emoji v2 / Spotlight riche / mixer par app / squircle** : Phase 3, features nouvelles
+> - **Spotlight riche / mixer par app / squircle** : Phase 3, features nouvelles
 >   hors périmètre « correctifs ».
+
+> **MISE À JOUR (2026-07-26)** — **la feature emoji est SUPPRIMÉE** : `EmojiPanel.qml`,
+> `EmojiData.js`, la vue drill `emoji`, l'IPC `island type` et tout le chemin d'insertion
+> wtype/wl-copy sont partis (plus le plugin d'exemple `ExampleEmojiPlugin`). Les findings
+> **H9, H10** et l'item de roadmap « Emoji v2 » sont donc **sans objet** ; ils restent listés
+> plus bas comme trace de l'audit d'origine.
 
 Audit d'ingénierie de `Modules/DynamicIsland/` (branche `feat/dynamic-island`, ~5 080 lignes,
 30 fichiers) : correctness, performance, architecture, UX, accessibilité — avec gap-analysis
@@ -292,7 +298,6 @@ Ce qui manque par surface pour être « au niveau », puis « au-dessus » :
 | **Audio** | Slider master en tête, alias devices (`getDeviceAlias` ignoré), icônes par type, vu-mètre micro (macOS l'a) | **Mixer par application** (Pipewire streams) — Win11 l'a, macOS NON : différenciateur |
 | **Power** | Hold-to-confirm, Hibernate (`hibernateSupported` détecté), Switch User (modal existant) | — |
 | **Spotlight** | Calculatrice, fichiers, actions d'apps, presse-papiers — **80 % du code existe** dans DankLauncherV2 (`searchAppActions`, file-search à préfixes, `getLauncherEntries`, plugins) ; récents/fréquents en requête vide | Sections avec badges de source ; conversions d'unités |
-| **Emoji** | Dataset complet (~3 800 via emojibase/CLDR vs ~454), **skin tones** (popup appui long), recherche tokenisée AND multilingue | Tooltips de nom, Tab cycle catégories |
 | **Clipboard** | Nav clavier complète, pin UI (le service trie déjà pinned-first **sans indicateur**), Clear-all (annoncé en commentaire, absent), vignettes images (mécanisme `ClipboardThumbnail` existant) | Shift+Enter = coller directement (`pasteEntry` existe) |
 | **Calendrier** | Localisation (premier jour + noms de jours), molette = mois, agenda cliquable | Heure de fin, multi-jours, indicateur de débordement |
 | **Wallpaper** | Préview avant application + undo (clic = application immédiate aujourd'hui) | Sous-dossiers inline, « appliquer à tous les écrans » |
@@ -345,9 +350,7 @@ Ce qui manque par surface pour être « au niveau », puis « au-dessus » :
 17. **Framework Live Activities** : file d'activités priorisée (remplace les `showSplash` ad
     hoc) — charge, enregistrement d'écran, téléchargements, minuteurs, médias.
 18. **Mixer de volume par application** (Pipewire) — Win11 l'a, macOS non.
-19. **Emoji v2** : dataset emojibase complet généré au build, skin tones, recherche
-    multilingue tokenisée, GridView à sections sticky.
-20. **Polish signature** : squircle (courbure continue), accent adaptatif extrait de la
+19. **Polish signature** : squircle (courbure continue), accent adaptatif extrait de la
     pochette, préview wallpaper avec undo, calendrier localisé interactif, onglet de réglages
     dédié avec aperçu live + doc keybinds.
 
@@ -367,5 +370,5 @@ multi-compositeur est pensé, et plusieurs choix (bannières indépendantes, dri
 les bons. Pour être « digne d'un macOS », l'effort doit maintenant porter sur **ce qui ne se
 voit pas en démo** : les états d'attente et d'erreur, le clavier, l'accessibilité, la stabilité
 des modèles, et le coût GPU de fond. La Phase 0 corrige tout ce qui est cassé aujourd'hui ; les
-Phases 1-2 amènent la parité réelle ; la Phase 3 (Live Activities, mixer par app, emoji v2)
+Phases 1-2 amènent la parité réelle ; la Phase 3 (Live Activities, mixer par app)
 fait passer l'île **devant** macOS sur plusieurs points.

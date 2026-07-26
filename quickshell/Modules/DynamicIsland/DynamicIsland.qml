@@ -290,7 +290,7 @@ Scope {
     }
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
-    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "emoji" | "power" | "mixer" | "privacy" | "shelf" | "tailscale"
+    property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "power" | "mixer" | "privacy" | "shelf" | "tailscale"
     onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
     onPanelViewChanged: {
         if (panelView !== "wifi") wifiNeedsKeyboard = false
@@ -391,84 +391,6 @@ Scope {
             if (root.ready && root.isFocusedScreen)
                 edgeGlow.flash(ok ? Theme.success : Theme.error)
             root.bump()
-        }
-    }
-
-    // ---------- insert the emoji into the focused app (emoji picker) ----------
-    // Insertion reality on this setup, by target window:
-    //   - native Wayland TERMINALS (ghostty, ...): wtype types the emoji directly
-    //     → true auto-insert. (Ctrl+V wouldn't paste in a terminal anyway.)
-    //   - native Wayland GUI apps (Chrome, Discord — all Ozone/Electron, so NOT
-    //     XWayland): wtype "types" with rc=0 but the app silently drops it, because
-    //     wtype emits unicode by hot-swapping the virtual-keyboard keymap and
-    //     Chromium/GTK ignore that. So we wl-copy the emoji and fire a synthetic
-    //     Ctrl+V (plain keysyms, which they DO accept) → true auto-paste.
-    //   - XWayland apps: wtype can't reach them and there's no ydotool/xdotool here,
-    //     so we just put the emoji on the clipboard and the user presses Ctrl+V.
-    // Close the island first, then re-focus the previously active window (Lua: hl.dsp.focus).
-    property string _typePending: ""
-    // address of the window to type into, captured CONTINUOUSLY while the
-    // island is at rest — i.e. the app the user was working in BEFORE opening
-    // the picker. Querying `hyprctl activewindow` at insert time is wrong:
-    // since the window split the island no longer covers the screen, so by
-    // then focus-follows-mouse has made "active" whatever sits under the
-    // cursor (often nothing useful right after clicking the island).
-    property string _typeAddr: ""
-    onActiveWinChanged: if (mode !== "expanded") _captureTypeTarget()
-    function _captureTypeTarget() {
-        if (CompositorService.isNiri) { _typeAddr = ""; return }
-        const tls = Hyprland.toplevels ? Hyprland.toplevels.values : []
-        for (var i = 0; i < tls.length; i++) {
-            if (tls[i] && tls[i].wayland === activeWin) {
-                _typeAddr = tls[i].address ?? ""
-                return
-            }
-        }
-    }
-    function insertText(text) {
-        if (!text || text.length === 0) return
-        _typePending = text
-        panelView = "controls"; pinned = false; settle()
-        insertTimer.restart()
-    }
-    Timer {
-        id: insertTimer
-        interval: 180   // let the Exclusive grab actually release first
-        onTriggered: {
-            if (root._typePending.length === 0) return
-            const e = root._typePending
-            root._typePending = ""
-            // $1 = text, $2 = target window address captured BEFORE the island
-            // opened (may be empty → fall back to whatever is active now)
-            Quickshell.execDetached(["sh", "-c",
-                // hyprctl exists only under Hyprland (stock OR the lua fork, whose
-                // dispatch grammar differs) — try both forms, and skip the whole
-                // focus/introspection block on other compositors (niri: focus
-                // returns to the previous window by itself once the grab drops).
-                "hypr=0; command -v hyprctl >/dev/null 2>&1 && [ -n \"$HYPRLAND_INSTANCE_SIGNATURE\" ] && hypr=1; "
-                + "a=\"$2\"; "
-                + "if [ \"$hypr\" = \"1\" ]; then "
-                +   "if [ -z \"$a\" ]; then a=$(hyprctl activewindow | awk 'NR==1{print $2}'); fi; "
-                +   "[ -n \"$a\" ] && { hyprctl dispatch focuswindow \"address:0x${a#0x}\" >/dev/null 2>&1 || hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:0x${a#0x}\\\" })\" >/dev/null 2>&1; }; "
-                + "fi; "
-                + "sleep 0.12; "
-                + "info=$([ \"$hypr\" = \"1\" ] && [ -n \"$a\" ] && hyprctl clients | grep -A 30 \"Window $a \"); "
-                + "xwl=0; printf %s \"$info\" | grep -m1 -q 'xwayland: 1' && xwl=1; "
-                + "cls=$(printf %s \"$info\" | grep -m1 'class:' | awk '{print $2}'); "
-                + "isterm=0; printf %s \"$cls\" | grep -qiE 'ghostty|kitty|foot|alacritty|wezterm|konsole|xterm|urxvt|tilix|terminal' && isterm=1; "
-                // XWayland: wtype can't reach it, no ydotool/xdotool here → clipboard only (manual paste).
-                + "if [ \"$xwl\" = \"1\" ]; then out=$(printf %s \"$1\" | wl-copy 2>&1); rc=xwl-copy:$?; "
-                // native Wayland terminal: direct type works (and Ctrl+V isn't paste in a terminal).
-                + "elif [ \"$isterm\" = \"1\" ] && command -v wtype >/dev/null 2>&1; then out=$(wtype \"$1\" 2>&1); rc=type:$?; "
-                // native Wayland GUI (Chromium/Electron/GTK drop wtype's unicode keymap swap):
-                // copy then fire a synthetic Ctrl+V — standard keysyms they DO accept.
-                // Chrome reads the clipboard ASYNC, so the Ctrl+V frame paints before the
-                // emoji lands and (thinking it's unfocused) it schedules no redraw → blank
-                // until a focus change. A caret nudge (Left+Right, net-zero) AFTER the paste
-                // forces a fresh frame so the emoji shows immediately.
-                + "else printf %s \"$1\" | wl-copy; sleep 0.1; wtype -M ctrl -k v -m ctrl; rc=paste:$?; sleep 0.1; out=$(wtype -k Left -k Right 2>&1); fi; "
-                + "echo \"$(date +%T) addr=$a xwl=$xwl cls=$cls term=$isterm rc=$rc out=$out\" >> /tmp/island-emoji.log",
-                "island-emoji", e, root._typeAddr])
         }
     }
 
@@ -807,12 +729,6 @@ Scope {
                 root.openPanel(view)
             }
         }
-        // inject text through the emoji-picker insertion path (debug/scripting)
-        function onTypeRequested(text) {
-            if (!root.isFocusedScreen)
-                return
-            root.insertText(text)
-        }
     }
 
     // ---------- target geometry per mode ----------
@@ -880,7 +796,7 @@ Scope {
     // STAYS MAPPED. An Exclusive grab is unusable here: Hyprland only honours
     // its release on UNMAP, and blinking the pill window (unmap → remap a few
     // frames later) races Quickshell's surface state — the remap is silently
-    // lost and the island never comes back (the old wallpaper/emoji toggle-off
+    // lost and the island never comes back (the old wallpaper toggle-off
     // bug). Exclusive remains as the non-Hyprland fallback, where flipping
     // back to None on a mapped surface is honoured.
     HyprlandFocusGrab {
@@ -981,7 +897,7 @@ Scope {
         anchors { top: true; left: true; right: true }
         implicitHeight: 620
         // keyboard focus for the keyboard-driven drill views: the search ones
-        // (Spotlight / clipboard / emoji) need it to type, the wallpaper grid for
+        // (Spotlight / clipboard) need it to type, the wallpaper grid for
         // arrow navigation, Wi-Fi while a password prompt is open. On Hyprland
         // the HyprlandFocusGrab above provides the immediate engage/release;
         // OnDemand just lets the surface accept the focus it hands us. Elsewhere
