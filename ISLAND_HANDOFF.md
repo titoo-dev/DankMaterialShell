@@ -854,7 +854,13 @@ disparaître/réapparaître. 49 tooltips couvrent désormais TOUS les boutons-ic
   puis entrer sur B = un seul tooltip continu, pas une fermeture), `warmWindow` 800 ms (les
   voisins s'ouvrent instantanément). `reset()` = fermeture dure, sans fenêtre chaude.
 - `Widgets/DankTooltipMorph.qml` — la capsule. Matériau verre identique au pill (spéculaire en
-  haut, ombre au pied, filet 1 px), radius capsule. Elle **pousse depuis le bord du bouton**
+  haut `0.09` fondu à 10 %, ombre au pied `0.08`, filet `outline` à 0.22), fond
+  `surfaceContainerHigh` — le MÊME ton que `DankTooltip`/`DankTooltipV2`, une seule marche
+  au-dessus du corps de l'île. ⚠️ Ne PAS repasser à `surfaceContainerHighest` : deux marches
+  plus haut ET décalé vers le bleu (`#343740` vs corps `#1e2023`), la capsule lisait comme un
+  popup étranger. Idem pour un dégradé spéculaire à falloff large (0.45) : sur une capsule de
+  27 px ça éclaircit tout le chip (`#484b53` en haut au lieu de `#3c3e42`). Elle
+  **pousse depuis le bord du bouton**
   (`transformOrigin` + scale 0.82→1) et, au handover, **glisse, se redimensionne et cross-fade
   son label** (l'ancien texte s'envole, le nouveau monte) + un léger squash emprunté au morph du
   pill. Un `FrameAnimation` recalcule le placement à chaque frame — indispensable, les ancres

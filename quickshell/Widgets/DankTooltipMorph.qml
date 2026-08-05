@@ -25,7 +25,11 @@ Item {
     property real gap: 8
     property real maxWidth: 320
     property real capsuleHeight: 27
-    property color surfaceColor: Theme.withAlpha(Theme.surfaceContainerHighest, Math.max(0.92, Theme.popupTransparency))
+    // Same tone as DankTooltip / DankTooltipV2 — ONE step above the body it
+    // floats over, and neutral. `surfaceContainerHighest` reads wrong here: two
+    // steps up AND hue-shifted bluer than the island, so the capsule looked like
+    // a foreign popup instead of a piece of the island.
+    property color surfaceColor: Theme.withAlpha(Theme.surfaceContainerHigh, Math.max(0.92, Theme.popupTransparency))
     property color labelColor: Theme.surfaceText
 
     z: 10000
@@ -137,7 +141,8 @@ Item {
         antialiasing: true
         color: overlay.surfaceColor
         border.width: 1
-        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.28)
+        // same hairline the island pill draws at rest
+        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.22)
 
         opacity: overlay.open ? 1 : 0
         visible: opacity > 0
@@ -200,9 +205,10 @@ Item {
             }
         }
 
-        // glass material: specular light along the top edge, shade at the foot —
-        // the same recipe the island pill uses, so the tooltip reads as a chip
-        // broken off the island rather than a foreign popup
+        // glass material: specular light along the top edge, shade at the foot.
+        // The pill's exact stops (0.09 white fading out by 10%, 0.08 black at the
+        // foot) — a broader falloff visibly lightens a capsule this short, which
+        // is half of why the first version read as a lighter, foreign chip.
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
@@ -210,15 +216,19 @@ Item {
             gradient: Gradient {
                 GradientStop {
                     position: 0.0
-                    color: Qt.rgba(1, 1, 1, 0.10)
+                    color: Qt.rgba(1, 1, 1, 0.09)
                 }
                 GradientStop {
-                    position: 0.45
+                    position: 0.10
                     color: Qt.rgba(1, 1, 1, 0.0)
                 }
                 GradientStop {
+                    position: 0.82
+                    color: Qt.rgba(0, 0, 0, 0.0)
+                }
+                GradientStop {
                     position: 1.0
-                    color: Qt.rgba(0, 0, 0, 0.07)
+                    color: Qt.rgba(0, 0, 0, 0.08)
                 }
             }
         }
