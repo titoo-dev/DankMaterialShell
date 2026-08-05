@@ -126,6 +126,7 @@ Item {
                 Accessible.name: I18n.tr("Calendar")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: I18n.tr("Calendar"); active: clockArea.containsMouse }
         }
         Row {  // weather
             spacing: 3; visible: island.weatherReady; anchors.verticalCenter: parent.verticalCenter
@@ -176,6 +177,14 @@ Item {
                 Accessible.role: Accessible.Button
                 Accessible.name: I18n.tr("Tailscale")
                 Accessible.onPressAction: clicked(null)
+            }
+            DankTip {
+                active: tsArea.containsMouse
+                text: {
+                    if (island.tsNeedsAttention) return I18n.tr("Tailscale") + " • " + I18n.tr("needs attention")
+                    if (!island.tsConnected) return I18n.tr("Tailscale disconnected")
+                    return I18n.tr("Tailscale") + " • " + island.tsPeerCount + " " + I18n.tr("online")
+                }
             }
         }
         Row {  // Bluetooth device battery (lowest connected device with battery)
@@ -232,6 +241,7 @@ Item {
                 Accessible.name: I18n.tr("Shelf")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: I18n.tr("Shelf") + " • " + I18n.tr("%1 item(s)").arg(ShelfService.count); active: shelfArea.containsMouse }
         }
         StyledText {  // keyboard layout (niri/hyprland/dwl) — click cycles
             text: island.kbLayout.substring(0, 2).toUpperCase()
@@ -248,6 +258,7 @@ Item {
                 Accessible.name: I18n.tr("Cycle keyboard layout")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: island.kbLayout + " • " + I18n.tr("Cycle keyboard layout"); active: kbArea.containsMouse }
         }
         Item {
             // compact tray chip: up to 3 overlapped icons + count, click opens
@@ -300,6 +311,7 @@ Item {
                 Accessible.name: I18n.tr("Tray")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: I18n.tr("Tray") + " • " + trayChip.n; active: tChipArea.containsMouse }
         }
         Row {
             spacing: 4; visible: island.batAvailable; anchors.verticalCenter: parent.verticalCenter

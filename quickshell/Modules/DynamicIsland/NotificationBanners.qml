@@ -270,6 +270,11 @@ import qs.Widgets
                                         Accessible.name: I18n.tr("Dismiss")
                                         Accessible.onPressAction: clicked(null)
                                     }
+                                    DankTip {
+                                        text: bWrap.gCount > 1 ? I18n.tr("Dismiss all") : I18n.tr("Dismiss")
+                                        active: bCloseA.containsMouse
+                                        side: "left"
+                                    }
                                 }
                                 Rectangle {  // hidden-cards count — occupies the ✕ slot while collapsed (they never coexist)
                                     id: bDeckCnt
@@ -372,6 +377,7 @@ import qs.Widgets
                                         Accessible.name: I18n.tr("Send")
                                         Accessible.onPressAction: clicked(null)
                                     }
+                                    DankTip { text: I18n.tr("Send"); active: bSendA.containsMouse; side: "left" }
                                 }
                             }
                         }

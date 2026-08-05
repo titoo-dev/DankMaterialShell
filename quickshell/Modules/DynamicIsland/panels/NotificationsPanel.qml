@@ -168,6 +168,7 @@ Column {
                                 Accessible.name: I18n.tr("Reply")
                                 Accessible.onPressAction: clicked(null)
                             }
+                            DankTip { text: I18n.tr("Reply"); active: nReply.containsMouse }
                         }
                         Rectangle {
                             width: 26; height: 26; radius: 13
@@ -181,6 +182,7 @@ Column {
                                 Accessible.name: I18n.tr("Dismiss")
                                 Accessible.onPressAction: clicked(null)
                             }
+                            DankTip { text: I18n.tr("Dismiss"); active: nClose.containsMouse }
                         }
                     }
                     // inline reply field — straight to the app via the
@@ -231,6 +233,7 @@ Column {
                                 Accessible.name: I18n.tr("Send")
                                 Accessible.onPressAction: clicked(null)
                             }
+                            DankTip { text: I18n.tr("Send"); active: nSend.containsMouse }
                         }
                     }
                     MouseArea {
@@ -325,6 +328,7 @@ Column {
                     Accessible.name: I18n.tr("Delete")
                     Accessible.onPressAction: clicked(null)
                 }
+                DankTip { text: I18n.tr("Delete"); active: hDel.containsMouse }
             }
             MouseArea { id: hRowArea; anchors.fill: parent; hoverEnabled: true; z: -1 }
         }

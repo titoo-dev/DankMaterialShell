@@ -1,6 +1,5 @@
 import Qt.labs.folderlistmodel
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell
 import qs.Common
@@ -159,7 +158,7 @@ Column {
             scale: wpFolderArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "folder_open"; size: 17; color: wpFolderArea.containsMouse ? island.accent : island.textColor }
-            ToolTip.visible: wpFolderArea.containsMouse; ToolTip.text: I18n.tr("Browse folder"); ToolTip.delay: 400
+            DankTip { text: I18n.tr("Browse folder"); active: wpFolderArea.containsMouse }
             MouseArea {
                 id: wpFolderArea; anchors.fill: parent; anchors.margins: -6
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -317,7 +316,7 @@ Column {
                 scale: cycArea.pressed ? 0.9 : 1.0
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 DankIcon { anchors.centerIn: parent; name: "shuffle"; size: 17; color: parent.on ? Theme.primaryText : island.textColor }
-                ToolTip.visible: cycArea.containsMouse; ToolTip.text: I18n.tr("Auto-cycle wallpaper"); ToolTip.delay: 400
+                DankTip { text: I18n.tr("Auto-cycle wallpaper"); active: cycArea.containsMouse }
                 MouseArea {
                     id: cycArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: SessionData.setWallpaperCyclingEnabled(!SessionData.wallpaperCyclingEnabled)
@@ -335,6 +334,7 @@ Column {
                 scale: prevArea.pressed ? 0.9 : 1.0
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 DankIcon { anchors.centerIn: parent; name: "skip_previous"; size: 18; color: prevArea.containsMouse ? island.accent : island.textColor }
+                DankTip { text: I18n.tr("Previous wallpaper"); active: prevArea.containsMouse }
                 MouseArea {
                     id: prevArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: WallpaperCyclingService.cyclePrevManually()
@@ -350,6 +350,7 @@ Column {
                 scale: nextArea.pressed ? 0.9 : 1.0
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 DankIcon { anchors.centerIn: parent; name: "skip_next"; size: 18; color: nextArea.containsMouse ? island.accent : island.textColor }
+                DankTip { text: I18n.tr("Next wallpaper"); active: nextArea.containsMouse }
                 MouseArea {
                     id: nextArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: WallpaperCyclingService.cycleNextManually()

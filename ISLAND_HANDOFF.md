@@ -73,6 +73,9 @@ via l'id de l'instance :
     ⚠️ ré-importer ce qu'utilise le bloc (`QtQuick.Controls` pour `ToolTip`, `QtQuick.Shapes` pour
     `Shape/PathAngleArc`…). Ce qui n'est PAS exposable en property (id comme `clock`, `trayMenu`) →
     exposer une property dérivée (`clockShort`) ou une fonction (`openTrayMenu`) sur le contrôleur.
+  - **Tooltips** (partagés, hors module — voir « Tooltips morphés macOS » plus bas) :
+    `Common/TooltipManager.qml` (singleton d'état), `Widgets/DankTooltipMorph.qml` (la capsule,
+    une par fenêtre), `Widgets/DankTip.qml` (attache par bouton).
   - `quickshell/Modules/DynamicIsland/island-blur.conf` — snippet Hyprland pour le flou (opt-in)
   - `quickshell/DMSShell.qml` — intègre l'île (Variants par écran), supprime la DankBar quand l'île est ON, supprime VolumeOSD/BrightnessOSD
   - `quickshell/Common/SettingsData.qml` + `Common/settings/SettingsSpec.js` — flags `dynamicIslandEnabled` (def true), `dynamicIslandBlur` (def false)
@@ -837,6 +840,47 @@ config compositeur si gênant.
 Restent dans la roadmap (ISLAND_AUDIT.md §7) : IslandState typé, virtualisation ListView/GridView,
 NotchVisual en Shape CurveRenderer, recherche de fichiers Spotlight (si dsearch installé),
 a11y/Échap universel, accent adaptatif pochette.
+
+## Tooltips morphés macOS (fait 2026-08-05)
+
+Les `ToolTip` QtQuick.Controls bruts (style Basic hors charte, cf. audit § P2) sont remplacés
+par **une seule capsule de verre par fenêtre**, qui **morphe** d'un bouton à l'autre au lieu de
+disparaître/réapparaître. 49 tooltips couvrent désormais TOUS les boutons-icônes de l'île.
+
+**3 fichiers, hors du module (réutilisables ailleurs dans DMS) :**
+- `Common/TooltipManager.qml` — singleton d'état. Le pointeur ne peut survoler qu'UN bouton :
+  un seul bus d'état suffit, et c'est lui qui rend le morph possible. Le timing appartient à la
+  *série*, pas au bouton : `dwell` 420 ms avant le premier tooltip, `handover` 120 ms (quitter A
+  puis entrer sur B = un seul tooltip continu, pas une fermeture), `warmWindow` 800 ms (les
+  voisins s'ouvrent instantanément). `reset()` = fermeture dure, sans fenêtre chaude.
+- `Widgets/DankTooltipMorph.qml` — la capsule. Matériau verre identique au pill (spéculaire en
+  haut, ombre au pied, filet 1 px), radius capsule. Elle **pousse depuis le bord du bouton**
+  (`transformOrigin` + scale 0.82→1) et, au handover, **glisse, se redimensionne et cross-fade
+  son label** (l'ancien texte s'envole, le nouveau monte) + un léger squash emprunté au morph du
+  pill. Un `FrameAnimation` recalcule le placement à chaque frame — indispensable, les ancres
+  BOUGENT (spring du pill, slide des drill views, press-scale des boutons). Flip auto du côté
+  quand ça déborde ; respecte la vitesse d'animation « None ».
+- `Widgets/DankTip.qml` — attache non-visuelle (`visible: false`, donc jamais prise dans un
+  Row/Column/Layout) : `DankTip { text: I18n.tr("Copy"); active: copyArea.containsMouse }`.
+  `target` = le bouton parent par défaut ; `side` = "bottom" (défaut) | "top" | "left" | "right".
+
+**GOTCHAs**
+- La capsule se déclare **en DERNIER dans `stage`**, jamais dans `pill` : le pill a `clip: true`
+  et le tooltip doit justement s'échapper de la capsule. Deux instances : une dans `stage`, une
+  dans `bannerWindow` (surface séparée) — `TooltipManager` garantit qu'une seule est visible.
+- `mine` compare `anchorItem.Window.window` à celui de l'overlay : sans ça, `mapFromItem()`
+  renverrait des coordonnées fausses pour un bouton d'un AUTRE écran (2 îles = 2 overlays).
+- `TooltipManager.reset()` est appelé sur `onModeChanged` / `onPanelViewChanged` / `closeIsland()` :
+  sinon la capsule poursuit un bouton qui a bougé ou n'existe plus.
+- `DankActionButton` (Tailscale, Activities) : ne PAS mettre `tooltipText` (ça rallume son
+  `DankTooltipV2` d'origine) — brancher `onEntered`/`onExited` sur un `DankTip`, sinon l'île
+  affiche deux styles de tooltip.
+- Les blocs de mode `chip`/`compact` n'ont pas de tooltip : le survol du pill morphe en
+  `idle`/`media` en 130 ms, bien avant le dwell de 420 ms (et `onModeChanged` reset).
+
+**Vérif** : `qmlformat` sur les 23 fichiers + harnais `qs -p` isolé instanciant les 19 panels,
+6 panes et le ControlCenterPanel avec un stub `island` → aucune erreur QML. (Le seul warning
+« interceptor on StyledText color » est préexistant : `ControlCenterPanel.qml:267`.)
 
 ## Backlog restant (priorité basse)
 

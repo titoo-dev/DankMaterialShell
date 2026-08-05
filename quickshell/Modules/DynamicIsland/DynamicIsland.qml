@@ -58,6 +58,15 @@ Scope {
     }
     // iOS colour language: orange = capture/warning, green = camera, red = battery
     readonly property color satColor: satKind === "cam" ? Theme.success : (satKind === "battery" ? Theme.error : Theme.warning)
+    // the bubble is a bare glyph — spell out what it is watching on hover
+    readonly property string satLabel: {
+        if (satKind === "screenshare") return I18n.tr("Screen sharing")
+        if (satKind === "mic") return I18n.tr("Microphone in use")
+        if (satKind === "cam") return I18n.tr("Camera in use")
+        if (satKind === "tailscale") return I18n.tr("Tailscale")
+        if (satKind === "battery") return I18n.tr("Battery") + " " + batPct + "%"
+        return ""
+    }
 
     // focused window (wlr foreign-toplevel; works on Hyprland/niri/sway/...)
     readonly property var activeWin: ToplevelManager.activeToplevel
@@ -291,8 +300,14 @@ Scope {
 
     // which view the expanded panel shows: "controls" hub or a drilled-in detail
     property string panelView: "controls"   // "controls" | "wifi" | "bluetooth" | "audio" | "input" | "notifications" | "calendar" | "monitor" | "wallpaper" | "apps" | "clipboard" | "power" | "mixer" | "privacy" | "shelf" | "tailscale"
-    onModeChanged: if (mode !== "expanded") panelView = "controls"   // reset on close
+    onModeChanged: {
+        if (mode !== "expanded") panelView = "controls"   // reset on close
+        // every button just moved (or ceased to exist): drop any tooltip instead
+        // of letting the capsule chase a control that is no longer under the pointer
+        TooltipManager.reset()
+    }
     onPanelViewChanged: {
+        TooltipManager.reset()
         if (panelView !== "wifi") wifiNeedsKeyboard = false
         // a search field that held focus may just have been unloaded — hand
         // focus back to the Escape catcher, but never steal it from a field
@@ -348,7 +363,7 @@ Scope {
     // fully collapse the island from a panel action (lock/power/settings) and
     // from Escape: drop the pin and force a rest mode even while the pointer is
     // over it (`settle()` would keep the hover state, which is NOT closed).
-    function closeIsland() { panelView = "controls"; pinned = false; mode = restMode() }
+    function closeIsland() { TooltipManager.reset(); panelView = "controls"; pinned = false; mode = restMode() }
     // never yank the expanded control center (or an active OSD) away just because
     // playback started/stopped — only the rest modes follow the player
     onPlayingChanged: if (!hovered && !pinned && mode !== "presenter" && mode !== "expanded") mode = restMode()
@@ -867,6 +882,9 @@ Scope {
         implicitHeight: 720
         mask: Region { item: notifBanners }
         NotificationBanners { id: notifBanners; island: root }
+        // banners live on their own surface, so they need their own capsule
+        // (the shared TooltipManager still guarantees only one is ever visible)
+        DankTooltipMorph { anchors.fill: parent }
     }
     HyprlandFocusGrab {
         windows: [bannerWindow]
@@ -1105,6 +1123,8 @@ Scope {
                     root.bump()
                 }
             }
+            // below, not beside: the pill is immediately to the bubble's left
+            DankTip { text: root.satLabel; active: satArea.containsMouse }
         }
 
         Rectangle {
@@ -1335,6 +1355,10 @@ Scope {
             }
         }
 
+        // tooltips for every control in the pill. Declared LAST (so it paints
+        // over the panel) and OUTSIDE the pill (which clips its content, and
+        // whose capsule edge the tooltip is supposed to escape).
+        DankTooltipMorph { anchors.fill: parent }
     }
     }
 

@@ -65,6 +65,9 @@ Column {
                     radius: buttonSize / 2
                     iconColor: Theme.surfaceVariantText
                     onClicked: ActivityService.dismiss(modelData.id)
+                    onEntered: actDismissTip.active = true
+                    onExited: actDismissTip.active = false
+                    DankTip { id: actDismissTip; text: I18n.tr("Dismiss"); side: "left" }
                 }
             }
         }

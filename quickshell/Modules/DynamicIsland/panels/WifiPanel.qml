@@ -69,6 +69,13 @@ Column {
             MouseArea {
                 id: refreshArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: if (NetworkService.wifiEnabled) NetworkService.scanWifiNetworks()
+                Accessible.role: Accessible.Button
+                Accessible.name: I18n.tr("Scan for networks")
+                Accessible.onPressAction: clicked(null)
+            }
+            DankTip {
+                text: NetworkService.isScanning ? I18n.tr("Scanning…") : I18n.tr("Scan for networks")
+                active: refreshArea.containsMouse && NetworkService.wifiEnabled
             }
         }
         Rectangle {  // radio on/off pill switch
@@ -82,7 +89,19 @@ Column {
                 x: NetworkService.wifiEnabled ? parent.width - width - 3 : 3
                 Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: NetworkService.toggleWifiRadio() }
+            MouseArea {
+                id: wifiRadioArea
+                anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: NetworkService.toggleWifiRadio()
+                Accessible.role: Accessible.CheckBox
+                Accessible.name: "Wi-Fi"
+                Accessible.checked: NetworkService.wifiEnabled
+                Accessible.onPressAction: clicked(null)
+            }
+            DankTip {
+                text: NetworkService.wifiEnabled ? I18n.tr("Turn off") : I18n.tr("Turn on")
+                active: wifiRadioArea.containsMouse
+            }
         }
     }
 
@@ -225,6 +244,10 @@ Column {
                                     onClicked: pwField.reveal = !pwField.reveal
                                     Accessible.onPressAction: clicked(null)
                                 }
+                                DankTip {
+                                    text: pwField.reveal ? I18n.tr("Hide password") : I18n.tr("Show password")
+                                    active: revealArea.containsMouse
+                                }
                             }
                             Rectangle {
                                 width: 32; height: 30; radius: height / 2
@@ -238,6 +261,7 @@ Column {
                                     onClicked: parent.parent.parent.submit()
                                     Accessible.onPressAction: clicked(null)
                                 }
+                                DankTip { text: I18n.tr("Connect"); active: goArea.containsMouse }
                             }
                         }
                     }

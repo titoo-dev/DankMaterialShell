@@ -90,6 +90,10 @@ Column {
                 Accessible.name: I18n.tr("Refresh")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip {
+                text: BluetoothService.discovering ? I18n.tr("Searching for devices…") : I18n.tr("Refresh")
+                active: btRefreshArea.containsMouse && BluetoothService.enabled
+            }
         }
         Rectangle {  // radio on/off pill switch
             anchors.verticalCenter: parent.verticalCenter
@@ -103,12 +107,17 @@ Column {
                 Behavior on x { NumberAnimation { duration: Theme.shortDuration; easing.type: Theme.emphasizedEasing } }
             }
             MouseArea {
-                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                id: btRadioArea
+                anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { if (BluetoothService.adapter) BluetoothService.adapter.enabled = !BluetoothService.enabled }
                 Accessible.role: Accessible.CheckBox
                 Accessible.name: "Bluetooth"
                 Accessible.checked: BluetoothService.enabled
                 Accessible.onPressAction: clicked(null)
+            }
+            DankTip {
+                text: BluetoothService.enabled ? I18n.tr("Turn off") : I18n.tr("Turn on")
+                active: btRadioArea.containsMouse
             }
         }
     }

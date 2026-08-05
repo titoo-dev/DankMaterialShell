@@ -36,6 +36,7 @@ Item {
             Accessible.name: I18n.tr("Back")
             Accessible.onPressAction: clicked(null)
         }
+        DankTip { text: I18n.tr("Back"); active: backArea.containsMouse }
     }
 
     StyledText {

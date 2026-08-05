@@ -99,6 +99,7 @@ Column {
                     Accessible.name: I18n.tr("Menu")
                     Accessible.onPressAction: clicked(null)
                 }
+                DankTip { text: I18n.tr("Menu"); active: tKebabArea.containsMouse; side: "left" }
             }
             MouseArea {
                 id: tRowArea; anchors.fill: parent; hoverEnabled: true; z: -1

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import Quickshell.Widgets
 import qs.Common
 import qs.Services
@@ -61,6 +60,10 @@ Item {
             Accessible.role: Accessible.Button
             Accessible.name: I18n.tr("Open player")
             Accessible.onPressAction: clicked(null)
+        }
+        DankTip {
+            text: (island.player && island.player.canRaise) ? I18n.tr("Open player") : ""
+            active: artArea.containsMouse
         }
     }
     Column {
@@ -139,9 +142,7 @@ Item {
                 scale: cArea.pressed && en ? 0.86 : (big && cArea.containsMouse ? 1.06 : 1.0)
                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                 DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 22 : 18; color: parent.big ? Theme.primaryText : island.textColor; filled: true }
-                ToolTip.visible: cArea.containsMouse && en
-                ToolTip.text: label
-                ToolTip.delay: 400
+                DankTip { text: parent.label; active: cArea.containsMouse && parent.en }
                 MouseArea {
                     id: cArea; anchors.fill: parent; hoverEnabled: true
                     enabled: parent.en; cursorShape: Qt.PointingHandCursor

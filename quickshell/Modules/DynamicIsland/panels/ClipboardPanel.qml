@@ -75,6 +75,7 @@ Column {
                 Accessible.name: I18n.tr("Back")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: I18n.tr("Back"); active: clBackArea.containsMouse }
         }
         DankTextField {
             id: clipSearch
@@ -146,6 +147,7 @@ Column {
                             Accessible.name: I18n.tr("Delete")
                             Accessible.onPressAction: clicked(null)
                         }
+                        DankTip { text: I18n.tr("Delete"); active: clipDelArea.containsMouse }
                     }
                     MouseArea {
                         id: clipRowArea; anchors.fill: parent; hoverEnabled: true; z: -1; cursorShape: Qt.PointingHandCursor

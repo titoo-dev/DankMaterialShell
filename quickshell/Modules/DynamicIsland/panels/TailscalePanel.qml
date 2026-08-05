@@ -47,6 +47,11 @@ Column {
             iconSize: 20
             iconColor: tsCol.island.textColor
             onClicked: tsCol.island.panelView = "controls"
+            // island buttons speak through the shared morphing capsule, not the
+            // per-button DankTooltipV2 popup DankActionButton ships with
+            onEntered: tsBackTip.active = true
+            onExited: tsBackTip.active = false
+            DankTip { id: tsBackTip; text: I18n.tr("Back") }
         }
         DankIcon {
             name: "device_hub"
@@ -67,8 +72,10 @@ Column {
             radius: buttonSize / 2
             iconSize: 16
             iconColor: Theme.surfaceVariantText
-            tooltipText: I18n.tr("Refresh")
             onClicked: { TailscaleService.refresh(null); TailscaleService.refreshExitInfo(); TailscaleService.pingMyOnline() }
+            onEntered: tsRefreshTip.active = true
+            onExited: tsRefreshTip.active = false
+            DankTip { id: tsRefreshTip; text: I18n.tr("Refresh") }
         }
     }
 
@@ -372,8 +379,10 @@ Column {
                             radius: buttonSize / 2
                             iconSize: 13
                             iconColor: modelData.hostname === SettingsData.taildropDefaultPeer ? Theme.primary : Theme.surfaceVariantText
-                            tooltipText: I18n.tr("Default Taildrop device")
                             onClicked: SettingsData.set("taildropDefaultPeer", SettingsData.taildropDefaultPeer === modelData.hostname ? "" : modelData.hostname)
+                            onEntered: tsStarTip.active = true
+                            onExited: tsStarTip.active = false
+                            DankTip { id: tsStarTip; text: I18n.tr("Default Taildrop device"); side: "left" }
                         }
                         DankActionButton {
                             iconName: "content_copy"
@@ -381,8 +390,10 @@ Column {
                             radius: buttonSize / 2
                             iconSize: 11
                             iconColor: Theme.surfaceVariantText
-                            tooltipText: I18n.tr("Copy")
                             onClicked: Quickshell.execDetached(["dms", "cl", "copy", modelData.tailscaleIp])
+                            onEntered: tsCopyTip.active = true
+                            onExited: tsCopyTip.active = false
+                            DankTip { id: tsCopyTip; text: I18n.tr("Copy IP"); side: "left" }
                         }
                     }
 

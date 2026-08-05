@@ -43,6 +43,7 @@ Item {
     }
     onVisibleChanged: if (visible && !island.reduceMotion) glyphIn.restart()
     MouseArea {  // volume OSD: the icon is a mute toggle
+        id: pMuteArea
         anchors.fill: pIcon; anchors.margins: -6
         visible: island.presenterKind === "volume"
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -54,6 +55,7 @@ Item {
         Accessible.name: I18n.tr("Mute")
         Accessible.checked: island.muted
         Accessible.onPressAction: clicked(null)
+        DankTip { text: island.muted ? I18n.tr("Unmute") : I18n.tr("Mute"); active: pMuteArea.containsMouse }
     }
     // thin capsule level bar, draggable to set the level directly
     Item {

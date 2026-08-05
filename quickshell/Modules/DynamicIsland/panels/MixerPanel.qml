@@ -87,6 +87,10 @@ Column {
                             Accessible.checked: mxMute.parent.muted
                             Accessible.onPressAction: clicked(null)
                         }
+                        DankTip {
+                            text: mxMute.parent.muted ? I18n.tr("Unmute") : I18n.tr("Mute")
+                            active: mxMuteArea.containsMouse
+                        }
                     }
                     CapsuleSlider {
                         anchors.left: parent.left; anchors.right: parent.right

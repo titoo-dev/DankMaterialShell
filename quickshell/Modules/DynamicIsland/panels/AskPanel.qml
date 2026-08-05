@@ -76,6 +76,7 @@ Column {
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "arrow_upward"; size: 18; color: Theme.primaryText }
             MouseArea { id: askSendArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: AskService.ask(askField.text) }
+            DankTip { text: I18n.tr("Send"); active: askSendArea.containsMouse }
         }
     }
 

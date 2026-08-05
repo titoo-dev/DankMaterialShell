@@ -278,7 +278,9 @@ et toutes les branches `"notif"`.
 - Chaînes en dur : « Unknown » (CC:209, MediaPane:55), en-têtes `["Mo","Tu",…]` anglais +
   lundi forcé (→ `Qt.locale()`), « now »/« m ago » (NotificationService), « Tap to pair » sur
   desktop, unités KB=KiB.
-- `ToolTip` QtQuick.Controls brut (style Basic hors charte) au lieu de `DankTooltip`.
+- ~~`ToolTip` QtQuick.Controls brut (style Basic hors charte) au lieu de `DankTooltip`.~~
+  **Corrigé 2026-08-05** : capsule morphée unique (`TooltipManager` + `DankTooltipMorph` +
+  `DankTip`), 49 tooltips couvrant tous les boutons-icônes. Cf. handoff « Tooltips morphés macOS ».
 - Springs/durées en dur ignorant `SettingsData.animationSpeed` (reduced-motion impossible).
 - Mic et caméra même couleur (`Theme.error`) — iOS différencie orange/vert.
 - Tailles d'icônes hardcodées non scalées par `fontScale`.
@@ -357,7 +359,7 @@ Ce qui manque par surface pour être « au niveau », puis « au-dessus » :
     dédié avec aperçu live + doc keybinds.
 
 ### Quick wins (< 30 min chacun, n'importe quand)
-`Theme.getBatteryIcon` partout · `DankTooltip` au lieu de ToolTip Basic · `I18n.tr("Unknown")` ·
+`Theme.getBatteryIcon` partout · ~~`DankTooltip` au lieu de ToolTip Basic~~ (fait 2026-08-05) · `I18n.tr("Unknown")` ·
 en-têtes calendrier via `Qt.locale()` · init calendrier `new Date()` · clear `pwField` au repli ·
 « Muted » au lieu de 0 % · mic orange / caméra verte · `island?.` ou `required property` sur
 panes/panels · clic clock idle → calendar drill · masquer trackBar si `mediaLen <= 0` ·

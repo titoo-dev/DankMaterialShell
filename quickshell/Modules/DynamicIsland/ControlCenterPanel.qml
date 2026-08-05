@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import Quickshell
 import Quickshell.Widgets
 import qs.Common
@@ -98,11 +97,12 @@ import "panels"
                                         font.pixelSize: Theme.fontSizeSmall; font.bold: true
                                     }
                                 }
-                                ToolTip.visible: batArea.containsMouse
-                                ToolTip.delay: 400
-                                ToolTip.text: {
-                                    const t = BatteryService.formatTimeRemaining()
-                                    return BatteryService.batteryStatus + (t !== "Unknown" ? " · " + t : "")
+                                DankTip {
+                                    active: batArea.containsMouse
+                                    text: {
+                                        const t = BatteryService.formatTimeRemaining()
+                                        return BatteryService.batteryStatus + (t !== "Unknown" ? " · " + t : "")
+                                    }
                                 }
                                 MouseArea {
                                     id: batArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -135,7 +135,7 @@ import "panels"
                                         color: orbArea.containsMouse ? (danger ? Theme.error : island.accent) : island.textColor
                                         Behavior on color { ColorAnimation { duration: Theme.shortDuration } }
                                     }
-                                    ToolTip.visible: orbArea.containsMouse; ToolTip.text: modelData.tip; ToolTip.delay: 400
+                                    DankTip { text: modelData.tip; active: orbArea.containsMouse }
                                     MouseArea {
                                         id: orbArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: {
@@ -252,9 +252,12 @@ import "panels"
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: if (!tile.busy) tile.toggle()
-                                            ToolTip.visible: containsMouse && tile.drills
-                                            ToolTip.text: tile.on ? I18n.tr("Turn off") : I18n.tr("Turn on")
-                                            ToolTip.delay: 500
+                                            DankTip {
+                                                target: disc
+                                                // the disc is the radio switch; the tile body drills in
+                                                text: tile.drills ? (tile.on ? I18n.tr("Turn off") : I18n.tr("Turn on")) : ""
+                                                active: discArea.containsMouse
+                                            }
                                             Accessible.role: Accessible.CheckBox
                                             Accessible.name: I18n.tr("Toggle") + " " + tile.lbl
                                             Accessible.checked: tile.on
@@ -316,7 +319,7 @@ import "panels"
                                 scale: audBtnArea.pressed ? 0.9 : 1.0
                                 Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                                 DankIcon { anchors.centerIn: parent; name: modelData.icon; size: 17; color: audBtnArea.containsMouse ? island.accent : island.textColor }
-                                ToolTip.visible: audBtnArea.containsMouse; ToolTip.text: modelData.tip; ToolTip.delay: 400
+                                DankTip { text: modelData.tip; active: audBtnArea.containsMouse }
                                 MouseArea {
                                     id: audBtnArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: island.panelView = modelData.view
@@ -364,6 +367,8 @@ import "panels"
                                                              : !!(island.player && island.player.canGoNext)
                                     readonly property string glyph: modelData === "play" ? (island.playing ? "pause" : "play_arrow")
                                                                   : modelData === "prev" ? "skip_previous" : "skip_next"
+                                    readonly property string label: modelData === "play" ? (island.playing ? I18n.tr("Pause") : I18n.tr("Play"))
+                                                                  : modelData === "prev" ? I18n.tr("Previous") : I18n.tr("Next")
                                     function act() {
                                         if (!island.player) return
                                         if (modelData === "play") island.player.togglePlaying()
@@ -378,12 +383,12 @@ import "panels"
                                     scale: ccBtn.pressed && en ? 0.86 : 1.0
                                     Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                                     DankIcon { anchors.centerIn: parent; name: parent.glyph; size: parent.big ? 20 : 16; filled: true; color: parent.big ? Theme.primaryText : island.textColor }
+                                    DankTip { text: parent.label; active: ccBtn.containsMouse && parent.en }
                                     MouseArea {
                                         id: ccBtn; anchors.fill: parent; hoverEnabled: true; enabled: parent.en; cursorShape: Qt.PointingHandCursor
                                         onClicked: parent.act()
                                         Accessible.role: Accessible.Button
-                                        Accessible.name: modelData === "play" ? (island.playing ? I18n.tr("Pause") : I18n.tr("Play"))
-                                                       : modelData === "prev" ? I18n.tr("Previous") : I18n.tr("Next")
+                                        Accessible.name: parent.label
                                         Accessible.onPressAction: parent.act()
                                     }
                                 }
@@ -417,7 +422,7 @@ import "panels"
                                     scale: ftArea.pressed ? 0.9 : 1.0
                                     Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
                                     DankIcon { anchors.centerIn: parent; name: modelData.icon; size: 19; color: ftArea.containsMouse ? island.accent : island.subText }
-                                    ToolTip.visible: ftArea.containsMouse; ToolTip.text: modelData.tip; ToolTip.delay: 400
+                                    DankTip { text: modelData.tip; active: ftArea.containsMouse }
                                     MouseArea {
                                         id: ftArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         // every footer surface is an island-native drill view now

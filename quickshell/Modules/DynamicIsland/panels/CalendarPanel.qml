@@ -91,6 +91,7 @@ Column {
                 Accessible.name: I18n.tr("Previous month")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: I18n.tr("Previous month"); active: prevArea.containsMouse }
         }
         StyledText {
             anchors.centerIn: parent
@@ -113,6 +114,7 @@ Column {
                 Accessible.name: I18n.tr("Next month")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: I18n.tr("Next month"); active: nextArea.containsMouse }
         }
     }
 

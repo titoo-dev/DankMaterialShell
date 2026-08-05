@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import Quickshell.Widgets
 import qs.Common
 import qs.Services
@@ -53,6 +52,7 @@ Column {
                 Accessible.name: I18n.tr("Back")
                 Accessible.onPressAction: clicked(null)
             }
+            DankTip { text: I18n.tr("Back"); active: shBackArea.containsMouse }
         }
         Column {
             anchors.left: shBack.right; anchors.leftMargin: Theme.spacingS
@@ -71,7 +71,7 @@ Column {
             scale: shClearArea.pressed ? 0.9 : 1.0
             Behavior on scale { SpringAnimation { spring: 7; damping: 0.3 } }
             DankIcon { anchors.centerIn: parent; name: "delete_sweep"; size: 18; color: shClearArea.containsMouse ? Theme.error : island.subText }
-            ToolTip.visible: shClearArea.containsMouse; ToolTip.text: I18n.tr("Clear shelf"); ToolTip.delay: 400
+            DankTip { text: I18n.tr("Clear shelf"); active: shClearArea.containsMouse }
             MouseArea {
                 id: shClearArea; anchors.fill: parent; anchors.margins: -6
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -204,7 +204,7 @@ Column {
                             width: 26; height: 26; radius: 13
                             color: shCopyArea.containsMouse ? Theme.primaryHover : "transparent"
                             DankIcon { anchors.centerIn: parent; name: "content_copy"; size: 14; color: shCopyArea.containsMouse ? island.accent : island.subText }
-                            ToolTip.visible: shCopyArea.containsMouse; ToolTip.text: I18n.tr("Copy"); ToolTip.delay: 400
+                            DankTip { text: I18n.tr("Copy"); active: shCopyArea.containsMouse }
                             MouseArea {
                                 // vertical-only growth: the remove button is 2 px away horizontally
                                 id: shCopyArea; anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
@@ -219,7 +219,7 @@ Column {
                             width: 26; height: 26; radius: 13
                             color: shDelArea.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.18) : "transparent"
                             DankIcon { anchors.centerIn: parent; name: "close"; size: 15; color: shDelArea.containsMouse ? Theme.error : island.subText }
-                            ToolTip.visible: shDelArea.containsMouse; ToolTip.text: I18n.tr("Remove"); ToolTip.delay: 400
+                            DankTip { text: I18n.tr("Remove"); active: shDelArea.containsMouse }
                             MouseArea {
                                 // vertical-only growth: the copy button is 2 px away horizontally
                                 id: shDelArea; anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
