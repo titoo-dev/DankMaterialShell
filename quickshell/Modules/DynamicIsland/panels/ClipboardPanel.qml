@@ -52,7 +52,7 @@ Column {
         id: escHandler
         Keys.onUpPressed: clipCol.move(-1)
         Keys.onDownPressed: clipCol.move(1)
-        Keys.onEscapePressed: island.panelView = "controls"
+        Keys.onEscapePressed: island.closeIsland()
     }
 
     // header: back · search field · clear-all

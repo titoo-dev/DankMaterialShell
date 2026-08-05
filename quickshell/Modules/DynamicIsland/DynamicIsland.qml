@@ -345,8 +345,9 @@ Scope {
         if (hovered) { mode = playing ? "media" : "idle"; return }
         mode = restMode()
     }
-    // fully collapse the island from a panel action (lock/power/settings):
-    // drop the pin and force a rest mode even while the pointer is over it.
+    // fully collapse the island from a panel action (lock/power/settings) and
+    // from Escape: drop the pin and force a rest mode even while the pointer is
+    // over it (`settle()` would keep the hover state, which is NOT closed).
     function closeIsland() { panelView = "controls"; pinned = false; mode = restMode() }
     // never yank the expanded control center (or an active OSD) away just because
     // playback started/stopped — only the rest modes follow the player
@@ -653,17 +654,11 @@ Scope {
         }
     }
 
-    // Escape steps back one level: drill view -> hub -> closed (same walk as
-    // the IPC `back`). Wired to the stage-level escCatcher, so it works in the
-    // mouse-only views too, not just the search-driven ones.
-    function escapeBack() {
-        if (mode === "expanded" && panelView !== "controls") {
-            panelView = "controls"
-        } else {
-            pinned = false
-            settle()
-        }
-    }
+    // Escape ALWAYS closes the island (`closeIsland()`), from any view and any
+    // depth: one press, island gone, no intermediate stop at the hub. Wired on
+    // the stage (ancestor of every pane/panel, so unconsumed Escapes land there)
+    // and in each drill panel whose search field consumes keys first.
+    // Stepping back one level stays available as `dms ipc call island back`.
 
     // a pinned-expanded island left on another screen would keep swallowing that
     // screen's input — whenever THIS screen opens, everyone else folds
@@ -926,14 +921,19 @@ Scope {
         anchors.fill: parent
         readonly property real cx: width / 2
 
-        // universal Escape: with the keyboard grab held for every expanded
-        // view, a bare Escape must always land somewhere — this catcher takes
-        // focus whenever no drill search field claims it (those fields have
-        // their own Escape handlers and win while focused)
+        // universal Escape, last resort: unhandled key events bubble up the
+        // PARENT chain of whatever holds focus, and the stage is an ancestor of
+        // every pane and drill panel — so a text field that doesn't consume
+        // Escape itself (Wi-Fi password, Ask prompt, Tailscale filter) still
+        // ends up closing the island here.
+        Keys.onEscapePressed: root.closeIsland()
+
+        // ... and when NO field claims focus (the mouse-only views), this
+        // catcher holds it so the key event has somewhere to start from
         Item {
             id: escCatcher
             focus: true
-            Keys.onEscapePressed: root.escapeBack()
+            Keys.onEscapePressed: root.closeIsland()
         }
 
         // island body: fill + coloured outline (no elevation shadow). State

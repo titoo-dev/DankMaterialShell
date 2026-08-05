@@ -205,7 +205,7 @@ Column {
             Keys.onDownPressed: wpCol.move(0, 1)
             Keys.onReturnPressed: wpCol.applySel()
             Keys.onEnterPressed: wpCol.applySel()
-            Keys.onEscapePressed: island.panelView = "controls"
+            Keys.onEscapePressed: island.closeIsland()
             Keys.onPressed: event => {
                 switch (event.key) {
                 case Qt.Key_H: wpCol.move(-1, 0); event.accepted = true; break

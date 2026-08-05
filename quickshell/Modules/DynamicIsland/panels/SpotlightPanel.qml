@@ -169,7 +169,7 @@ Column {
         id: navHandler
         Keys.onUpPressed: appCol.move(-1)
         Keys.onDownPressed: appCol.move(1)
-        Keys.onEscapePressed: island.panelView = "controls"
+        Keys.onEscapePressed: island.closeIsland()
     }
 
     // header: back · search field

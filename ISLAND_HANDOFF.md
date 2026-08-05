@@ -188,6 +188,17 @@ IPC dispo (`IslandHub.qml`, target `island`) :
   Pour `apps`/`clipboard` le grab clavier Exclusive s'engage SANS clic (vérifié : ouverture par IPC
   puis `wtype "fire"` filtre sur Firefox).
 
+**Échap (2026-07-26)** : une seule pression **ferme l'île**, depuis n'importe quelle vue et
+n'importe quelle profondeur (`closeIsland()` : unpin + `panelView="controls"` + `mode = restMode()`
+— `settle()` ne suffit pas, il garde l'état hover quand le curseur est sur l'île). Câblé
+(a) sur `stage`, ancêtre de tous les panes/panels : un Échap non consommé par un champ (mdp Wi-Fi,
+prompt Ask, filtre Tailscale) remonte jusque-là ; (b) sur `escCatcher` (vues souris, personne
+d'autre n'a le focus) ; (c) dans les panels dont le champ de recherche consomme les touches
+(Spotlight, Clipboard, Wallpaper, réponse inline Notifications) qui appellent `island.closeIsland()`.
+Le pas-à-pas drill → hub → fermé reste dispo en IPC : `dms ipc call island back`.
+Vérifié par grab : île ouverte = `wtype` n'atteint pas le terminal témoin ; après UN Échap, oui
+(clipboard, wifi, controls, ask, tailscale, wallpaper, notifications).
+
 Binds Hyprland — **CÂBLÉS (2026-06-03)** dans `~/.config/hypr/hyprland.lua` (config active depuis
 Hyprland 0.55 ; `hyprland.conf` n'est plus chargé). Bloc « Dynamic Island control » après les binds
 Spotlight (`SUPER+R`). `SUPER+ALT` = namespace dédié sans conflit pour ouvrir

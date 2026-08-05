@@ -27,6 +27,8 @@
 > - **Échap universel** : grab clavier étendu à TOUTE vue expanded (l'île est déjà modale via
 >   le scrim) + catcher d'Échap au niveau du stage → drill → hub → fermé, partout. `_kbViews`
 >   supprimé (les champs de recherche gardent la priorité de focus).
+>   *(2026-07-26 : Échap ne fait plus l'escalier — il **ferme l'île d'un coup** depuis
+>   n'importe quelle vue, via `closeIsland()`. Le pas-à-pas reste sur `ipc call island back`.)*
 > - **DrillHeader.qml partagé** (back 44 px + titre + slot trailing, a11y intégrée) — 11 panels
 >   migrés ; Spotlight/Emoji/Clipboard (header champ de recherche), Shelf (titre empilé) et
 >   Tailscale (icône de statut) gardent leur header spécifique, volontairement.

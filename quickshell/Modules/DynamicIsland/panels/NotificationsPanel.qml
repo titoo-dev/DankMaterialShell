@@ -204,7 +204,10 @@ Column {
                         }
                         Item {
                             id: nReplyEsc
-                            Keys.onEscapePressed: notifCol.replyTarget = null
+                            // same rule as everywhere else in the island: Escape
+                            // closes it (the panel is unloaded, so the pending
+                            // reply goes with it)
+                            Keys.onEscapePressed: island.closeIsland()
                         }
                         DankTextField {
                             id: nReplyField
