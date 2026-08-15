@@ -28,6 +28,15 @@ Singleton {
         });
         return isConnected;
     }
+    readonly property var connectedDevices: {
+        if (!adapter || !adapter.devices) {
+            return [];
+        }
+
+        return adapter.devices.values.filter(dev => {
+            return dev && dev.connected;
+        });
+    }
     readonly property bool connecting: {
         if (!adapter || !adapter.devices) {
             return false;

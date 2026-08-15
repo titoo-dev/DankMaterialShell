@@ -232,7 +232,9 @@ Scope {
 
     // avoid presenter flashes during startup
     property bool ready: false
-    Timer { running: true; interval: 1500; onTriggered: { root.ready = true; root._updateFullscreen() } }
+    // devices already paired-and-connected at login are the status quo, not an
+    // event: absorb them so the first settle doesn't splash the whole set
+    Timer { running: true; interval: 1500; onTriggered: { root.ready = true; root._updateFullscreen(); root._btAnnounced = root._btConnected } }
 
     // real audio spectrum: hold a ref on CavaService while a visual shows
     Loader {
@@ -467,9 +469,17 @@ Scope {
         }
         if (mode === "presenter" && presenterKind === "splash" && splashTimer.running) {
             if (a.priority >= 2) { _showActivity(a); return }
-            const q = _activities
+            // a repeat of what is already on screen (or already waiting) is not
+            // news — dropping it is what stops a chatty producer from queueing
+            // faster than the queue drains and wedging the island for good
+            if (splashIcon === a.icon && splashLabel === a.label) return
+            const q = _activities.slice()
+            if (q.some(x => x.icon === a.icon && x.label === a.label)) return
             q.push(a)
             q.sort((x, y) => y.priority - x.priority)
+            // hard cap: the island is glanceable, not a log. Anything behind a
+            // 4-deep backlog is stale by the time it would get its turn.
+            if (q.length > 4) q.length = 4
             _activities = q
             return
         }
@@ -489,7 +499,7 @@ Scope {
         interval: 2600
         onTriggered: {
             if (root._activities.length > 0) {
-                const q = root._activities
+                const q = root._activities.slice()
                 const next = q.shift()
                 root._activities = q
                 root._showActivity(next)
@@ -499,19 +509,40 @@ Scope {
         }
     }
 
-    // Live-Activity splash when a Bluetooth device connects
-    property bool btConnected: BluetoothService.connected
-    function connectedBtName() {
-        const ds = BluetoothService.devices
-        const arr = ds ? (ds.values ?? ds) : []
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i] && arr[i].connected) return arr[i].name || arr[i].deviceName || I18n.tr("Device")
+    // ---- Live-Activity splash when a Bluetooth device connects ----
+    // Announced PER DEVICE and only once the link has held still for a beat.
+    // The old watcher splashed on every rising edge of the aggregate
+    // "something is connected" bool, so a device stuck in a reconnect loop
+    // (BLE-MIDI gadgets whose profile fails re-link ~1x/s) queued splashes
+    // three times faster than the 2.6 s queue drained them — the island pinned
+    // itself on that device's name and never came back to rest.
+    property var _btAnnounced: ({})   // address -> name, for the devices already announced
+    readonly property var _btConnected: {
+        const m = {}
+        const ds = BluetoothService.connectedDevices
+        for (var i = 0; i < ds.length; i++) {
+            const a = ds[i] ? ds[i].address : ""
+            if (a) m[a] = ds[i].name || ds[i].deviceName || I18n.tr("Device")
         }
-        return I18n.tr("Device")
+        return m
     }
-    onBtConnectedChanged: {
-        if (btConnected && ready)
-            showSplash("bluetooth_connected", connectedBtName())
+    // a plain string signals only on a REAL membership change, unlike the object
+    // binding above (which re-evaluates on every device-list churn during a scan)
+    readonly property string _btKey: Object.keys(_btConnected).sort().join(",")
+    on_BtKeyChanged: btSettleTimer.restart()
+    Timer {
+        id: btSettleTimer
+        interval: 1500   // a flapping link keeps restarting this and never announces
+        onTriggered: {
+            const cur = root._btConnected
+            for (var a in cur) {
+                if (!root._btAnnounced[a] && root.ready)
+                    root.pushActivity("bluetooth_connected", cur[a])
+            }
+            // devices that dropped fall out of the map, so a genuine
+            // reconnect later is news again
+            root._btAnnounced = cur
+        }
     }
 
     Connections {
